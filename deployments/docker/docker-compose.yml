@@ -1,0 +1,91 @@
+version: "3.9"
+
+services:
+  # ── Storage ────────────────────────────────────────────────────────
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.4-alpine
+    ports:
+      - "9000:9000"   # native protocol
+      - "8123:8123"   # HTTP interface (disable in prod)
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    environment:
+      CLICKHOUSE_DB: observability
+      CLICKHOUSE_USER: obs
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:v1.99.0
+    ports:
+      - "8428:8428"
+    volumes:
+      - vm_data:/storage
+    command:
+      - -storageDataPath=/storage
+      - -retentionPeriod=12
+
+  tempo:
+    image: grafana/tempo:2.4.1
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml
+      - tempo_data:/var/tempo
+
+  nats:
+    image: nats:2.10-alpine
+    command: ["--jetstream", "--store_dir=/data"]
+    ports:
+      - "4222:4222"
+    volumes:
+      - nats_data:/data
+
+  # ── Application ────────────────────────────────────────────────────
+  gateway:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile
+      args:
+        BINARY: gateway
+    ports:
+      - "4317:4317"   # gRPC ingestion (mTLS)
+    environment:
+      GATEWAY_ADDR: ":4317"
+      NATS_URL: "nats://nats:4222"
+      TLS_CERT: /etc/certs/server.crt
+      TLS_KEY: /etc/certs/server.key
+      TLS_CA: /etc/certs/ca.crt
+    volumes:
+      - ../../certs:/etc/certs:ro
+    depends_on: [nats]
+
+  collector:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile
+      args:
+        BINARY: collector
+    environment:
+      NATS_URL: "nats://nats:4222"
+      CLICKHOUSE_DSN: "clickhouse://obs:${CLICKHOUSE_PASSWORD}@clickhouse:9000/observability"
+      VICTORIAMETRICS_URL: "http://victoriametrics:8428"
+      TEMPO_ENDPOINT: "http://tempo:4317"
+    depends_on: [nats, clickhouse, victoriametrics, tempo]
+
+  ui:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile
+      args:
+        BINARY: ui
+    ports:
+      - "8080:8080"
+    environment:
+      LISTEN_ADDR: ":8080"
+      CLICKHOUSE_DSN: "clickhouse://obs:${CLICKHOUSE_PASSWORD}@clickhouse:9000/observability"
+    depends_on: [clickhouse]
+
+volumes:
+  clickhouse_data:
+  vm_data:
+  tempo_data:
+  nats_data:

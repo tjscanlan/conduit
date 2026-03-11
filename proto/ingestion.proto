@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package observability.v1;
+
+option go_package = "github.com/your-org/agent-observability/proto";
+
+import "span.proto";
+import "metric.proto";
+import "log.proto";
+
+// IngestionService is the gateway's inbound API.
+// All RPCs require mTLS — agent identity comes from the client certificate.
+service IngestionService {
+  // IngestSpan submits a single span. Used for real-time streaming from agents.
+  rpc IngestSpan(IngestSpanRequest) returns (IngestSpanResponse);
+
+  // IngestBatch submits a batch of spans, metrics, and logs atomically.
+  rpc IngestBatch(IngestBatchRequest) returns (IngestBatchResponse);
+}
+
+message IngestSpanRequest {
+  Span span = 1;
+}
+
+message IngestSpanResponse {
+  bool accepted = 1;
+  string rejection_reason = 2; // set if accepted=false
+}
+
+message IngestBatchRequest {
+  repeated Span   spans   = 1;
+  repeated Metric metrics = 2;
+  repeated LogRecord logs = 3;
+}
+
+message IngestBatchResponse {
+  int32 spans_accepted   = 1;
+  int32 metrics_accepted = 2;
+  int32 logs_accepted    = 3;
+  repeated string errors = 4;
+}

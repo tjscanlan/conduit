@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package observability.v1;
+
+option go_package = "github.com/your-org/agent-observability/proto";
+
+import "google/protobuf/timestamp.proto";
+
+// Span represents a single unit of work in an agent execution trace.
+message Span {
+  string trace_id  = 1;
+  string span_id   = 2;
+  string parent_id = 3; // empty if root span
+  string name      = 4;
+
+  google.protobuf.Timestamp start_time = 5;
+  google.protobuf.Timestamp end_time   = 6;
+
+  SpanStatus status = 7;
+
+  map<string, string> attributes = 8;
+
+  // Optional — set only for LLM call spans
+  LLMCallData llm_call = 9;
+}
+
+enum SpanStatus {
+  SPAN_STATUS_UNSET = 0;
+  SPAN_STATUS_OK    = 1;
+  SPAN_STATUS_ERROR = 2;
+}
+
+// LLMCallData captures the full context of a single inference call.
+// Stored separately from span metadata to allow payload-level access control.
+message LLMCallData {
+  string model       = 1;
+  string prompt      = 2;
+  string completion  = 3;
+  int32  input_tokens  = 4;
+  int32  output_tokens = 5;
+  double cost_usd    = 6;
+}
