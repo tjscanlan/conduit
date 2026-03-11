@@ -1,0 +1,81 @@
+# ============================================================
+# Conduit — Agent Observability Platform
+# ============================================================
+
+# ── Compiled Binaries ────────────────────────────────────────
+bin/
+gateway
+collector
+ui
+*.exe
+*.out
+*.test
+
+# ── Certificates & Keys (NEVER commit private key material) ──
+certs/*.key
+certs/*.pem
+certs/*.csr
+certs/*.srl
+certs/*.p12
+certs/*.pfx
+# Allow committing CA cert and example public certs
+!certs/ca.crt
+!certs/*.crt
+
+# ── Go ───────────────────────────────────────────────────────
+vendor/
+coverage.out
+coverage.html
+*.prof
+go.sum.bak
+
+# ── Python SDK ───────────────────────────────────────────────
+sdk/python/__pycache__/
+sdk/python/*.pyc
+sdk/python/*.pyo
+sdk/python/.venv/
+sdk/python/dist/
+sdk/python/*.egg-info/
+sdk/python/.pytest_cache/
+sdk/python/.mypy_cache/
+sdk/python/.ruff_cache/
+
+# ── Protobuf generated files ─────────────────────────────────
+# Keep .proto sources; ignore generated Go/Python output
+proto/gen/
+**/*.pb.go
+**/*_pb2.py
+**/*_pb2_grpc.py
+**/*_pb2.pyi
+
+# ── Local environment ────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.secret
+
+# ── Docker & Compose ─────────────────────────────────────────
+deployments/docker/.env
+# Keep compose file and Dockerfile tracked
+!deployments/docker/docker-compose.yml
+!deployments/docker/Dockerfile
+
+# ── ClickHouse local data ────────────────────────────────────
+deployments/local/clickhouse/
+deployments/local/nats/
+deployments/local/tempo/
+deployments/local/victoriametrics/
+
+# ── IDE & Editor ─────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Test artifacts ───────────────────────────────────────────
+testdata/generated/
+*.log
+*.tmp
