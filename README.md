@@ -1,7 +1,7 @@
-# Agent Observability Platform
+# Conduit
 
-A secure, runtime-safe observability component for AI agent platforms.
-Built with Go, no npm, no JVM, no supply chain surprises.
+*A secure, runtime-safe observability component for AI agent platforms.
+Built with Go, no npm, no JVM, no supply chain surprises.*
 
 ## Architecture
 
