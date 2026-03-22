@@ -1,0 +1,33 @@
+{{define "logs"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Conduit — Logs</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="/static/js/htmx.min.js" defer></script>
+</head>
+<body>
+{{template "nav" .}}
+<main>
+  <h1>Logs</h1>
+  <p class="muted">Log storage via ClickHouse is not yet wired — ingest logs through the
+     <code>IngestBatch</code> RPC and they will appear here.</p>
+  <div id="log-stream"
+       hx-get="/logs"
+       hx-trigger="every 5s"
+       hx-swap="innerHTML"
+       hx-select="#log-stream">
+    <table class="data-table">
+      <thead>
+        <tr><th>Time</th><th>Severity</th><th>Trace</th><th>Message</th></tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="4" class="empty">No log records yet.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+</body>
+</html>
+{{end}}

@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package observability.v1;
+
+option go_package = "github.com/your-org/agent-observability/proto";
+
+import "google/protobuf/timestamp.proto";
+
+message Metric {
+  string name                      = 1;
+  map<string, string> labels       = 2;
+  double value                     = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  MetricType type                  = 5;
+}
+
+enum MetricType {
+  METRIC_TYPE_UNSPECIFIED = 0;
+  METRIC_TYPE_GAUGE       = 1;
+  METRIC_TYPE_COUNTER     = 2;
+}

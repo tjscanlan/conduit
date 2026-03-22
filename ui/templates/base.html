@@ -1,0 +1,8 @@
+{{define "nav"}}
+<nav>
+  <a class="logo" href="/traces">conduit</a>
+  <a href="/traces" {{if eq .Page "traces"}}class="active"{{end}}>Traces</a>
+  <a href="/logs"   {{if eq .Page "logs"}}class="active"{{end}}>Logs</a>
+  <a href="/metrics"{{if eq .Page "metrics"}}class="active"{{end}}>Metrics</a>
+</nav>
+{{end}}

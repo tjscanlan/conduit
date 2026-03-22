@@ -1,0 +1,26 @@
+{{define "metrics"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Conduit — Metrics</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="/static/js/htmx.min.js" defer></script>
+  <script src="/static/js/metrics.js" defer></script>
+</head>
+<body>
+{{template "nav" .}}
+<main>
+  <h1>Metrics</h1>
+  <p class="muted">Metrics are written to VictoriaMetrics by the collector.
+     Query via <a href="http://localhost:8428" target="_blank">VictoriaMetrics UI</a>
+     or use Grafana pointed at <code>http://victoriametrics:8428</code>.</p>
+
+  <section>
+    <h2>Span duration (last 100 spans)</h2>
+    <canvas id="duration-chart" width="900" height="200"></canvas>
+  </section>
+</main>
+</body>
+</html>
+{{end}}

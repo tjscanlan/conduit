@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: conduit
+spec:
+  selector:
+    app: gateway
+  # ClusterIP — agents inside the cluster connect directly over mTLS.
+  # Expose via LoadBalancer or Ingress if agents run outside the cluster.
+  type: ClusterIP
+  ports:
+    - name: grpc
+      port: 4317
+      targetPort: 4317
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ui
+  namespace: conduit
+spec:
+  selector:
+    app: ui
+  type: LoadBalancer
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080

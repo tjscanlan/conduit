@@ -1,0 +1,55 @@
+{{define "traces"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Conduit — Traces</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="/static/js/htmx.min.js" defer></script>
+  <script src="/static/js/traces.js" defer></script>
+</head>
+<body>
+{{template "nav" .}}
+<main>
+  <h1>Traces</h1>
+  <div id="span-list"
+       hx-get="/traces"
+       hx-trigger="every 10s"
+       hx-swap="innerHTML">
+    {{template "traces-rows" .}}
+  </div>
+</main>
+</body>
+</html>
+{{end}}
+
+{{define "traces-rows"}}
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>Trace ID</th>
+      <th>Agent</th>
+      <th>Span</th>
+      <th>Duration</th>
+      <th>Status</th>
+      <th>Started</th>
+    </tr>
+  </thead>
+  <tbody>
+  {{range .Rows}}
+  <tr class="span-row status-{{.Status}}"
+      data-trace-id="{{.TraceID}}"
+      onclick="window.location='/traces/{{.TraceID}}'">
+    <td class="mono">{{.TraceID}}</td>
+    <td>{{.AgentName}}</td>
+    <td>{{.SpanName}}</td>
+    <td>{{.DurationMs}}ms</td>
+    <td><span class="badge badge-{{.Status}}">{{.Status}}</span></td>
+    <td class="mono">{{.StartTime.Format "15:04:05.000"}}</td>
+  </tr>
+  {{else}}
+  <tr><td colspan="6" class="empty">No spans yet — run seed-clickhouse.sh or emit a span.</td></tr>
+  {{end}}
+  </tbody>
+</table>
+{{end}}

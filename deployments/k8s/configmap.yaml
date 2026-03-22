@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: conduit-config
+  namespace: conduit
+data:
+  GATEWAY_ADDR:        ":4317"
+  NATS_URL:            "nats://nats:4222"
+  VICTORIAMETRICS_URL: "http://victoriametrics:8428"
+  TEMPO_ENDPOINT:      "http://tempo:4317"
+  LISTEN_ADDR:         ":8080"
+  TLS_CERT:            "/etc/certs/server.crt"
+  TLS_KEY:             "/etc/certs/server.key"
+  TLS_CA:              "/etc/certs/ca.crt"

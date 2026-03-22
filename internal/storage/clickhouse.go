@@ -114,6 +114,33 @@ func (s *ClickHouseStore) InsertSpan(ctx context.Context, row SpanRow) error {
 	)
 }
 
+// QueryRecentSpans returns the most recent spans across all traces, ordered newest first.
+func (s *ClickHouseStore) QueryRecentSpans(ctx context.Context, limit int) ([]SpanRow, error) {
+	rows, err := s.conn.Query(ctx,
+		`SELECT trace_id, span_id, parent_id, agent_name, span_name,
+		        start_time, end_time, duration_ms, status, attributes,
+		        llm_model, llm_input_tokens, llm_output_tokens, llm_cost_usd
+		 FROM spans ORDER BY start_time DESC LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []SpanRow
+	for rows.Next() {
+		var r SpanRow
+		if err := rows.Scan(
+			&r.TraceID, &r.SpanID, &r.ParentID, &r.AgentName, &r.SpanName,
+			&r.StartTime, &r.EndTime, &r.DurationMs, &r.Status, &r.Attributes,
+			&r.LLMModel, &r.LLMInputTokens, &r.LLMOutputTokens, &r.LLMCostUSD,
+		); err != nil {
+			return nil, err
+		}
+		result = append(result, r)
+	}
+	return result, rows.Err()
+}
+
 func (s *ClickHouseStore) QueryTrace(ctx context.Context, traceID string) ([]SpanRow, error) {
 	rows, err := s.conn.Query(ctx,
 		`SELECT trace_id, span_id, parent_id, agent_name, span_name,

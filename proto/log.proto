@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package observability.v1;
+
+option go_package = "github.com/your-org/agent-observability/proto";
+
+import "google/protobuf/timestamp.proto";
+
+message LogRecord {
+  google.protobuf.Timestamp timestamp = 1;
+  LogSeverity severity                = 2;
+  string body                         = 3;
+  map<string, string> attributes      = 4;
+  string trace_id                     = 5;
+  string span_id                      = 6;
+}
+
+enum LogSeverity {
+  LOG_SEVERITY_UNSPECIFIED = 0;
+  LOG_SEVERITY_DEBUG       = 1;
+  LOG_SEVERITY_INFO        = 2;
+  LOG_SEVERITY_WARN        = 3;
+  LOG_SEVERITY_ERROR       = 4;
+}
