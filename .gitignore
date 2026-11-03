@@ -67,3 +67,5 @@ Thumbs.db
 testdata/generated/
 *.log
 *.tmp
+# Build output and locally installed tools
+bin/
