@@ -14,7 +14,7 @@ func loadConfig() *Config {
 		NATSUrl:            getEnv("NATS_URL", "nats://localhost:4222"),
 		ClickHouseDSN:      getEnv("CLICKHOUSE_DSN", "clickhouse://obs:secret@localhost:9000/observability"),
 		VictoriaMetricsURL: getEnv("VICTORIAMETRICS_URL", "http://localhost:8428"),
-		TempoEndpoint:      getEnv("TEMPO_ENDPOINT", "http://localhost:4317"),
+		TempoEndpoint:      getEnv("TEMPO_ENDPOINT", "http://localhost:4318"), // OTLP/HTTP
 	}
 }
 

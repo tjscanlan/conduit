@@ -2,6 +2,16 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — Deployment fixes (k8s mTLS chain, Tempo) + docs/deployment.md
+- Did: wrote `docs/deployment.md` (components and ports, the compose quickstart, k8s certs, secrets, and apply steps, upgrade notes, a config reference). Writing it turned up real deployment bugs:
+  - **k8s mTLS couldn't work:** the `selfSigned` ClusterIssuer made the gateway cert its own CA, so agent certs couldn't chain to it. Replaced it with the standard bootstrap selfSigned issuer, then a root CA Certificate (in cert-manager's namespace), then the `conduit-ca-issuer` CA ClusterIssuer. The gateway cert has `usages: server auth`, and there's an example agent cert with `client auth`.
+  - **k8s gateway couldn't start:** cert-manager writes `tls.crt`, `tls.key`, and `ca.crt`, but the gateway reads `server.crt` and `server.key`. The volume now maps the keys onto those paths.
+  - **Every Tempo write failed:** the collector POSTed to `:4317/otlp/v1/traces`. 4317 is OTLP *gRPC*, and `/otlp/...` is the Grafana Cloud gateway path. It now posts to `/v1/traces` on 4318 (the collector default, compose, and the k8s configmap). It was never noticed because Tempo errors are logged as best-effort.
+  - **compose Tempo couldn't start:** `./tempo.yaml` was mounted but didn't exist. Added a minimal single-node config.
+- Verified: go vet and go test -race PASS (a new test checks the POST path and content type). The k8s and compose YAML parse. The doc's hash-password pipeline produces a valid users line, and the compose cert paths match gen-certs output. **Not verified against a real cluster, cert-manager, or Tempo**, and the docker compose stack wasn't started (loop rule).
+- Next candidates: **OTLP ID lengths.** The SDK makes 16-byte span IDs (OTLP and W3C require 8), and the schema accepts non-hex IDs like UUIDs with dashes, so Tempo will reject them. Generate 8-byte span IDs in the SDK, and in the exporter skip or normalize IDs that aren't OTLP-shaped for Tempo only. Also contributing.md and sdk-python.md are still empty.
+- Blockers / needs human: someone should run `docker compose up` once to smoke-test the stack. nats-server test-dependency decision (still open).
+
 ## 2026-11-03 — Go SDK docs; gen-certs.sh agent mode (and stop clobbering the CA)
 - Did: wrote `docs/sdk-go.md`: issuing a certificate, consuming the module (go.work for now, since it's unpublished and uses a replace), instrumentation, an API table with the real gateway limits, rate limits, and caveats (synchronous End, no retries, identity always from the cert CN, a stale EstimateCostUSD table). Added `sdk/go/example_test.go`, which mirrors the doc snippet so it keeps compiling.
   - `scripts/gen-certs.sh` printed `CN=my-agent ./scripts/gen-certs.sh agent`, but there was no agent mode, so following that advice **regenerated the CA and invalidated every issued cert**. Added `gen-certs.sh agent NAME` (validated name, client-auth extended key usage, refuses to overwrite without FORCE=1). Plain `gen-certs.sh` now refuses when a CA exists (FORCE=1 overrides). Keys are written 0600, the server cert gets serverAuth, and CERTS_DIR can be overridden.

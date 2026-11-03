@@ -29,6 +29,11 @@ spec:
         - name: certs
           secret:
             secretName: conduit-mtls-certs
+            # cert-manager key names, mapped onto TLS_CERT, TLS_KEY and TLS_CA
+            items:
+              - { key: tls.crt, path: server.crt }
+              - { key: tls.key, path: server.key }
+              - { key: ca.crt, path: ca.crt }
 ---
 apiVersion: apps/v1
 kind: Deployment

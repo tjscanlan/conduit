@@ -68,7 +68,7 @@ services:
       NATS_URL: "nats://nats:4222"
       CLICKHOUSE_DSN: "clickhouse://obs:${CLICKHOUSE_PASSWORD}@clickhouse:9000/observability"
       VICTORIAMETRICS_URL: "http://victoriametrics:8428"
-      TEMPO_ENDPOINT: "http://tempo:4317"
+      TEMPO_ENDPOINT: "http://tempo:4318"
     depends_on: [nats, clickhouse, victoriametrics, tempo]
 
   ui:
