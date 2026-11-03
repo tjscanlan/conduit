@@ -88,6 +88,12 @@ func (e *Exporter) Export(ctx context.Context, req *schema.SpanRequest) error {
 	}
 
 	// ── Tempo: trace data ────────────────────────────────────────────────
+	// OTLP requires hex IDs of exact sizes; the gateway also accepts other
+	// opaque IDs (e.g. UUIDs with dashes), which Tempo would reject.
+	if !otlpIDs(req.TraceID, req.SpanID, req.ParentID) {
+		e.logger.Debug("skipping tempo: ids are not OTLP-shaped", "trace_id", req.TraceID, "span_id", req.SpanID)
+		return nil
+	}
 	if err := e.tempo.WriteSpan(ctx, storage.TempoSpan{
 		TraceID:   req.TraceID,
 		SpanID:    req.SpanID,
@@ -101,4 +107,29 @@ func (e *Exporter) Export(ctx context.Context, req *schema.SpanRequest) error {
 	}
 
 	return nil
+}
+
+// otlpIDs reports whether the IDs can be sent as OTLP: a 32-hex trace ID and
+// 16-hex span and parent IDs (parent may be empty), not all zeros.
+func otlpIDs(traceID, spanID, parentID string) bool {
+	return isHexID(traceID, 32) && isHexID(spanID, 16) && (parentID == "" || isHexID(parentID, 16))
+}
+
+func isHexID(id string, n int) bool {
+	if len(id) != n {
+		return false
+	}
+	nonZero := false
+	for i := 0; i < n; i++ {
+		c := id[i]
+		switch {
+		case c >= '0' && c <= '9', c >= 'a' && c <= 'f', c >= 'A' && c <= 'F':
+		default:
+			return false
+		}
+		if c != '0' {
+			nonZero = true
+		}
+	}
+	return nonZero
 }

@@ -85,7 +85,7 @@ func (c *Client) StartSpan(ctx context.Context, name string) (*Span, context.Con
 	s := &Span{
 		client:    c,
 		traceID:   traceIDFromContext(ctx),
-		spanID:    newID(),
+		spanID:    newSpanID(),
 		parentID:  spanIDFromContext(ctx),
 		name:      name,
 		startTime: time.Now(),
@@ -210,7 +210,7 @@ func traceIDFromContext(ctx context.Context) string {
 	if id, ok := ctx.Value(traceIDKey).(string); ok {
 		return id
 	}
-	return newID()
+	return newTraceID()
 }
 
 func spanIDFromContext(ctx context.Context) string {

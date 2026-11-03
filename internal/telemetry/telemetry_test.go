@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -166,6 +167,48 @@ func processed(t *testing.T) *schema.SpanRequest {
 		t.Fatal(err)
 	}
 	return req
+}
+
+func TestOTLPIDs(t *testing.T) {
+	trace, span := "4bf92f3577b34da6a3ce929d0e0e4736", "00f067aa0ba902b7"
+	tests := []struct {
+		name                string
+		trace, span, parent string
+		want                bool
+	}{
+		{"valid root", trace, span, "", true},
+		{"valid child", trace, span, "a1b2c3d4e5f60718", true},
+		{"16-byte span id", trace, trace, "", false},
+		{"uuid trace id", "123e4567-e89b-12d3-a456-426614174000", span, "", false},
+		{"all-zero trace", strings.Repeat("0", 32), span, "", false},
+		{"bad parent", trace, span, "xyz", false},
+		{"non-hex", strings.Repeat("g", 32), span, "", false},
+	}
+	for _, tt := range tests {
+		if got := otlpIDs(tt.trace, tt.span, tt.parent); got != tt.want {
+			t.Errorf("%s: otlpIDs = %v, want %v", tt.name, got, tt.want)
+		}
+	}
+}
+
+func TestExportSkipsTempoForNonOTLPIDs(t *testing.T) {
+	ch, vm, tempo := &fakeStore{}, &fakeMetrics{}, &fakeTraces{}
+	e := &Exporter{ch: ch, vm: vm, tempo: tempo, logger: discardLogger()}
+	in := validInput()
+	in.TraceID = "123e4567-e89b-12d3-a456-426614174000" // accepted by the gateway
+	req, err := Process(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.Export(context.Background(), req); err != nil {
+		t.Fatal(err)
+	}
+	if len(ch.rows) != 1 || vm.calls != 1 {
+		t.Errorf("ClickHouse and metrics must still be written: ch=%d vm=%d", len(ch.rows), vm.calls)
+	}
+	if tempo.calls != 0 {
+		t.Error("Tempo should be skipped for non-OTLP IDs")
+	}
 }
 
 func TestExportReturnsClickHouseFailure(t *testing.T) {

@@ -182,6 +182,9 @@ func TestSpansReachGatewayOverMTLS(t *testing.T) {
 	if gotRoot.GetName() != "agent.run" || gotRoot.GetAttributes()["task"] != "summarize" || gotRoot.GetParentId() != "" {
 		t.Errorf("root span = %v", gotRoot)
 	}
+	if len(gotRoot.GetTraceId()) != 32 || len(gotRoot.GetSpanId()) != 16 || len(gotChild.GetSpanId()) != 16 {
+		t.Errorf("IDs must be W3C/OTLP sized (32-hex trace, 16-hex span): trace %q span %q", gotRoot.GetTraceId(), gotRoot.GetSpanId())
+	}
 	if gotChild.GetTraceId() != gotRoot.GetTraceId() || gotChild.GetParentId() != gotRoot.GetSpanId() {
 		t.Errorf("child not linked to root: trace %q/%q parent %q root span %q",
 			gotChild.GetTraceId(), gotRoot.GetTraceId(), gotChild.GetParentId(), gotRoot.GetSpanId())
