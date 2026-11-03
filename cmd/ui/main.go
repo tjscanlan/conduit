@@ -78,6 +78,7 @@ type handlers struct {
 // spanQuerier is the read side of storage.ClickHouseStore used by the UI.
 type spanQuerier interface {
 	QueryTraces(ctx context.Context, f storage.TraceFilter) ([]storage.TraceSummary, error)
+	QueryAgents(ctx context.Context, window time.Duration, limit int) ([]string, error)
 	QueryTrace(ctx context.Context, traceID string, limit int) ([]storage.SpanRow, error)
 }
 
@@ -128,6 +129,15 @@ func (h *handlers) traces(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data := map[string]any{"Page": "traces", "Filter": f, "Windows": traceWindows}
+	// Agent suggestions are a convenience: the htmx partial doesn't need them,
+	// and a failure only loses the suggestions, not the page.
+	if r.Header.Get("HX-Request") != "true" {
+		agents, err := h.ch.QueryAgents(r.Context(), f.storageFilter().Window, maxAgentSuggestions)
+		if err != nil {
+			h.logger.Warn("query agents", "err", err)
+		}
+		data["Agents"] = agents
+	}
 	if len(traces) > traceListLimit {
 		traces = traces[:traceListLimit]
 		data["OlderURL"] = f.OlderURL(traces[len(traces)-1])

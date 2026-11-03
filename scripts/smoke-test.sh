@@ -117,7 +117,8 @@ filtered=$(curl -fsS -b "$jar" -G "$UI/traces" --data-urlencode "agent=$AGENT" -
 grep -q "/traces/$TRACE\"" <<<"$filtered" || fail "agent+errors filter dropped $TRACE"
 none=$(curl -fsS -b "$jar" -G "$UI/traces" --data-urlencode agent=no-such-agent)
 grep -q "No traces match these filters" <<<"$none" || fail "unknown-agent filter should match nothing"
-pass "trace list: one row per trace, agent/errors/window filters"
+grep -q "<option value=\"$AGENT\">" <<<"$list" || fail "agent suggestions missing $AGENT"
+pass "trace list: one row per trace, agent/errors/window filters, agent suggestions"
 if [[ -n "${PYSTART_NS:-}" ]]; then
   # The Python trace was sent after the Go one, so the page "older than" it
   # must contain the Go trace but not the Python trace itself.

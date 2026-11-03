@@ -229,6 +229,32 @@ func (s *ClickHouseStore) QueryTraces(ctx context.Context, f TraceFilter) ([]Tra
 	return out, rows.Err()
 }
 
+// QueryAgents returns the distinct agent names seen within window, sorted,
+// at most limit of them (for the trace list's agent suggestions).
+func (s *ClickHouseStore) QueryAgents(ctx context.Context, window time.Duration, limit int) ([]string, error) {
+	secs := int64(window / time.Second)
+	if secs <= 0 || limit <= 0 {
+		return nil, fmt.Errorf("query agents: window and limit must be positive")
+	}
+	rows, err := s.conn.Query(ctx, `
+		SELECT DISTINCT agent_name FROM spans
+		WHERE start_time >= now64(9) - toIntervalSecond(?) AND agent_name != ''
+		ORDER BY agent_name LIMIT ?`, secs, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var a string
+		if err := rows.Scan(&a); err != nil {
+			return nil, err
+		}
+		out = append(out, a)
+	}
+	return out, rows.Err()
+}
+
 // QueryTrace returns up to limit spans of one trace, earliest first.
 func (s *ClickHouseStore) QueryTrace(ctx context.Context, traceID string, limit int) ([]SpanRow, error) {
 	rows, err := s.conn.Query(ctx,

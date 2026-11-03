@@ -13,8 +13,9 @@ import (
 )
 
 const (
-	traceListLimit  = 100
-	maxAgentNameLen = 256
+	traceListLimit      = 100
+	maxAgentNameLen     = 256
+	maxAgentSuggestions = 200
 )
 
 // traceWindow is a selectable time range for the trace list. Only these

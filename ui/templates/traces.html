@@ -20,7 +20,8 @@
       </select>
     </label>
     <label>Agent
-      <input type="search" name="agent" value="{{.Filter.Agent}}" placeholder="any" maxlength="256" autocomplete="off">
+      <input type="search" name="agent" value="{{.Filter.Agent}}" placeholder="any" maxlength="256" autocomplete="off" list="agent-options">
+      <datalist id="agent-options">{{range .Agents}}<option value="{{.}}">{{end}}</datalist>
     </label>
     <label class="check"><input type="checkbox" name="errors" value="1"{{if .Filter.ErrorsOnly}} checked{{end}}> Errors only</label>
     <button type="submit">Apply</button>

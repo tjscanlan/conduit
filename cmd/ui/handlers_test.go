@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -17,6 +19,25 @@ import (
 type fakeSpans struct {
 	rows       []storage.SpanRow
 	lastFilter storage.TraceFilter
+	agentsErr  error
+	agentCalls int
+}
+
+func (f *fakeSpans) QueryAgents(_ context.Context, _ time.Duration, limit int) ([]string, error) {
+	f.agentCalls++
+	if f.agentsErr != nil {
+		return nil, f.agentsErr
+	}
+	seen := map[string]bool{}
+	var out []string
+	for _, r := range f.rows {
+		if r.AgentName != "" && !seen[r.AgentName] && len(out) < limit {
+			seen[r.AgentName] = true
+			out = append(out, r.AgentName)
+		}
+	}
+	sort.Strings(out)
+	return out, nil
 }
 
 // QueryTraces mirrors the SQL: whole traces that include the agent, rolled up
@@ -278,5 +299,33 @@ func TestTraceCursorParsing(t *testing.T) {
 	}
 	if f := parseTraceListFilter(url.Values{"before": {"123.x'--"}}); f.Before != "" {
 		t.Error("invalid cursor kept in filter")
+	}
+}
+
+func TestTraceListAgentSuggestions(t *testing.T) {
+	rows := sampleRows()
+	rows[2].AgentName = "research-bot"
+	router, fs := listRouter(t, rows)
+	body := do(router, httptest.NewRequest(http.MethodGet, "/traces", nil)).Body.String()
+	for _, want := range []string{`list="agent-options"`, `<option value="bot">`, `<option value="research-bot">`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+
+	// htmx polling only swaps the rows, so it must not pay for the agent query.
+	fs.agentCalls = 0
+	req := httptest.NewRequest(http.MethodGet, "/traces", nil)
+	req.Header.Set("HX-Request", "true")
+	do(router, req)
+	if fs.agentCalls != 0 {
+		t.Error("htmx partial queried agents")
+	}
+
+	// A failing suggestions query must not break the page.
+	fs.agentsErr = errors.New("clickhouse down")
+	rec := do(router, httptest.NewRequest(http.MethodGet, "/traces", nil))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "agent.run") {
+		t.Errorf("page failed when agent suggestions failed: %d", rec.Code)
 	}
 }
