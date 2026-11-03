@@ -2,6 +2,14 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — Go SDK docs; gen-certs.sh agent mode (and stop clobbering the CA)
+- Did: wrote `docs/sdk-go.md`: issuing a certificate, consuming the module (go.work for now, since it's unpublished and uses a replace), instrumentation, an API table with the real gateway limits, rate limits, and caveats (synchronous End, no retries, identity always from the cert CN, a stale EstimateCostUSD table). Added `sdk/go/example_test.go`, which mirrors the doc snippet so it keeps compiling.
+  - `scripts/gen-certs.sh` printed `CN=my-agent ./scripts/gen-certs.sh agent`, but there was no agent mode, so following that advice **regenerated the CA and invalidated every issued cert**. Added `gen-certs.sh agent NAME` (validated name, client-auth extended key usage, refuses to overwrite without FORCE=1). Plain `gen-certs.sh` now refuses when a CA exists (FORCE=1 overrides). Keys are written 0600, the server cert gets serverAuth, and CERTS_DIR can be overridden.
+- Decided **not** to add nats-server/v2 as a test dependency for a gateway → NATS → collector integration test. It's a large module tree, at odds with the project's no-supply-chain-surprises pitch. The handle(), exporter, and processor unit tests cover the logic. **Needs a human call if you want it.**
+- Verified: ran the script in scratch (full run, refusal on rerun, agent issuance, duplicate and `../evil` names rejected); `openssl verify` chains all certs; a real Go TLS 1.3 mTLS handshake with the OpenSSL-made certs gives peer CN=research-bot. sdk vet and test PASS (the example compiles). Real certs/ untouched.
+- Next candidates: **the k8s dev ClusterIssuer is `selfSigned`, so the gateway cert is its own CA and agent certs can never chain to it.** Use the standard selfSigned, then CA Certificate, then CA Issuer pattern, and write docs/deployment.md alongside. Also the empty contributing.md and sdk-python.md (check the Python SDK actually works first).
+- Blockers / needs human: `gh auth login`; the nats-server test-dependency decision above.
+
 ## 2026-11-03 — Rate limit: batches could bypass the per-agent limit
 - Did: the limiter charged 1 token per RPC, so one `IngestBatch` carrying thousands of spans cost the same as one span. Within gRPC's 4 MB limit that's about 40k small spans per call, so an agent allowed 100/s could send millions per second.
   - Now charges one token per telemetry item (spans + metrics + logs).
