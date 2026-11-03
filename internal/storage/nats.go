@@ -13,6 +13,7 @@ const streamName = "SPANS"
 
 // NATSPublisher publishes serialized span bytes to a NATS JetStream subject.
 type NATSPublisher struct {
+	nc *nats.Conn
 	js nats.JetStreamContext
 }
 
@@ -35,7 +36,7 @@ func NewNATSPublisher(url string) (*NATSPublisher, error) {
 		}
 	}
 
-	return &NATSPublisher{js: js}, nil
+	return &NATSPublisher{nc: nc, js: js}, nil
 }
 
 // spanStreamConfig is a work queue: a span is deleted once the collector acks
@@ -53,6 +54,24 @@ func spanStreamConfig() *nats.StreamConfig {
 		MaxAge:    7 * 24 * time.Hour,
 		Storage:   nats.FileStorage,
 	}
+}
+
+// Ready reports whether the NATS connection is currently up.
+func (p *NATSPublisher) Ready(context.Context) error {
+	return NATSReady(p.nc)
+}
+
+// NATSReady reports whether nc is currently connected. The collector's
+// subscriber uses it too.
+func NATSReady(nc *nats.Conn) error {
+	if nc == nil || !nc.IsConnected() {
+		status := "nil"
+		if nc != nil {
+			status = nc.Status().String()
+		}
+		return fmt.Errorf("nats not connected (%s)", status)
+	}
+	return nil
 }
 
 // Publish sends a serialized span (JSON-encoded telemetry.SpanInput) to the ingest subject.

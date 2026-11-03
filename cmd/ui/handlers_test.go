@@ -21,7 +21,10 @@ type fakeSpans struct {
 	lastFilter storage.TraceFilter
 	agentsErr  error
 	agentCalls int
+	readyErr   error
 }
+
+func (f *fakeSpans) Ready(context.Context) error { return f.readyErr }
 
 func (f *fakeSpans) QueryAgents(_ context.Context, _ time.Duration, limit int) ([]string, error) {
 	f.agentCalls++
@@ -327,5 +330,19 @@ func TestTraceListAgentSuggestions(t *testing.T) {
 	rec := do(router, httptest.NewRequest(http.MethodGet, "/traces", nil))
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "agent.run") {
 		t.Errorf("page failed when agent suggestions failed: %d", rec.Code)
+	}
+}
+
+func TestReadyzUnauthenticated(t *testing.T) {
+	// Login mode: /readyz must not require a session (probes have none).
+	router, _ := newTestRouter(t, authModeLogin)
+	if rec := do(router, httptest.NewRequest(http.MethodGet, "/readyz", nil)); rec.Code != http.StatusOK {
+		t.Fatalf("/readyz = %d, want 200 without auth", rec.Code)
+	}
+
+	r, fs := listRouter(t, nil)
+	fs.readyErr = errors.New("clickhouse down")
+	if rec := do(r, httptest.NewRequest(http.MethodGet, "/readyz", nil)); rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("/readyz with ClickHouse down = %d, want 503", rec.Code)
 	}
 }

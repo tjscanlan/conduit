@@ -69,6 +69,11 @@ type ClickHouseStore struct {
 	conn driver.Conn
 }
 
+// Ready pings ClickHouse.
+func (s *ClickHouseStore) Ready(ctx context.Context) error {
+	return s.conn.Ping(ctx)
+}
+
 func NewClickHouseStore(dsn string) (*ClickHouseStore, error) {
 	opts, err := clickhouse.ParseDSN(dsn)
 	if err != nil {

@@ -18,6 +18,11 @@ spec:
           image: ghcr.io/your-org/conduit-gateway:latest
           ports:
             - containerPort: 4317
+            - { name: health, containerPort: 8081 }
+          readinessProbe:
+            httpGet: { path: /readyz, port: 8081 }
+          livenessProbe:
+            httpGet: { path: /livez, port: 8081 }
           envFrom:
             - configMapRef:
                 name: conduit-config
@@ -53,6 +58,12 @@ spec:
       containers:
         - name: collector
           image: ghcr.io/your-org/conduit-collector:latest
+          ports:
+            - { name: health, containerPort: 8081 }
+          readinessProbe:
+            httpGet: { path: /readyz, port: 8081 }
+          livenessProbe:
+            httpGet: { path: /livez, port: 8081 }
           envFrom:
             - configMapRef:
                 name: conduit-config
@@ -107,7 +118,7 @@ spec:
               mountPath: /etc/conduit
               readOnly: true
           readinessProbe:
-            httpGet: { path: /healthz, port: 8080 }
+            httpGet: { path: /readyz, port: 8080 }
           livenessProbe:
             httpGet: { path: /healthz, port: 8080 }
       volumes:

@@ -7,9 +7,28 @@ ClickHouse, VictoriaMetrics and Tempo.
 
 | Component | Port | Talks to |
 |-----------|------|----------|
-| gateway | 4317 (gRPC, mTLS) | NATS |
-| collector | none | NATS, ClickHouse, VictoriaMetrics, Tempo (OTLP/HTTP :4318) |
-| ui | 8080 (HTTP; `/healthz` unauthenticated) | ClickHouse |
+| gateway | 4317 (gRPC, mTLS); 8081 health | NATS |
+| collector | 8081 health | NATS, ClickHouse, VictoriaMetrics, Tempo (OTLP/HTTP :4318) |
+| ui | 8080 (HTTP; `/healthz` and `/readyz` unauthenticated) | ClickHouse |
+
+## Health checks
+
+Every service exposes unauthenticated health endpoints over plain HTTP:
+
+| Endpoint | Meaning | Gateway / collector | UI |
+|----------|---------|---------------------|----|
+| `/livez` (UI: `/healthz`) | The process is up | `HEALTH_ADDR`, default `:8081` | main port, 8080 |
+| `/readyz` | Dependencies are reachable: NATS for the gateway; NATS and ClickHouse for the collector; ClickHouse for the UI | `HEALTH_ADDR` | main port |
+
+- **Why a separate port for the gateway:** its gRPC port requires mTLS client
+  certificates, which probes can't present.
+- **What `/readyz` returns:** a 200 or a 503, with each check reported only
+  as `ok` or `unavailable`. The underlying errors go to the service log, so
+  the endpoint never exposes hostnames or credentials.
+- **Health checks in scratch images:** the images have no shell or curl, so
+  each binary includes `/app healthcheck`, which calls its own `/readyz` and
+  exits 0 or 1. Compose health checks use it.
+- **Keep `HEALTH_ADDR` internal:** don't expose it outside the cluster.
 
 ## Local: docker compose
 
@@ -109,6 +128,7 @@ put the UI behind Identity-Aware Proxy (see [security.md](security.md#iap-mode-g
 | `GATEWAY_ADDR` | gateway | `:4317` |
 | `TLS_CERT`, `TLS_KEY`, `TLS_CA` | gateway | `/etc/certs/server.crt`, `server.key`, `ca.crt` |
 | `RATE_LIMIT_RPS` | gateway | `100` telemetry items per second per agent |
+| `HEALTH_ADDR` | gateway, collector | `:8081` (liveness and readiness endpoints) |
 | `NATS_URL` | gateway, collector | `nats://localhost:4222` |
 | `CLICKHOUSE_DSN` | collector, ui | local dev DSN. Always set it explicitly. |
 | `VICTORIAMETRICS_URL` | collector | `http://localhost:8428` |

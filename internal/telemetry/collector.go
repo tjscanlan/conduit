@@ -24,6 +24,7 @@ type spanExporter interface {
 
 // Collector subscribes to NATS JetStream and fans out validated spans to the Exporter.
 type Collector struct {
+	nc       *nats.Conn
 	js       nats.JetStreamContext
 	exporter spanExporter
 	logger   *slog.Logger
@@ -47,7 +48,12 @@ func NewCollector(natsURL string, exporter *Exporter, logger *slog.Logger) (*Col
 	if err != nil {
 		return nil, err
 	}
-	return &Collector{js: js, exporter: exporter, logger: logger}, nil
+	return &Collector{nc: nc, js: js, exporter: exporter, logger: logger}, nil
+}
+
+// Ready reports whether the collector's NATS connection is up.
+func (c *Collector) Ready(context.Context) error {
+	return storage.NATSReady(c.nc)
 }
 
 // Start subscribes and blocks until ctx is cancelled.

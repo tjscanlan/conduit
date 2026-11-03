@@ -41,6 +41,13 @@ ch() {
 AGENT=$(openssl x509 -in "$ROOT/certs/agent-example.crt" -noout -subject | sed -n 's/.*CN *= *\([^,/]*\).*/\1/p')
 [[ -n "$AGENT" ]] || fail "could not read CN from certs/agent-example.crt"
 
+echo "==> Health endpoints"
+for svc in gateway collector ui; do
+  out=$("${COMPOSE[@]}" exec -T "$svc" /app healthcheck </dev/null) || fail "$svc healthcheck failed: $out"
+  grep -q '"status":"ok"' <<<"$out" || fail "$svc /readyz not ok: $out"
+done
+pass "gateway, collector, and ui report ready (healthcheck subcommand -> /readyz)"
+
 echo "==> Sending a trace through the gateway as $AGENT"
 TRACE=$(cd "$ROOT/sdk/go" && go run ./examples/smoke-agent \
   -cert "$ROOT/certs/agent-example.crt" -key "$ROOT/certs/agent-example.key" -ca "$ROOT/certs/ca.crt")
