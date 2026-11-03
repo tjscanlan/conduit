@@ -1,7 +1,7 @@
 # Multi-stage build — final image is FROM scratch (no OS, no shell, just the binary)
 
 # Stage 1: Build
-FROM golang:1.22-alpine AS builder
+FROM golang:1.26.10-alpine AS builder
 
 WORKDIR /build
 

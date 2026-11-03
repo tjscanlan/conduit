@@ -2,6 +2,15 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — Fix all reachable dependency and stdlib vulnerabilities
+- Did: govulncheck reachable findings went from 10 to 0. Bumped grpc v1.63.2 to v1.83.2, x/net v0.22.0 to v0.61.0, and clickhouse-go/v2 v2.23.2 to v2.50.0 (ch-go v0.61.5 to v0.74.0; the old clickhouse-go doesn't compile against the fixed ch-go), plus their transitive deps.
+  - **Raised the minimum Go version from 1.22 to 1.26.** The x/net fix (v0.60.0+) requires `go 1.26.0`. Go 1.22 is long EOL, since only 1.26 and 1.27 are supported now. Added `toolchain go1.26.10` because 1.26.0–1.26.9 have reachable stdlib vulns (net/http, crypto/x509, html/template, net/url, net/textproto). GOTOOLCHAIN=auto downloads it.
+  - Dockerfile builder: golang:1.22-alpine to golang:1.26.10-alpine (the old image would refuse the go directive). Updated the README tech stack to Go 1.26+.
+  - Codegen pins updated to match the new runtimes: buf v1.75.0, protoc-gen-go v1.36.11, protoc-gen-go-grpc v1.6.2. Regenerated the proto code.
+- Verified: go build, go vet, and go test -race ./... PASS on go1.26.10. govulncheck: "Your code is affected by 0 vulnerabilities" (3 more exist in required modules but aren't reachable). Did not run a docker build.
+- Next candidates: the Dockerfile never runs gen-proto, so the gateway image build is broken (`*.pb.go` is gitignored); add the codegen step, or decide to commit the generated code. gofmt storage/clickhouse.go and telemetry/processor.go. Wire the Go SDK client TODO. Add a CI workflow (build, vet, test, and govulncheck) so vulns are caught automatically.
+- Blockers / needs human: none, but note the Go 1.26 minimum for anyone building locally.
+
 ## 2026-11-03 — UI auth: login form + session cookies, and Google Cloud IAP (requested by user)
 - Decision (user): use a login form with session cookies, with first-class GCP IAP support. This resolves both UI auth blockers from the previous entry.
 - Did: `UI_AUTH_MODE` = login (default) | iap | none (must be set explicitly). Misconfiguration exits at startup.

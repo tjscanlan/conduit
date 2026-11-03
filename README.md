@@ -55,7 +55,7 @@ docker compose -f deployments/docker/docker-compose.yml up
 
 ## Tech Stack
 
-- **Language**: Go 1.22+
+- **Language**: Go 1.26+
 - **Wire format**: Protobuf / OTLP
 - **Transport**: gRPC + mTLS
 - **Message buffer**: NATS JetStream

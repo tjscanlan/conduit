@@ -11,9 +11,9 @@ ROOT="$(git rev-parse --show-toplevel)"
 PROTO_DIR="$ROOT/proto"
 TOOLS="$ROOT/bin/tools"
 
-BUF_VERSION=v1.47.2
-PROTOC_GEN_GO_VERSION=v1.34.1
-PROTOC_GEN_GO_GRPC_VERSION=v1.3.0
+BUF_VERSION=v1.75.0
+PROTOC_GEN_GO_VERSION=v1.36.11
+PROTOC_GEN_GO_GRPC_VERSION=v1.6.2
 
 export GOBIN="$TOOLS"
 go install "github.com/bufbuild/buf/cmd/buf@$BUF_VERSION"
