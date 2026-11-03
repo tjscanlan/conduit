@@ -18,7 +18,7 @@ Newest entries first. Each iteration is driven by `.claude/loop.md`.
   - k8s: probes on 8081 for gateway and collector; the ui readiness probe now uses /readyz.
   - docs/deployment.md gained a "Health checks" section and HEALTH_ADDR.
 - Verified: tests for health (livez ignores checks, readyz ok and failing, no error leak, hung checks bounded, Probe exit codes and address normalization) and the UI (/readyz unauthenticated in login mode, 503 when ClickHouse is down). The smoke test runs `/app healthcheck` in each service (CI). The YAML parses.
-- **Stopping point:** opening PR #5, then the user's docs, roadmap, and branding cycle.
+- **Stopping point:** opened PR https://github.com/tjscanlan/conduit/pull/5; no new work until it is merged. Then the user's docs, roadmap, and branding cycle.
 
 ## 2026-11-03 — Trace list: agent suggestions
 - Did: `storage.QueryAgents(window, limit)` (DISTINCT non-empty agent_name in the window, sorted, at most 200) feeds a `<datalist>` on the agent filter input, so there's no JS and free text still works. It's skipped for htmx partial refreshes (rows only), and a failed query only drops the suggestions (logged at warn); the page still renders.
