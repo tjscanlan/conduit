@@ -2,6 +2,26 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — Python SDK: from stub to working package
+- Did: the Python SDK was in the state the Go SDK was in this morning, plus more:
+  - `_flush` was a no-op "Stub", so nothing was ever sent.
+  - The documented `agent_observability` package didn't exist; hatch pointed at `sdk/python` from inside it, and the modules used relative imports from a dir named `python`.
+  - The current span lived on the Client instance, so the "thread-safe" claim was false and concurrent threads or tasks cross-linked parents.
+  - There was no status support, and exceptions weren't recorded.
+  - The pyproject said MIT while the repo is Apache-2.0.
+- Fixes:
+  - Package: `sdk/python/src/conduit_sdk`.
+  - Delivery: real `IngestSpan` over mTLS (trusts only TLS_CA).
+  - Context: tracked in `contextvars`, safe across threads and asyncio tasks.
+  - Status: `set_ok`/`set_error` (None is a no-op; the message is UTF-8-truncated to 4096 bytes); an exception in `with client.span()` sets error and re-raises.
+  - Delivery errors: explicit `end()` raises `ConduitError`, and the `with` block only logs, so instrumentation can't break the agent. `end()` is idempotent.
+  - Env: `CONDUIT_GATEWAY_ADDR` (OTEL_GATEWAY_ADDR accepted).
+  - License: Apache-2.0.
+- Generated stubs: `scripts/gen-proto-python.sh` (pinned grpcio-tools 1.85.1, via uv or pip; rewrites protoc's top-level imports to package-relative) and **committed**, consistent with the Go decision. `make proto` runs both generators, and the CI drift check now covers the Python stubs. Deps are pinned to the stubs' floors (grpcio>=1.85.1, protobuf>=7.35.1,<8). Ignore Python caches repo-wide.
+- Tests (pytest, an in-process gRPC server requiring client certs, certs minted with `cryptography`, which is dev-only): delivery and parent linking, W3C ID sizes, LLM fields, exception → error, set_error(None), truncation, rejection raising vs. context-manager logging, idempotent end, untrusted CA refused, thread isolation, and asyncio task isolation. New CI job `python-sdk` on Python 3.10 and 3.14 (setup-python pinned by SHA).
+- Verified: 7/7 pytest pass on 3.12 locally, Python codegen is deterministic, and Go is unaffected.
+- Next candidates: write docs/sdk-python.md; make the smoke test also send a Python trace through the real gateway; contributing.md. Then open PR #2 (this cycle will have the smoke job, the UI detail fix, the cert fixes, and the Python SDK).
+
 ## 2026-11-03 — Fix smoke CI: stale tracked certs + gen-certs reissue bug
 - CI run 41698657967 failed in `compose smoke test` at gen-certs: "certs/agent-example.crt already exists".
   - Cause 1: `certs/{ca,server,agent-example}.crt` had been tracked since the initial "mvp-ish code" commit, before `certs/` was gitignored. They're **public certificates only**. I scanned all history: no private key was ever committed (the only "PRIVATE KEY" matches are PEM labels in sdk_test.go). They're useless without their keys, so I untracked them; local copies stay.

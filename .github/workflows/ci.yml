@@ -53,16 +53,41 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: install grpcio-tools (pinned in gen-proto-python.sh)
+        run: pip install "grpcio-tools==$(sed -n 's/^GRPCIO_TOOLS_VERSION=//p' scripts/gen-proto-python.sh)"
       - run: make proto
       - name: check for drift
         run: |
-          if ! git diff --exit-code -- proto/; then
-            echo "::error::proto/*.pb.go is stale. Run 'make proto' and commit the result."
+          gen="proto/ sdk/python/src/conduit_sdk/_proto/"
+          if ! git diff --exit-code -- $gen; then
+            echo "::error::Generated code is stale. Run 'make proto' and commit the result."
             exit 1
           fi
-          if [ -n "$(git status --porcelain -- proto/)" ]; then
-            echo "::error::make proto created untracked files:"; git status --porcelain -- proto/; exit 1
+          if [ -n "$(git status --porcelain -- $gen)" ]; then
+            echo "::error::make proto created untracked files:"; git status --porcelain -- $gen; exit 1
           fi
+
+  python-sdk:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.14"]  # supported floor and newest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: install
+        working-directory: sdk/python
+        run: pip install -e '.[dev]'
+      - name: pytest
+        working-directory: sdk/python
+        run: python -m pytest -q
 
   vuln:
     runs-on: ubuntu-latest

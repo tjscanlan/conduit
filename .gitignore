@@ -29,13 +29,10 @@ sdk/python/.mypy_cache/
 sdk/python/.ruff_cache/
 
 # ── Protobuf generated files ─────────────────────────────────
-# Generated Go code (proto/*.pb.go) IS committed so the repo builds with only
-# Go; regenerate with `make proto` after editing .proto files.
-# Generated Python output is ignored.
+# Generated code IS committed: Go (proto/*.pb.go) and the Python SDK's stubs
+# (sdk/python/src/conduit_sdk/_proto). Regenerate both with `make proto`
+# after editing .proto files; CI fails if they drift.
 proto/gen/
-**/*_pb2.py
-**/*_pb2_grpc.py
-**/*_pb2.pyi
 
 # ── Local environment ────────────────────────────────────────
 .env
@@ -73,3 +70,8 @@ bin/
 
 # Local UI credentials for docker compose
 deployments/docker/ui-users
+
+# Python bytecode and tool caches, anywhere
+__pycache__/
+*.py[co]
+.pytest_cache/

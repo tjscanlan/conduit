@@ -14,6 +14,7 @@ lint:
 
 proto:
 	./scripts/gen-proto.sh
+	./scripts/gen-proto-python.sh
 
 certs:
 	./scripts/gen-certs.sh
