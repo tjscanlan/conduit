@@ -6,7 +6,7 @@ Newest entries first. Each iteration is driven by `.claude/loop.md`.
 - Did: both SDKs generated 32-hex (16-byte) span IDs, but OTLP and W3C require 8 bytes, so with the Tempo endpoint now fixed, Tempo would still have rejected every span. The Go SDK now uses `newTraceID` (16 bytes) and `newSpanID` (8 bytes). The Python SDK uses `secrets.token_hex(16)` and `secrets.token_hex(8)` instead of uuid4 hex. The exporter skips Tempo for IDs that aren't OTLP-shaped (exact-length hex, not all zero), since the gateway also accepts opaque IDs like UUIDs with dashes. ClickHouse and metrics are still written for those spans.
 - Verified: go vet and go test -race PASS for root and sdk (new: otlpIDs table, Tempo skipped for UUID IDs, SDK IDs asserted 32/16 hex). Python SDK: syntax-checked only; it can't be imported here because grpc isn't installed, and it has no tests.
 - Next candidates (for after the PR merges): Python SDK tests plus a CI job; empty contributing.md and sdk-python.md; UI trace-detail view (attributes, error.message); Dockerfile GOARCH; a compose smoke test by a human.
-- **Stopping point: opening PR loop/auto → main (user request).**
+- **Stopping point: opened PR https://github.com/tjscanlan/conduit/pull/1 (loop/auto → main, user request). No new work until it is merged.**
 
 ## 2026-11-03 — Loop now delivers work by PR and waits for merge (requested by user)
 - Decision (user): stop after the next iteration and open a PR. From now on, open PRs at reasonable stopping points, and don't continue looping until the PR is approved and merged to main.
