@@ -15,6 +15,7 @@ type SpanInput struct {
 	SpanID          string
 	ParentID        string
 	Name            string
+	Status          string // schema.Status*; empty means unset
 	StartNano       int64
 	EndNano         int64
 	Attributes      map[string]string
@@ -41,6 +42,10 @@ func Process(in SpanInput) (*schema.SpanRequest, error) {
 	end := nanoToTime(in.EndNano)
 
 	req := schema.New(in.TraceID, in.SpanID, in.ParentID, in.Name, start, end, in.Attributes)
+
+	if in.Status != "" {
+		req.Status = in.Status
+	}
 
 	if in.HasLLMCall {
 		req.LLMCall = schema.NewLLMCall(

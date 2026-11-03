@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"math/big"
 	"net"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -190,6 +192,51 @@ func TestSpansReachGatewayOverMTLS(t *testing.T) {
 	}
 	if gotChild.GetEndTime().AsTime().Before(gotChild.GetStartTime().AsTime()) {
 		t.Errorf("end before start: %v", gotChild)
+	}
+}
+
+func TestSpanStatus(t *testing.T) {
+	pki := newTestPKI(t, t.TempDir(), "conduit")
+	g, addr := startGateway(t, pki)
+	c := newTestClient(t, addr, pki)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	okSpan, _ := c.StartSpan(ctx, "ok")
+	_ = okSpan.SetOK().End(ctx)
+	failed, _ := c.StartSpan(ctx, "failed")
+	_ = failed.SetError(errors.New("tool timed out")).End(ctx)
+	unset, _ := c.StartSpan(ctx, "unset")
+	_ = unset.SetError(nil).End(ctx) // nil error is a no-op
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if len(g.spans) != 3 {
+		t.Fatalf("got %d spans", len(g.spans))
+	}
+	if st := g.spans[0].GetStatus(); st != pb.SpanStatus_SPAN_STATUS_OK {
+		t.Errorf("ok span status = %v", st)
+	}
+	if st, msg := g.spans[1].GetStatus(), g.spans[1].GetAttributes()["error.message"]; st != pb.SpanStatus_SPAN_STATUS_ERROR || msg != "tool timed out" {
+		t.Errorf("failed span: status = %v, error.message = %q", st, msg)
+	}
+	if st := g.spans[2].GetStatus(); st != pb.SpanStatus_SPAN_STATUS_UNSET {
+		t.Errorf("SetError(nil) changed status to %v", st)
+	}
+}
+
+func TestTruncateUTF8(t *testing.T) {
+	long := strings.Repeat("é", 3000) // 2 bytes per rune: 6000 bytes
+	got := truncateUTF8(long, maxAttrValueLen)
+	if len(got) > maxAttrValueLen || !utf8.ValidString(got) {
+		t.Fatalf("len %d valid %v", len(got), utf8.ValidString(got))
+	}
+	if truncateUTF8("short", 10) != "short" {
+		t.Error("short string changed")
+	}
+	// Odd cut point lands mid-rune and must back up.
+	if got := truncateUTF8("aé", 2); got != "a" {
+		t.Errorf("truncateUTF8(\"aé\", 2) = %q, want \"a\"", got)
 	}
 }
 

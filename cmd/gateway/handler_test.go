@@ -6,6 +6,8 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/your-org/agent-observability/internal/schema"
+	"github.com/your-org/agent-observability/internal/telemetry"
 	pb "github.com/your-org/agent-observability/proto"
 )
 
@@ -37,6 +39,24 @@ func TestSpanInputFromProto(t *testing.T) {
 	}
 	if !in.HasLLMCall || in.LLMModel != "m" || in.LLMInputTokens != 10 || in.LLMOutputTokens != 20 || in.LLMCostUSD != 0.5 {
 		t.Errorf("llm call not copied: %+v", in)
+	}
+}
+
+func TestStatusFromProto(t *testing.T) {
+	tests := map[pb.SpanStatus]string{
+		pb.SpanStatus_SPAN_STATUS_UNSET: schema.StatusUnset,
+		pb.SpanStatus_SPAN_STATUS_OK:    schema.StatusOK,
+		pb.SpanStatus_SPAN_STATUS_ERROR: schema.StatusError,
+	}
+	for in, want := range tests {
+		if got := spanInputFromProto(&pb.Span{Status: in}).Status; got != want {
+			t.Errorf("%v -> %q, want %q", in, got, want)
+		}
+	}
+	// An enum value this gateway doesn't know must fail validation, not be guessed.
+	in := spanInputFromProto(&pb.Span{TraceId: "t1", SpanId: "s1", Name: "n", Status: pb.SpanStatus(99)})
+	if _, err := telemetry.Process(in); err == nil {
+		t.Error("unknown status enum accepted")
 	}
 }
 

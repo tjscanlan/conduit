@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"time"
+	"unicode/utf8"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -73,6 +74,7 @@ type Span struct {
 	spanID    string
 	parentID  string
 	name      string
+	status    pb.SpanStatus
 	startTime time.Time
 	attrs     map[string]string
 	llmCall   *LLMCall
@@ -96,6 +98,40 @@ func (c *Client) StartSpan(ctx context.Context, name string) (*Span, context.Con
 func (s *Span) SetAttr(key, value string) *Span {
 	s.attrs[key] = value
 	return s
+}
+
+// SetOK marks the span as successful.
+func (s *Span) SetOK() *Span {
+	s.status = pb.SpanStatus_SPAN_STATUS_OK
+	return s
+}
+
+// SetError marks the span as failed and, when err is non-nil, records its
+// message in the "error.message" attribute. A nil err is a no-op, so
+// `defer span.SetError(err)`-style call sites stay simple.
+func (s *Span) SetError(err error) *Span {
+	if err == nil {
+		return s
+	}
+	s.status = pb.SpanStatus_SPAN_STATUS_ERROR
+	s.attrs["error.message"] = truncateUTF8(err.Error(), maxAttrValueLen)
+	return s
+}
+
+// maxAttrValueLen mirrors the gateway's schema.MaxAttributeValLen; longer
+// values would get the whole span rejected.
+const maxAttrValueLen = 4096
+
+// truncateUTF8 cuts s to at most n bytes without splitting a rune
+// (proto3 strings must be valid UTF-8).
+func truncateUTF8(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
+	}
+	return s[:n]
 }
 
 // RecordLLMCall attaches LLM-specific metadata to this span.
@@ -139,6 +175,7 @@ func spanToProto(s *Span, endTime time.Time) *pb.Span {
 		SpanId:     s.spanID,
 		ParentId:   s.parentID,
 		Name:       s.name,
+		Status:     s.status,
 		StartTime:  timestamppb.New(s.startTime),
 		EndTime:    timestamppb.New(endTime),
 		Attributes: s.attrs,

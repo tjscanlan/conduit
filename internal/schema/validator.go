@@ -18,12 +18,20 @@ const (
 	MaxModelNameLen    = 256
 )
 
+// Span status values. They match the ClickHouse spans.status enum.
+const (
+	StatusUnset = "unset"
+	StatusOK    = "ok"
+	StatusError = "error"
+)
+
 // SpanRequest is the validated, internal representation of an inbound span
 type SpanRequest struct {
 	TraceID    string
 	SpanID     string
 	ParentID   string
 	Name       string
+	Status     string // StatusUnset, StatusOK, or StatusError
 	StartTime  time.Time
 	EndTime    time.Time
 	Attributes map[string]string
@@ -62,6 +70,11 @@ func (s *SpanRequest) Validate() error {
 	}
 	if len(s.Name) > MaxSpanNameLen {
 		return errors.New("span name exceeds max length")
+	}
+	switch s.Status {
+	case StatusUnset, StatusOK, StatusError:
+	default:
+		return errors.New("status must be unset, ok, or error")
 	}
 	if s.EndTime.Before(s.StartTime) {
 		return errors.New("end_time must be after start_time")

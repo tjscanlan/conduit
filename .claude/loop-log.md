@@ -2,6 +2,16 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — Span status flows end to end (was always "ok")
+- Did: `SpanStatus` was on the wire but dropped at the gateway, missing from SpanInput and SpanRequest, and hard-coded to "ok" in the exporter, so failed agent steps showed as successful in the UI and in the trace_summary error_count.
+  - schema: `StatusUnset`, `StatusOK`, and `StatusError` match the ClickHouse enum. `Validate` rejects anything else, including empty. An empty value would fail the enum insert and now retry forever. `New` defaults to unset.
+  - gateway: `statusFromProto`. Unknown enum values from newer clients fail validation instead of being guessed.
+  - telemetry: `SpanInput.Status` (empty means unset, so in-flight messages from an older gateway still work); the exporter writes the real status to ClickHouse and Tempo (OTLP code 1 or 2; unset is omitted).
+  - SDK: `Span.SetOK()` and `Span.SetError(err)`. SetError(nil) is a no-op; the message goes in `error.message`, truncated on a UTF-8 rune boundary to 4096 bytes so a long error can't get the span rejected.
+- Verified: go build, go vet, and go test -race PASS for root and sdk. New tests: schema status validation, the gateway enum mapping including unknown values, Process normalization, exporter row status, the Tempo OTLP status, SDK status over real mTLS, and truncateUTF8.
+- Next candidates: an integration test with an in-process nats-server (gateway → NATS → collector); the empty docs (sdk-go.md, deployment.md, contributing.md); the UI has no trace-detail view of attributes or error.message; the Dockerfile hard-codes GOARCH=amd64.
+- Blockers / needs human: `gh auth login` is still pending.
+
 ## 2026-11-03 — Collector pipeline: stop losing spans; no poison loops; bounded stream
 - Did, fixing correctness bugs in gateway → NATS → collector → storage:
   - **Silent data loss:** `Exporter.Export` always returned nil, so a failed ClickHouse insert was acked and the span was lost. It now returns the ClickHouse error, and the message is redelivered. VictoriaMetrics and Tempo stay best-effort (logged), so a span already stored in ClickHouse isn't redelivered and duplicated because of them. Secondary writes are skipped when the primary fails.

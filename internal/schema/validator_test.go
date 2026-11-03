@@ -13,6 +13,7 @@ func validSpan() *SpanRequest {
 		TraceID:    "4bf92f3577b34da6a3ce929d0e0e4736",
 		SpanID:     "00f067aa0ba902b7",
 		Name:       "agent.step",
+		Status:     StatusOK,
 		StartTime:  start,
 		EndTime:    start.Add(time.Second),
 		Attributes: map[string]string{"k": "v"},
@@ -32,6 +33,19 @@ func TestValidateAcceptsWellFormedSpan(t *testing.T) {
 	}
 }
 
+func TestValidateAcceptsEveryStatus(t *testing.T) {
+	for _, st := range []string{StatusUnset, StatusOK, StatusError} {
+		s := validSpan()
+		s.Status = st
+		if err := s.Validate(); err != nil {
+			t.Errorf("status %q rejected: %v", st, err)
+		}
+	}
+	if got := New("t", "s", "", "n", time.Time{}, time.Time{}, nil).Status; got != StatusUnset {
+		t.Errorf("New default status = %q, want %q", got, StatusUnset)
+	}
+}
+
 func TestValidateRejects(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -45,6 +59,8 @@ func TestValidateRejects(t *testing.T) {
 		{"malformed span id", func(s *SpanRequest) { s.SpanID = "a b" }},
 		{"malformed parent id", func(s *SpanRequest) { s.ParentID = "x;y" }},
 		{"missing name", func(s *SpanRequest) { s.Name = "" }},
+		{"empty status", func(s *SpanRequest) { s.Status = "" }},
+		{"unknown status", func(s *SpanRequest) { s.Status = "SPAN_STATUS_FUTURE" }},
 		{"oversized name", func(s *SpanRequest) { s.Name = strings.Repeat("n", MaxSpanNameLen+1) }},
 		{"end before start", func(s *SpanRequest) { s.EndTime = s.StartTime.Add(-time.Second) }},
 		{"too long duration", func(s *SpanRequest) { s.EndTime = s.StartTime.Add(MaxSpanDuration + time.Second) }},

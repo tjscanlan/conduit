@@ -71,6 +71,13 @@ func buildOTLPPayload(s TempoSpan) map[string]any {
 	if s.ParentID != "" {
 		span["parentSpanId"] = s.ParentID
 	}
+	// OTLP status codes: 0 unset, 1 ok, 2 error.
+	switch s.Status {
+	case "ok":
+		span["status"] = map[string]any{"code": 1}
+	case "error":
+		span["status"] = map[string]any{"code": 2}
+	}
 
 	return map[string]any{
 		"resourceSpans": []map[string]any{{

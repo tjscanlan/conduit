@@ -60,6 +60,21 @@ func TestProcessDefaultsAndValidation(t *testing.T) {
 	}
 }
 
+func TestProcessStatus(t *testing.T) {
+	in := validInput()
+	if req, _ := Process(in); req.Status != schema.StatusUnset {
+		t.Errorf("empty status (e.g. a message from an older gateway) = %q, want unset", req.Status)
+	}
+	in.Status = schema.StatusError
+	if req, _ := Process(in); req.Status != schema.StatusError {
+		t.Errorf("status = %q, want error", req.Status)
+	}
+	in.Status = "bogus"
+	if _, err := Process(in); err == nil {
+		t.Error("unknown status accepted")
+	}
+}
+
 func TestProcessMapsLLMCall(t *testing.T) {
 	in := validInput()
 	in.HasLLMCall, in.LLMModel, in.LLMInputTokens, in.LLMCostUSD = true, "m", 7, 0.5
@@ -145,6 +160,7 @@ func processed(t *testing.T) *schema.SpanRequest {
 	t.Helper()
 	in := validInput()
 	in.HasLLMCall, in.LLMModel, in.LLMInputTokens, in.LLMOutputTokens = true, "m", 3, 4
+	in.Status = schema.StatusError
 	req, err := Process(in)
 	if err != nil {
 		t.Fatal(err)
@@ -177,6 +193,9 @@ func TestExportSecondaryBackendsAreBestEffort(t *testing.T) {
 		t.Fatalf("writes: ch=%d vm=%d tempo=%d", len(ch.rows), vm.calls, tempo.calls)
 	}
 	row := ch.rows[0]
+	if row.Status != schema.StatusError {
+		t.Errorf("row.Status = %q, want error (was hard-coded to ok)", row.Status)
+	}
 	if row.AgentName != "agent-1" || row.DurationMs != 250 || row.LLMModel == nil || *row.LLMModel != "m" ||
 		row.LLMInputTokens == nil || *row.LLMInputTokens != 3 {
 		t.Errorf("row = %+v", row)

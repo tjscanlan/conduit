@@ -59,7 +59,7 @@ func (e *Exporter) Export(ctx context.Context, req *schema.SpanRequest) error {
 		StartTime:  req.StartTime,
 		EndTime:    req.EndTime,
 		DurationMs: durationMs,
-		Status:     "ok",
+		Status:     req.Status,
 		Attributes: req.Attributes,
 	}
 	if req.LLMCall != nil {
@@ -93,6 +93,7 @@ func (e *Exporter) Export(ctx context.Context, req *schema.SpanRequest) error {
 		SpanID:    req.SpanID,
 		ParentID:  req.ParentID,
 		Name:      req.Name,
+		Status:    req.Status,
 		StartNano: req.StartTime.UnixNano(),
 		EndNano:   req.EndTime.UnixNano(),
 	}); err != nil {

@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/your-org/agent-observability/internal/auth"
+	"github.com/your-org/agent-observability/internal/schema"
 	"github.com/your-org/agent-observability/internal/storage"
 	"github.com/your-org/agent-observability/internal/telemetry"
 	pb "github.com/your-org/agent-observability/proto"
@@ -70,6 +71,7 @@ func spanInputFromProto(s *pb.Span) telemetry.SpanInput {
 		SpanID:     s.GetSpanId(),
 		ParentID:   s.GetParentId(),
 		Name:       s.GetName(),
+		Status:     statusFromProto(s.GetStatus()),
 		Attributes: s.GetAttributes(),
 	}
 	if t := s.GetStartTime(); t != nil {
@@ -88,6 +90,21 @@ func spanInputFromProto(s *pb.Span) telemetry.SpanInput {
 		in.LLMCostUSD = llm.GetCostUsd()
 	}
 	return in
+}
+
+// statusFromProto maps the wire enum to schema status values. Unknown enum
+// values (from a newer client) are passed through as invalid so validation
+// rejects them instead of guessing.
+func statusFromProto(st pb.SpanStatus) string {
+	switch st {
+	case pb.SpanStatus_SPAN_STATUS_UNSET:
+		return schema.StatusUnset
+	case pb.SpanStatus_SPAN_STATUS_OK:
+		return schema.StatusOK
+	case pb.SpanStatus_SPAN_STATUS_ERROR:
+		return schema.StatusError
+	}
+	return st.String()
 }
 
 // ingestOne validates a SpanInput and publishes it to NATS as JSON.
