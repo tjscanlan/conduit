@@ -33,22 +33,32 @@ CREATE TABLE IF NOT EXISTS spans (
 ) ENGINE = MergeTree()
 PARTITION BY toYYYYMMDD(start_time)
 ORDER BY (agent_name, trace_id, start_time)
-TTL start_time + INTERVAL 90 DAY;
+TTL toDateTime(start_time) + INTERVAL 90 DAY;
 `
 
+// createTracesView keeps per-trace rollups. Columns are SimpleAggregateFunction
+// (via -SimpleState) so AggregatingMergeTree merges rows from separate inserts
+// correctly; plain min/max/sum columns would keep an arbitrary row on merge.
+// Query with the matching aggregate and GROUP BY, since unmerged parts may
+// coexist, and compute duration there:
+//
+//	SELECT trace_id, min(started_at), max(ended_at),
+//	       dateDiff('millisecond', min(started_at), max(ended_at)) AS duration_ms,
+//	       sum(span_count), sum(error_count), sum(total_cost_usd)
+//	FROM trace_summary GROUP BY trace_id
 const createTracesView = `
 CREATE MATERIALIZED VIEW IF NOT EXISTS trace_summary
 ENGINE = AggregatingMergeTree()
 ORDER BY (trace_id)
 AS SELECT
     trace_id,
-    min(start_time)         AS started_at,
-    max(end_time)           AS ended_at,
-    max(end_time) - min(start_time) AS total_duration_ms,
-    countIf(status = 'error') AS error_count,
-    sum(llm_input_tokens)   AS total_input_tokens,
-    sum(llm_output_tokens)  AS total_output_tokens,
-    sum(llm_cost_usd)       AS total_cost_usd
+    minSimpleState(start_time)                              AS started_at,
+    maxSimpleState(end_time)                                AS ended_at,
+    sumSimpleState(toUInt64(1))                             AS span_count,
+    sumSimpleState(toUInt64(status = 'error'))              AS error_count,
+    sumSimpleState(toUInt64(ifNull(llm_input_tokens, 0)))   AS total_input_tokens,
+    sumSimpleState(toUInt64(ifNull(llm_output_tokens, 0)))  AS total_output_tokens,
+    sumSimpleState(ifNull(llm_cost_usd, 0))                 AS total_cost_usd
 FROM spans
 GROUP BY trace_id;
 `
