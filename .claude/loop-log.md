@@ -5,7 +5,7 @@ Newest entries first. Each iteration is driven by `.claude/loop.md`.
 ## 2026-11-03 — Trace list: agent suggestions
 - Did: `storage.QueryAgents(window, limit)` (DISTINCT non-empty agent_name in the window, sorted, at most 200) feeds a `<datalist>` on the agent filter input, so there's no JS and free text still works. It's skipped for htmx partial refreshes (rows only), and a failed query only drops the suggestions (logged at warn); the page still renders.
 - Verified: handler tests (both agents suggested, no agent query on htmx partials, page renders when suggestions fail). The smoke test checks that the real list page suggests the smoke agent (runs in CI).
-- **Stopping point:** the trace-list theme is done (one row per trace, filters, paging, suggestions). Opening PR #4.
+- **Stopping point:** the trace-list theme is done (one row per trace, filters, paging, suggestions). Opened PR https://github.com/tjscanlan/conduit/pull/4; no new work until it is merged.
 
 ## 2026-11-03 — Trace list: keyset paging
 - Did: an "Older →" link pages past the 100-trace limit using a keyset cursor `before=<startedUnixNano>.<traceID>`.
