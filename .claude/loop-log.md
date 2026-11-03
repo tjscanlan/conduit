@@ -2,6 +2,12 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — First CI run green; loop uses gh for CI status
+- CI run 41684226282 for d77f759: **all 6 jobs passed** (test, generated, vuln, and docker for gateway, collector, and ui). This confirms the Dockerfile works with committed proto code.
+- Did: installed the `gh` CLI (user request). `.claude/loop.md` now checks `gh run list` (and PR checks and comments when a PR exists) during orientation, makes a CI failure priority 1, and has the loop wait on each pushed commit's run. It falls back to the public API if gh isn't authenticated.
+- Blockers / needs human: run `gh auth login` once so the loop can read CI logs and PR status.
+- Next candidates: wire the Go SDK client TODO (`sdk/go/sdk.go`); tests for `telemetry.Process` and `internal/storage` (0% coverage); Dockerfile GOARCH=amd64 is hard-coded.
+
 ## 2026-11-03 — CI workflow; gofmt the remaining files
 - Did: added `.github/workflows/ci.yml`, which runs on every push and PR with `contents: read` and `persist-credentials: false`. Actions are pinned by commit SHA (checkout v7.0.1, setup-go v7.0.0). Jobs:
   - test: gofmt check, build, vet, test -race -cover.
