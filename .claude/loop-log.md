@@ -2,6 +2,12 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — Harden span validation at the ingestion boundary
+- Did: `schema.Validate` now bounds trace_id, span_id, and parent_id (at most 64 characters of `[A-Za-z0-9_-]`, which admits hex IDs and UUIDs), rejects empty attribute keys, caps model names at 256 bytes, and requires cost_usd to be finite and non-negative. Added a table-driven test that covers every rule (internal/schema was untested before). I also ran gofmt on validator.go.
+- Verified: go build, go vet, and go test -race ./... PASS.
+- Next candidates: wire the Go SDK client TODO (`sdk/go/sdk.go:~112`); add tests for `telemetry.Process` (agent_name override, zero-time defaults); gofmt the remaining files (storage/clickhouse.go, telemetry/processor.go, sdk/go/llm.go); review the UI and query API for injection and auth gaps.
+- Blockers / needs human: none.
+
 ## 2026-11-03 — Fix rate limiting: was global, now per-agent
 - Did: the interceptor chain ran the rate limiter before auth, so no identity was in context yet and every agent shared one bucket keyed "". A single noisy agent could starve all the others. I moved the chain into `unaryInterceptors()` with auth first, added `auth.WithIdentity`, and made the gateway fail fast when the CA PEM doesn't parse (it used to ignore the result silently). Added tests: per-agent buckets, and auth running before the limiter.
 - Verified: go build, go vet, and go test -race ./... PASS.
