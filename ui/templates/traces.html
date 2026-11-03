@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <title>Conduit — Traces</title>
   <link rel="stylesheet" href="/static/css/app.css">
+  <meta name="htmx-config" content='{"includeIndicatorStyles":false}'>
   <script src="/static/js/htmx.min.js" defer></script>
   <script src="/static/js/traces.js" defer></script>
 </head>
@@ -38,8 +39,7 @@
   <tbody>
   {{range .Rows}}
   <tr class="span-row status-{{.Status}}"
-      data-trace-id="{{.TraceID}}"
-      onclick="window.location='/traces/{{.TraceID}}'">
+      data-trace-id="{{.TraceID}}">
     <td class="mono">{{.TraceID}}</td>
     <td>{{.AgentName}}</td>
     <td>{{.SpanName}}</td>

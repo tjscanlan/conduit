@@ -2,6 +2,13 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — UI: security headers, server timeouts, CSP-safe templates
+- Reviewed: the UI and query API. ClickHouse queries are parameterized and pages render through html/template, so no SQLi or XSS found.
+- Did: added a `securityHeaders` middleware (strict CSP with no inline script or style and frame-ancestors 'none'; nosniff; X-Frame-Options DENY; no-referrer). It wraps auth, so 401 responses get the headers too. Added Read, ReadHeader, Write, and Idle timeouts to the UI's http.Server (there were none, so slow-loris was possible). Removed a redundant inline `onclick` from traces.html (traces.js already delegates clicks) and URL-encoded the trace ID there. Turned off htmx's injected indicator `<style>`, which the CSP would block. Tests: headers are present even on auth failure, and the templates contain no inline handlers, scripts, or styles.
+- Verified: go build, go vet, and go test -race ./... PASS. Not verified in a real browser, because there's no ClickHouse running locally.
+- Next candidates: wire the Go SDK client TODO; add tests for telemetry.Process; handle the ignored `ExecuteTemplate` errors in cmd/ui; gofmt the remaining files.
+- Blockers / needs human: (1) **UI auth fails open.** With `UI_API_TOKEN` unset (the docker-compose default), the UI serves all trace data with no auth. (2) **Bearer auth doesn't work for browsers.** Browsers can't send an Authorization header on page navigation, so setting the token makes the UI unusable. This needs a design choice, such as a login form with an HttpOnly session cookie, or relying on a reverse proxy or mTLS for the UI.
+
 ## 2026-11-03 — Harden span validation at the ingestion boundary
 - Did: `schema.Validate` now bounds trace_id, span_id, and parent_id (at most 64 characters of `[A-Za-z0-9_-]`, which admits hex IDs and UUIDs), rejects empty attribute keys, caps model names at 256 bytes, and requires cost_usd to be finite and non-negative. Added a table-driven test that covers every rule (internal/schema was untested before). I also ran gofmt on validator.go.
 - Verified: go build, go vet, and go test -race ./... PASS.

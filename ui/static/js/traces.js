@@ -11,7 +11,7 @@ document.addEventListener("click", function (e) {
   const traceID = row.dataset.traceId;
   if (!traceID) return;
 
-  window.location.href = "/traces/" + traceID;
+  window.location.href = "/traces/" + encodeURIComponent(traceID);
 });
 
 // Highlight the row that matches the current URL trace ID (detail page).

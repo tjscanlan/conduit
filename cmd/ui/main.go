@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/your-org/agent-observability/internal/auth"
 	"github.com/your-org/agent-observability/internal/storage"
@@ -42,7 +43,14 @@ func main() {
 		root = auth.BearerTokenMiddleware(store, mux)
 	}
 
-	srv := &http.Server{Addr: cfg.ListenAddr, Handler: root}
+	srv := &http.Server{
+		Addr:              cfg.ListenAddr,
+		Handler:           securityHeaders(root),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
