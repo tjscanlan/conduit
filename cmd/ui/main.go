@@ -26,7 +26,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	tmpls := template.Must(template.ParseFS(conduitui.Assets, "templates/*.html"))
+	tmpls := parseTemplates()
 
 	// Set up auth before touching storage so misconfiguration fails fast.
 	authn, err := newUIAuth(cfg, tmpls, logger)
@@ -77,7 +77,7 @@ type handlers struct {
 
 // spanQuerier is the read side of storage.ClickHouseStore used by the UI.
 type spanQuerier interface {
-	QueryRecentSpans(ctx context.Context, limit int) ([]storage.SpanRow, error)
+	QueryTraces(ctx context.Context, f storage.TraceFilter) ([]storage.TraceSummary, error)
 	QueryTrace(ctx context.Context, traceID string, limit int) ([]storage.SpanRow, error)
 }
 
@@ -120,13 +120,14 @@ func (h *handlers) index(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) traces(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.ch.QueryRecentSpans(r.Context(), 100)
+	f := parseTraceListFilter(r.URL.Query())
+	traces, err := h.ch.QueryTraces(r.Context(), f.storageFilter())
 	if err != nil {
-		h.logger.Error("query spans", "err", err)
+		h.logger.Error("query traces", "err", err)
 		http.Error(w, "query error", http.StatusInternalServerError)
 		return
 	}
-	data := map[string]any{"Page": "traces", "Rows": rows}
+	data := map[string]any{"Page": "traces", "Traces": traces, "Filter": f, "Windows": traceWindows}
 	if r.Header.Get("HX-Request") == "true" {
 		h.render(w, r, "traces-rows", data)
 		return

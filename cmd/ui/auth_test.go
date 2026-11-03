@@ -8,7 +8,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io"
 	"log/slog"
 	"math/big"
@@ -24,7 +23,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/your-org/agent-observability/internal/auth"
-	conduitui "github.com/your-org/agent-observability/ui"
 )
 
 const (
@@ -39,7 +37,7 @@ func testLogger() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard,
 // available, so tests exercise routes that don't query it (/logs, /metrics).
 func newTestRouter(t *testing.T, mode string) (http.Handler, *uiAuth) {
 	t.Helper()
-	tmpls := template.Must(template.ParseFS(conduitui.Assets, "templates/*.html"))
+	tmpls := parseTemplates()
 	cfg := &Config{AuthMode: mode, SessionTTL: time.Hour, SessionKey: strings.Repeat("k", 32)}
 
 	if mode == authModeLogin {

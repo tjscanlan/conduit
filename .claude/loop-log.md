@@ -2,6 +2,19 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — Cycle 4 (`loop/trace-list-filters`, after PR #3 merged as f5e7927): one row per trace + filters
+- Theme: the traces list. `/traces` listed the latest 100 *spans* (one chatty trace filled the page), with no filtering.
+- Did:
+  - `storage.QueryTraces(TraceFilter)`: groups spans by trace_id, returning the root span name (`argMin(span_name, (parent_id != '', start_time))`), start, end, span and error counts, agents, tokens, and cost, newest first.
+  - The scan is always bounded by a window (1h, 24h, or 7d allowlist), passed as integer seconds to `now64() - toIntervalSecond(?)`, which avoids the time.Time second-precision binding.
+  - The agent filter selects whole traces containing the agent (an `IN` subquery), so totals still cover every span. Errors-only uses `HAVING`.
+  - UI: a GET filter form (window select, agent search, errors-only checkbox, Clear) with no JS. htmx polling keeps the filter (`hx-get="/traces?{{.Filter.Query}}"`). New columns: Started, Trace (root name links to detail, plus ID), Agents, Spans, Errors, Duration, Tokens, Cost. The empty state is aware of filters.
+  - Params are validated: window is allowlisted; agent must be ≤256 bytes of valid UTF-8 (still a bound parameter); `errors` must be exactly `1`.
+  - Shared `parseTemplates()` with a FuncMap (`durationMs`). Removed `QueryRecentSpans`.
+- Verified: ran the exact SQL on live ClickHouse before wiring it (correct root names and counts; errors+agent filter keeps all 4 smoke traces; unknown agent returns 0 rows). Handler tests: one row per trace, links named by root, default filter, polling URL, filtered form state, the errors-only and agent semantics, the empty state, and rejection of bad params. The smoke test now checks the list and its filters against the real stack (CI).
+- Environment note: the user started a `conduit-demo` compose project from this checkout (`.local/demo`, self-ignored), which held :8428. Two stacks don't fit Colima's 2 GiB (tempo exited 137), and my dev stack's infra had stopped. I stopped **only my** `docker` project (kept its volumes) and left the demo alone. Live checks for this cycle run in CI.
+- Next candidates: paging (an "older" cursor); `restart: unless-stopped` for compose infra services (after a VM restart they stayed down while the apps crash-looped); agent dropdown populated from recent agents.
+
 ## 2026-11-03 — Trace detail: bound huge traces; span deep links
 - Did:
   - `QueryTrace` takes a limit. The detail page loads at most 2000 spans (fetching 2001 to detect truncation) and shows a notice that the totals cover only those spans. Before, a runaway agent could make the UI fetch and render an unbounded trace.

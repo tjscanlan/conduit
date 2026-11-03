@@ -109,6 +109,14 @@ code() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
 [[ "$(code -H "Origin: $UI" --data-urlencode "username=$UI_USER" --data-urlencode password=wrong "$UI/login")" == 401 ]] || fail "bad password should be 401"
 [[ "$(code -H 'Origin: https://evil.example' --data-urlencode "username=$UI_USER" --data-urlencode "password=$UI_PASSWORD" "$UI/login")" == 403 ]] || fail "cross-site login should be 403"
 [[ "$(code -c "$jar" -H "Origin: $UI" --data-urlencode "username=$UI_USER" --data-urlencode "password=$UI_PASSWORD" "$UI/login")" == 303 ]] || fail "login"
+list=$(curl -fsS -b "$jar" "$UI/traces")
+grep -q "href=\"/traces/$TRACE\">smoke.agent.run</a>" <<<"$list" || fail "trace list missing a row for $TRACE named by its root span"
+[[ $(grep -c "href=\"/traces/$TRACE\"" <<<"$list") == 1 ]] || fail "trace list should have exactly one row per trace"
+filtered=$(curl -fsS -b "$jar" -G "$UI/traces" --data-urlencode "agent=$AGENT" --data-urlencode errors=1 --data-urlencode window=1h)
+grep -q "/traces/$TRACE\"" <<<"$filtered" || fail "agent+errors filter dropped $TRACE"
+none=$(curl -fsS -b "$jar" -G "$UI/traces" --data-urlencode agent=no-such-agent)
+grep -q "No traces match these filters" <<<"$none" || fail "unknown-agent filter should match nothing"
+pass "trace list: one row per trace, agent/errors/window filters"
 page=$(curl -fsS -b "$jar" "$UI/traces/$TRACE")
 grep -q smoke.llm.call <<<"$page" && grep -q badge-error <<<"$page" || fail "trace detail page missing spans"
 curl -fsSI -b "$jar" "$UI/traces" | grep -qi '^content-security-policy:' || fail "missing CSP header"
