@@ -56,6 +56,11 @@ expected="smoke.agent.run"$'\t'"$AGENT"$'\tok\t\t\t16\t0\n'"smoke.llm.call"$'\t'
 [[ "$rows" == "$expected" ]] || fail "span rows differ:"$'\n'"got:"$'\n'"$rows"$'\n'"want:"$'\n'"$expected"
 pass "spans stored with agent_name from the cert CN, status, error.message, LLM fields, parent link"
 
+# Timestamps must keep sub-second precision (the child span sleeps ~20 ms).
+llm_ms=$(ch "SELECT dateDiff('millisecond', start_time, end_time) FROM spans WHERE trace_id = '$TRACE' AND span_name = 'smoke.llm.call'")
+(( llm_ms >= 15 )) || fail "smoke.llm.call stored start/end only $llm_ms ms apart; timestamps lost sub-second precision"
+pass "sub-second timestamps preserved ($llm_ms ms)"
+
 summary=$(ch "SELECT sum(span_count), sum(error_count), sum(total_input_tokens) FROM trace_summary WHERE trace_id = '$TRACE' FORMAT TSV")
 [[ "$summary" == $'2\t1\t12' ]] || fail "trace_summary = '$summary', want 2 spans / 1 error / 12 tokens"
 pass "trace_summary rollup"

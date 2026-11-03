@@ -78,7 +78,7 @@ type handlers struct {
 // spanQuerier is the read side of storage.ClickHouseStore used by the UI.
 type spanQuerier interface {
 	QueryRecentSpans(ctx context.Context, limit int) ([]storage.SpanRow, error)
-	QueryTrace(ctx context.Context, traceID string) ([]storage.SpanRow, error)
+	QueryTrace(ctx context.Context, traceID string, limit int) ([]storage.SpanRow, error)
 }
 
 // newRouter builds the UI's handler tree. Only /healthz, /static/, and the
@@ -136,7 +136,8 @@ func (h *handlers) traces(w http.ResponseWriter, r *http.Request) {
 
 func (h *handlers) traceDetail(w http.ResponseWriter, r *http.Request) {
 	traceID := r.PathValue("traceID")
-	spans, err := h.ch.QueryTrace(r.Context(), traceID)
+	// Fetch one extra row to tell whether the trace was truncated.
+	spans, err := h.ch.QueryTrace(r.Context(), traceID, maxTraceSpans+1)
 	if err != nil {
 		h.logger.Error("query trace", "traceID", traceID, "err", err)
 		http.Error(w, "query error", http.StatusInternalServerError)
@@ -146,11 +147,15 @@ func (h *handlers) traceDetail(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	// "Rows" is what the traces-rows template iterates over.
-	h.render(w, r, "traces", map[string]any{
-		"Page":    "traces",
-		"TraceID": traceID,
-		"Rows":    spans,
+	truncated := len(spans) > maxTraceSpans
+	if truncated {
+		spans = spans[:maxTraceSpans]
+	}
+	view := buildTraceView(traceID, spans)
+	view.Truncated = truncated
+	h.render(w, r, "trace", map[string]any{
+		"Page":  "traces",
+		"Trace": view,
 	})
 }
 

@@ -165,3 +165,78 @@ nav .nav-logout button:hover { color: var(--text); }
   border-radius: 4px;
   padding: 0.5rem 0.6rem;
 }
+
+/* ── Trace detail ────────────────────────────────────────────────────── */
+.trace-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 2rem;
+  margin: 0 0 1.25rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.trace-summary dt { color: var(--muted); font-size: 11px; text-transform: uppercase; }
+.trace-summary dd { margin: 0; }
+
+.span-tree { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
+.span-node { border-bottom: 1px solid var(--border); }
+.span-node summary {
+  display: grid;
+  grid-template-columns: minmax(12rem, 2fr) auto auto 9rem minmax(8rem, 3fr);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.35rem 0.5rem;
+  cursor: pointer;
+  list-style: none;
+}
+.span-node summary::-webkit-details-marker { display: none; }
+.span-node summary:hover { background: var(--surface); }
+.span-node .span-name::before { content: "▸ "; color: var(--muted); }
+.span-node details[open] .span-name::before { content: "▾ "; }
+.span-timing { color: var(--muted); font-size: 12px; text-align: right; }
+.tag { font-size: 10px; padding: 0.05em 0.4em; border: 1px solid var(--accent); color: var(--accent); border-radius: 3px; }
+
+/* Nesting: class-based so the strict CSP (no inline styles) holds. */
+.depth-1  .span-name { padding-left: 1.25rem; }
+.depth-2  .span-name { padding-left: 2.5rem; }
+.depth-3  .span-name { padding-left: 3.75rem; }
+.depth-4  .span-name { padding-left: 5rem; }
+.depth-5  .span-name { padding-left: 6.25rem; }
+.depth-6  .span-name { padding-left: 7.5rem; }
+.depth-7  .span-name { padding-left: 8.75rem; }
+.depth-8  .span-name { padding-left: 10rem; }
+.depth-9  .span-name { padding-left: 11.25rem; }
+.depth-10 .span-name { padding-left: 12.5rem; }
+
+.waterfall { width: 100%; height: 10px; background: var(--bg); border-radius: 2px; }
+.wf-bar       { fill: var(--accent); }
+.wf-ok        { fill: var(--ok); }
+.wf-error     { fill: var(--error); }
+.wf-unset     { fill: var(--muted); }
+
+.span-details { padding: 0.5rem 1rem 1rem 2rem; }
+.span-error {
+  color: var(--error);
+  border: 1px solid var(--error);
+  border-radius: 4px;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.75rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 0.2rem 1rem; margin-bottom: 0.75rem; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; overflow-wrap: anywhere; }
+.attrs td { overflow-wrap: anywhere; }
+.span-link { color: var(--muted); opacity: 0; margin-left: 0.25rem; }
+.span-node summary:hover .span-link, .span-link:focus { opacity: 1; }
+.span-node.linked > details > summary { background: var(--surface); outline: 1px solid var(--accent); }
+.notice {
+  color: var(--warn);
+  border: 1px solid var(--warn);
+  border-radius: 4px;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 1rem;
+}
