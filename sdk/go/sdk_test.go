@@ -185,6 +185,9 @@ func TestSpansReachGatewayOverMTLS(t *testing.T) {
 	if len(gotRoot.GetTraceId()) != 32 || len(gotRoot.GetSpanId()) != 16 || len(gotChild.GetSpanId()) != 16 {
 		t.Errorf("IDs must be W3C/OTLP sized (32-hex trace, 16-hex span): trace %q span %q", gotRoot.GetTraceId(), gotRoot.GetSpanId())
 	}
+	if root.TraceID() != gotRoot.GetTraceId() || root.SpanID() != gotRoot.GetSpanId() || child.TraceID() != root.TraceID() {
+		t.Errorf("accessors disagree with what was sent: %s/%s vs %s/%s", root.TraceID(), root.SpanID(), gotRoot.GetTraceId(), gotRoot.GetSpanId())
+	}
 	if gotChild.GetTraceId() != gotRoot.GetTraceId() || gotChild.GetParentId() != gotRoot.GetSpanId() {
 		t.Errorf("child not linked to root: trace %q/%q parent %q root span %q",
 			gotChild.GetTraceId(), gotRoot.GetTraceId(), gotChild.GetParentId(), gotRoot.GetSpanId())

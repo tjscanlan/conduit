@@ -29,6 +29,12 @@ Then open http://localhost:8080 and sign in as `admin`. Agents connect to
 `localhost:4317` using `certs/ca.crt` and their own client cert (see
 [sdk-go.md](sdk-go.md)).
 
+To check the whole pipeline end to end, run
+`UI_USER=admin UI_PASSWORD=… ./scripts/smoke-test.sh` with the same
+`CLICKHOUSE_PASSWORD` exported. It sends a trace with the Go SDK and checks
+that it reaches ClickHouse, VictoriaMetrics, Tempo and the UI. CI runs it on
+every push.
+
 Compose sets `UI_COOKIE_INSECURE=true` because it serves plain HTTP on
 localhost. Never set it anywhere else. Without `UI_SESSION_KEY`, sessions
 end whenever the UI restarts.

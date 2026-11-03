@@ -94,6 +94,12 @@ func (c *Client) StartSpan(ctx context.Context, name string) (*Span, context.Con
 	return s, contextWithSpan(ctx, s)
 }
 
+// TraceID returns the span's 32-hex-character trace ID, e.g. for log correlation.
+func (s *Span) TraceID() string { return s.traceID }
+
+// SpanID returns the span's 16-hex-character span ID.
+func (s *Span) SpanID() string { return s.spanID }
+
 // SetAttr adds a key-value attribute to the span.
 func (s *Span) SetAttr(key, value string) *Span {
 	s.attrs[key] = value

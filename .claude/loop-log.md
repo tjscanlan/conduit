@@ -2,6 +2,56 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — Loop: descriptive branch names (requested by user)
+- Decision (user): each loop branch must have a useful name after `loop/` that describes the feature being iterated on.
+- Did: added "Branch names" to `.claude/loop.md` step 0: `loop/<feature-name>` in kebab-case, 2–5 words, naming the outcome, never dates, counters, or `auto`/`wip`/`misc`. Pick the theme before creating the branch. Theme drift is a stopping point for a PR, and the PR title matches the theme. The orient step now refers to the current `loop/<feature-name>` branch.
+- Note: the current branch `loop/20261103-1353` keeps its name, since it's PR #2's head and renaming it would close the PR. The rule applies from the next cycle.
+
+## 2026-11-03 — Python SDK in the smoke test; docs/sdk-python.md
+- Did:
+  - `scripts/smoke-test.sh` now also sends a trace with the **Python** SDK (`sdk/python/examples/smoke_agent.py`) through the real gateway and asserts its ClickHouse rows: agent_name from the cert CN, ok and error statuses, exception → error.message, LLM model, 16-hex IDs, and the parent link. It fails if the SDK isn't importable, unless SMOKE_SKIP_PYTHON=1. The CI smoke job installs the SDK first.
+  - New API: `client.span(name, raise_errors=True)` for strict delivery in context-manager form. It never masks the block's own exception. Found when the smoke agent needed it; tested.
+  - Wrote `docs/sdk-python.md` (certs, install, instrumentation, an API table with gateway limits, delivery-error semantics, caveats, development), plus pointer READMEs for both SDKs (they were empty).
+- Verified: the full smoke test passes locally, including the Python trace. pytest is 8/8. The documented API was checked against the real signatures.
+- **Stopping point: opened PR https://github.com/tjscanlan/conduit/pull/2. No new work until it is merged.**
+
+## 2026-11-03 — Python SDK: from stub to working package
+- Did: the Python SDK was in the state the Go SDK was in this morning, plus more:
+  - `_flush` was a no-op "Stub", so nothing was ever sent.
+  - The documented `agent_observability` package didn't exist; hatch pointed at `sdk/python` from inside it, and the modules used relative imports from a dir named `python`.
+  - The current span lived on the Client instance, so the "thread-safe" claim was false and concurrent threads or tasks cross-linked parents.
+  - There was no status support, and exceptions weren't recorded.
+  - The pyproject said MIT while the repo is Apache-2.0.
+- Fixes:
+  - Package: `sdk/python/src/conduit_sdk`.
+  - Delivery: real `IngestSpan` over mTLS (trusts only TLS_CA).
+  - Context: tracked in `contextvars`, safe across threads and asyncio tasks.
+  - Status: `set_ok`/`set_error` (None is a no-op; the message is UTF-8-truncated to 4096 bytes); an exception in `with client.span()` sets error and re-raises.
+  - Delivery errors: explicit `end()` raises `ConduitError`, and the `with` block only logs, so instrumentation can't break the agent. `end()` is idempotent.
+  - Env: `CONDUIT_GATEWAY_ADDR` (OTEL_GATEWAY_ADDR accepted).
+  - License: Apache-2.0.
+- Generated stubs: `scripts/gen-proto-python.sh` (pinned grpcio-tools 1.85.1, via uv or pip; rewrites protoc's top-level imports to package-relative) and **committed**, consistent with the Go decision. `make proto` runs both generators, and the CI drift check now covers the Python stubs. Deps are pinned to the stubs' floors (grpcio>=1.85.1, protobuf>=7.35.1,<8). Ignore Python caches repo-wide.
+- Tests (pytest, an in-process gRPC server requiring client certs, certs minted with `cryptography`, which is dev-only): delivery and parent linking, W3C ID sizes, LLM fields, exception → error, set_error(None), truncation, rejection raising vs. context-manager logging, idempotent end, untrusted CA refused, thread isolation, and asyncio task isolation. New CI job `python-sdk` on Python 3.10 and 3.14 (setup-python pinned by SHA).
+- Verified: 7/7 pytest pass on 3.12 locally, Python codegen is deterministic, and Go is unaffected.
+- Next candidates: write docs/sdk-python.md; make the smoke test also send a Python trace through the real gateway; contributing.md. Then open PR #2 (this cycle will have the smoke job, the UI detail fix, the cert fixes, and the Python SDK).
+
+## 2026-11-03 — Fix smoke CI: stale tracked certs + gen-certs reissue bug
+- CI run 41698657967 failed in `compose smoke test` at gen-certs: "certs/agent-example.crt already exists".
+  - Cause 1: `certs/{ca,server,agent-example}.crt` had been tracked since the initial "mvp-ish code" commit, before `certs/` was gitignored. They're **public certificates only**. I scanned all history: no private key was ever committed (the only "PRIVATE KEY" matches are PEM labels in sdk_test.go). They're useless without their keys, so I untracked them; local copies stay.
+  - Cause 2 (my bug from 388d75b): a full `gen-certs.sh` run creates a new CA, then refused to reissue agent-example because a cert already existed. That cert was signed by the old CA, so it was invalid. The full run now always reissues the example agent cert.
+- Next CI run (41699093345): the whole pipeline worked in CI for the first time. The only mismatch was the expected agent name: the rewritten gen-certs uses the file name as the CN (`agent-example`), and the old script used `example-agent`. The smoke test now reads the expected CN from the cert (handling both LibreSSL and OpenSSL 3 subject formats), which makes the cert-to-agent_name check stricter.
+- Verified: reproduced the CI case in scratch (stale public certs, no keys). The full run now exits 0 and `openssl verify` passes for both server and agent certs. A rerun with a CA present still refuses, and agent mode still works.
+
+## 2026-11-03 — Cycle 2 begins (PR #1 merged as e914c06). Compose smoke test in CI; trace detail page fixed
+- PR gate: PR #1 was merged at 18:50 UTC (merge commit, history kept). Started branch `loop/20261103-1353` from origin/main.
+- Did: automated the manual smoke test so deployment regressions like the four fixed in a5600cd fail CI.
+  - `scripts/smoke-test.sh`: sends a trace with the SDK and asserts ClickHouse rows (agent_name from cert CN, statuses, error.message, LLM fields, span ID length, parent), trace_summary totals, VictoriaMetrics series, the Tempo trace with OK and ERROR statuses, and the UI (healthz, login redirect, 401, cross-site 403, login, trace detail, CSP). Retries cover eventual consistency.
+  - `sdk/go/examples/smoke-agent` sends the trace. New SDK API: `Span.TraceID()` and `Span.SpanID()` (log correlation); tested.
+  - CI job `smoke`: random masked passwords, gen-certs, `compose up --build --wait`, the script, logs on failure, and `down -v` always.
+  - **The smoke script found a UI bug right away:** `/traces/{id}` passed `Spans`, but the template iterates `Rows`, so the detail page always showed "No spans yet". It also polled `hx-get="/traces"`, which would swap in the global list. Fixed: it passes Rows, shows a "Trace <id>" heading and a back link, doesn't poll, and returns 404 for unknown traces. The UI handlers now take a `spanQuerier` interface; added tests for the detail, list, and 404 cases. (My manual check before PR #1 only looked at the HTTP 200.)
+- Verified: the smoke test passes against the local compose stack after rebuilding the UI. go vet and test -race pass for root and sdk. CI pending.
+- Next candidates: Python SDK tests plus a CI job (it's untested; the smoke harness could send a Python trace too); contributing.md and sdk-python.md; UI trace detail could show attributes and LLM fields (the SpanRow query doesn't select prompt or completion, which is probably right by default).
+
 ## 2026-11-03 — Compose smoke test (requested by user): 4 bugs fixed; full pipeline verified
 - Ran `colima start` (already running: aarch64, 2 CPU, 2 GiB) and installed the docker compose plugin (brew). Then `docker compose up`. Fixed what it found:
   - **Dockerfile:** every image compiled all three binaries (9 parallel compiles OOM-killed the 2 GiB VM), and `GOARCH=amd64` was hard-coded (exec format error on arm64). It now builds only `${BINARY}`, with `GOARCH="${TARGETARCH:-$(go env GOARCH)}"` and `-trimpath`. Note: a first attempt using `${TARGETARCH:+GOARCH=…}` only worked because it expanded to nothing; POSIX sh doesn't treat expanded text as an assignment. Fixed before committing.

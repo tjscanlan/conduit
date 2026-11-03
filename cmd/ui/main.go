@@ -70,9 +70,15 @@ func main() {
 }
 
 type handlers struct {
-	ch     *storage.ClickHouseStore
+	ch     spanQuerier
 	tmpls  *template.Template
 	logger *slog.Logger
+}
+
+// spanQuerier is the read side of storage.ClickHouseStore used by the UI.
+type spanQuerier interface {
+	QueryRecentSpans(ctx context.Context, limit int) ([]storage.SpanRow, error)
+	QueryTrace(ctx context.Context, traceID string) ([]storage.SpanRow, error)
 }
 
 // newRouter builds the UI's handler tree. Only /healthz, /static/, and the
@@ -136,10 +142,15 @@ func (h *handlers) traceDetail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "query error", http.StatusInternalServerError)
 		return
 	}
+	if len(spans) == 0 {
+		http.NotFound(w, r)
+		return
+	}
+	// "Rows" is what the traces-rows template iterates over.
 	h.render(w, r, "traces", map[string]any{
 		"Page":    "traces",
 		"TraceID": traceID,
-		"Spans":   spans,
+		"Rows":    spans,
 	})
 }
 
