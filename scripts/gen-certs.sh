@@ -72,7 +72,8 @@ openssl x509 -req -days 365 -in server.csr -CA ca.crt -CAkey ca.key \
   -extfile <(printf "subjectAltName=DNS:gateway,DNS:localhost\nextendedKeyUsage=serverAuth")
 rm -f server.csr ca.srl
 
-issue_agent agent-example
+# The new CA invalidates any previous example cert, so always reissue it.
+FORCE=1 issue_agent agent-example
 
 echo ""
 echo "Certs written to $CERTS_DIR:"
