@@ -230,3 +230,13 @@ nav .nav-logout button:hover { color: var(--text); }
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; overflow-wrap: anywhere; }
 .attrs td { overflow-wrap: anywhere; }
+.span-link { color: var(--muted); opacity: 0; margin-left: 0.25rem; }
+.span-node summary:hover .span-link, .span-link:focus { opacity: 1; }
+.span-node.linked > details > summary { background: var(--surface); outline: 1px solid var(--accent); }
+.notice {
+  color: var(--warn);
+  border: 1px solid var(--warn);
+  border-radius: 4px;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 1rem;
+}

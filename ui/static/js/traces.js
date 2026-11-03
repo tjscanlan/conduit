@@ -1,25 +1,25 @@
-// traces.js — expand/collapse LLM payload for a span row
+// traces.js: trace list navigation and span deep links. Kept to an external
+// file because the CSP forbids inline script.
 "use strict";
 
+// Trace list: clicking a row opens that trace.
 document.addEventListener("click", function (e) {
   const row = e.target.closest(".span-row[data-trace-id]");
-  if (!row) return;
-
-  // If the click was on a link, let it navigate normally.
-  if (e.target.tagName === "A") return;
-
+  if (!row || e.target.closest("a")) return;
   const traceID = row.dataset.traceId;
-  if (!traceID) return;
-
-  window.location.href = "/traces/" + encodeURIComponent(traceID);
+  if (traceID) window.location.href = "/traces/" + encodeURIComponent(traceID);
 });
 
-// Highlight the row that matches the current URL trace ID (detail page).
-(function highlightCurrent() {
-  const m = window.location.pathname.match(/\/traces\/(.+)/);
-  if (!m) return;
-  const traceID = m[1];
-  document.querySelectorAll(`.span-row[data-trace-id="${CSS.escape(traceID)}"]`).forEach(function (r) {
-    r.style.background = "var(--surface)";
-  });
-})();
+// Trace detail: /traces/<id>#span-<spanID> opens and highlights that span.
+function openLinkedSpan() {
+  if (!window.location.hash.startsWith("#span-")) return;
+  const node = document.getElementById(decodeURIComponent(window.location.hash.slice(1)));
+  if (!node || !node.classList.contains("span-node")) return;
+  document.querySelectorAll(".span-node.linked").forEach(function (n) { n.classList.remove("linked"); });
+  node.classList.add("linked");
+  const details = node.querySelector("details");
+  if (details) details.open = true;
+  node.scrollIntoView({ block: "center" });
+}
+document.addEventListener("DOMContentLoaded", openLinkedSpan);
+window.addEventListener("hashchange", openLinkedSpan);

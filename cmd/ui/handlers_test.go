@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"html/template"
 	"net/http"
 	"net/http/httptest"
@@ -19,10 +20,10 @@ func (f *fakeSpans) QueryRecentSpans(context.Context, int) ([]storage.SpanRow, e
 	return f.rows, nil
 }
 
-func (f *fakeSpans) QueryTrace(_ context.Context, id string) ([]storage.SpanRow, error) {
+func (f *fakeSpans) QueryTrace(_ context.Context, id string, limit int) ([]storage.SpanRow, error) {
 	var out []storage.SpanRow
 	for _, r := range f.rows {
-		if r.TraceID == id {
+		if r.TraceID == id && len(out) < limit {
 			out = append(out, r)
 		}
 	}
@@ -79,5 +80,29 @@ func TestTraceListPolls(t *testing.T) {
 	body := do(newDataRouter(t, sampleRows()), httptest.NewRequest(http.MethodGet, "/traces", nil)).Body.String()
 	if !strings.Contains(body, "other.trace") || !strings.Contains(body, `hx-get="/traces"`) {
 		t.Error("list page should show all spans and poll for updates")
+	}
+}
+
+func TestTraceDetailTruncatesHugeTraces(t *testing.T) {
+	var rows []storage.SpanRow
+	now := time.Now()
+	for i := 0; i < maxTraceSpans+50; i++ {
+		rows = append(rows, storage.SpanRow{TraceID: "big", SpanID: fmt.Sprintf("s%05d", i), SpanName: "step",
+			Status: "ok", StartTime: now.Add(time.Duration(i) * time.Millisecond), EndTime: now.Add(time.Duration(i+1) * time.Millisecond)})
+	}
+	body := do(newDataRouter(t, rows), httptest.NewRequest(http.MethodGet, "/traces/big", nil)).Body.String()
+	if n := strings.Count(body, `class="span-node`); n != maxTraceSpans {
+		t.Errorf("rendered %d spans, want %d", n, maxTraceSpans)
+	}
+	if !strings.Contains(body, "more than 2000 spans") {
+		t.Error("truncation notice missing")
+	}
+
+	small := do(newDataRouter(t, sampleRows()), httptest.NewRequest(http.MethodGet, "/traces/aaaa", nil)).Body.String()
+	if strings.Contains(small, "more than") {
+		t.Error("notice shown for an untruncated trace")
+	}
+	if !strings.Contains(small, `id="span-s2"`) || !strings.Contains(small, `href="#span-s2"`) {
+		t.Error("span deep-link anchors missing")
 	}
 }

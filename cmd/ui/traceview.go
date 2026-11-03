@@ -9,6 +9,10 @@ import (
 	"github.com/your-org/agent-observability/internal/storage"
 )
 
+// maxTraceSpans bounds how many spans of one trace the detail page loads, so a
+// runaway agent can't make the UI fetch and render an unbounded trace.
+const maxTraceSpans = 2000
+
 // maxIndentDepth caps the depth-N CSS classes; deeper spans render at this depth.
 const maxIndentDepth = 10
 
@@ -24,6 +28,8 @@ type traceView struct {
 	OutputTokens uint64
 	CostUSD      float64
 	HasLLM       bool
+	Truncated    bool // more than maxTraceSpans spans; totals cover only those shown
+	Limit        int
 	Agents       []string
 	Spans        []spanView
 }
@@ -47,7 +53,7 @@ type attr struct{ Key, Value string }
 var promotedAttrs = map[string]bool{"agent_name": true, "error.message": true}
 
 func buildTraceView(traceID string, rows []storage.SpanRow) traceView {
-	v := traceView{TraceID: traceID, SpanCount: len(rows)}
+	v := traceView{TraceID: traceID, SpanCount: len(rows), Limit: maxTraceSpans}
 	if len(rows) == 0 {
 		return v
 	}

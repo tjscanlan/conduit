@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <title>Conduit — Trace {{.Trace.TraceID}}</title>
   <link rel="stylesheet" href="/static/css/app.css">
+  <script src="/static/js/traces.js" defer></script>
 </head>
 <body>
 {{template "nav" .}}
@@ -25,12 +26,17 @@
     <div><dt>Agents</dt><dd>{{range $i, $a := .Agents}}{{if $i}}, {{end}}{{$a}}{{end}}</dd></div>
   </dl>
 
+  {{if .Truncated}}
+  <p class="notice" role="status">This trace has more than {{.Limit}} spans. Showing the first {{.Limit}} by start time; the totals above cover only those.</p>
+  {{end}}
+
   <ol class="span-tree">
   {{range .Spans}}
-    <li class="span-node depth-{{.Depth}} status-{{.Status}}">
+    <li class="span-node depth-{{.Depth}} status-{{.Status}}" id="span-{{.SpanID}}">
       <details>
         <summary>
           <span class="span-name">{{.SpanName}}</span>
+          <a class="span-link" href="#span-{{.SpanID}}" title="Link to this span" aria-label="Link to span {{.SpanName}}">#</a>
           <span class="badge badge-{{.Status}}">{{.Status}}</span>
           {{if .HasLLM}}<span class="tag">LLM</span>{{end}}
           <span class="span-timing mono">+{{.OffsetMs}} ms · {{.DurationMs}} ms</span>
