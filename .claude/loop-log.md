@@ -2,6 +2,16 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — Go SDK: deliver spans, verify gateway against configured CA
+- Did: `sdk/go` is a separate module that was never built (no go.sum) and wasn't covered by CI.
+  - **Security bug:** `New()` ignored `TLSCACert`. With no RootCAs, it verified the gateway against the *system* roots, so a private-CA gateway failed and any publicly-trusted cert for that host was accepted. It now trusts only the configured CA and errors on a missing or unparseable CA.
+  - **Functional bug:** `flush` was a no-op TODO, so spans never left the process. It now calls `IngestSpan` through the generated client with a full span to proto mapping (timestamps, attributes, LLM call). `Span.End` now returns an error on transport failure or gateway rejection; existing `s.End(ctx)` statement calls still compile.
+  - go.mod moved to go 1.26.0 with toolchain go1.26.10, and tidy pulled grpc v1.83.2 and protobuf v1.36.11. Committed go.sum.
+  - CI: the test and vuln jobs now build, vet, test, and govulncheck `sdk/go`.
+- Verified: new end-to-end tests use a real gRPC server that requires client certs, with a CA and certs generated in the test. They cover span delivery and parent/child linking, rejection surfacing, refusing a gateway signed by a different CA, and bad CA files. sdk coverage is 84%. The root and sdk build/vet/test PASS, and govulncheck is clean for both.
+- Next candidates: an SDK status API (`SetError`, since the proto `SpanStatus` is never set by the SDK or mapped by the gateway); `Span.End` being synchronous means one RPC per span, so consider batching with `IngestBatch`; tests for `telemetry.Process` and `internal/storage`; the empty docs (sdk-go.md, deployment.md).
+- Blockers / needs human: `gh auth login` is still pending (the loop is using the API fallback).
+
 ## 2026-11-03 — First CI run green; loop uses gh for CI status
 - CI run 41684226282 for d77f759: **all 6 jobs passed** (test, generated, vuln, and docker for gateway, collector, and ui). This confirms the Dockerfile works with committed proto code.
 - Did: installed the `gh` CLI (user request). `.claude/loop.md` now checks `gh run list` (and PR checks and comments when a PR exists) during orientation, makes a CI failure priority 1, and has the loop wait on each pushed commit's run. It falls back to the public API if gh isn't authenticated.
