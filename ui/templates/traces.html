@@ -13,12 +13,33 @@
 {{template "nav" .}}
 <main>
   <h1>Traces</h1>
-  <div id="span-list"
-       hx-get="/traces"
+  <form class="filters" method="get" action="/traces" role="search">
+    <label>Time
+      <select name="window">
+        {{range .Windows}}<option value="{{.Key}}"{{if eq .Key $.Filter.Window}} selected{{end}}>{{.Label}}</option>{{end}}
+      </select>
+    </label>
+    <label>Agent
+      <input type="search" name="agent" value="{{.Filter.Agent}}" placeholder="any" maxlength="256" autocomplete="off" list="agent-options">
+      <datalist id="agent-options">{{range .Agents}}<option value="{{.}}">{{end}}</datalist>
+    </label>
+    <label class="check"><input type="checkbox" name="errors" value="1"{{if .Filter.ErrorsOnly}} checked{{end}}> Errors only</label>
+    <button type="submit">Apply</button>
+    {{if .Filter.Active}}<a href="/traces">Clear</a>{{end}}
+  </form>
+  {{if .Filter.Before}}
+  {{/* An older page doesn't poll: new traces would shift it under the reader. */}}
+  <div id="trace-list">
+    {{template "traces-rows" .}}
+  </div>
+  {{else}}
+  <div id="trace-list"
+       hx-get="/traces?{{.Filter.Query}}"
        hx-trigger="every 10s"
        hx-swap="innerHTML">
     {{template "traces-rows" .}}
   </div>
+  {{end}}
 </main>
 </body>
 </html>
@@ -28,28 +49,35 @@
 <table class="data-table">
   <thead>
     <tr>
-      <th>Trace ID</th>
-      <th>Agent</th>
-      <th>Span</th>
-      <th>Duration</th>
-      <th>Status</th>
       <th>Started</th>
+      <th>Trace</th>
+      <th>Agents</th>
+      <th class="num">Spans</th>
+      <th>Errors</th>
+      <th class="num">Duration</th>
+      <th class="num">Tokens</th>
+      <th class="num">Cost</th>
     </tr>
   </thead>
   <tbody>
-  {{range .Rows}}
-  <tr class="span-row status-{{.Status}}"
-      data-trace-id="{{.TraceID}}">
-    <td class="mono">{{.TraceID}}</td>
-    <td>{{.AgentName}}</td>
-    <td>{{.SpanName}}</td>
-    <td>{{.DurationMs}}ms</td>
-    <td><span class="badge badge-{{.Status}}">{{.Status}}</span></td>
-    <td class="mono">{{.StartTime.Format "15:04:05.000"}}</td>
+  {{range .Traces}}
+  <tr class="span-row{{if .ErrorCount}} status-error{{end}}" data-trace-id="{{.TraceID}}">
+    <td class="mono">{{.Started.Format "Jan 02 15:04:05.000"}}</td>
+    <td><a href="/traces/{{.TraceID}}">{{.RootName}}</a><div class="mono muted">{{.TraceID}}</div></td>
+    <td>{{range $i, $a := .Agents}}{{if $i}}, {{end}}{{$a}}{{end}}</td>
+    <td class="num">{{.SpanCount}}</td>
+    <td>{{if .ErrorCount}}<span class="badge badge-error">{{.ErrorCount}}</span>{{else}}<span class="badge badge-ok">0</span>{{end}}</td>
+    <td class="num">{{durationMs .Started .Ended}} ms</td>
+    <td class="num">{{if or .InputTokens .OutputTokens}}{{.InputTokens}} / {{.OutputTokens}}{{else}}–{{end}}</td>
+    <td class="num">{{if .CostUSD}}{{printf "$%.4f" .CostUSD}}{{else}}–{{end}}</td>
   </tr>
   {{else}}
-  <tr><td colspan="6" class="empty">No spans yet — run seed-clickhouse.sh or emit a span.</td></tr>
+  <tr><td colspan="8" class="empty">{{if $.Filter.Active}}No traces match these filters.{{else}}No traces in this time range yet. Emit a span with an SDK, or run scripts/smoke-test.sh.{{end}}</td></tr>
   {{end}}
   </tbody>
 </table>
+<nav class="pager" aria-label="Trace list pages">
+  {{if $.Filter.Before}}<a href="{{$.Filter.NewestURL}}">← Newest</a>{{end}}
+  {{with $.OlderURL}}<a href="{{.}}">Older →</a>{{end}}
+</nav>
 {{end}}

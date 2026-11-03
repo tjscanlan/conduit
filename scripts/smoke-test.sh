@@ -81,6 +81,7 @@ else
   expected="pysmoke.agent.run"$'\t'"$AGENT"$'\tok\t\t\t16\t0\n'"pysmoke.tool.call"$'\t'"$AGENT"$'\terror\ttool call timed out\tpy-model\t16\t1'
   [[ "$rows" == "$expected" ]] || fail "Python span rows differ:"$'\n'"got:"$'\n'"$rows"$'\n'"want:"$'\n'"$expected"
   pass "Python SDK trace $PYTRACE: context-manager spans, exception recorded as error, parent link"
+  PYSTART_NS=$(ch "SELECT toUnixTimestamp64Nano(min(start_time)) FROM spans WHERE trace_id = '$PYTRACE'")
 fi
 
 echo "==> VictoriaMetrics"
@@ -109,6 +110,24 @@ code() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
 [[ "$(code -H "Origin: $UI" --data-urlencode "username=$UI_USER" --data-urlencode password=wrong "$UI/login")" == 401 ]] || fail "bad password should be 401"
 [[ "$(code -H 'Origin: https://evil.example' --data-urlencode "username=$UI_USER" --data-urlencode "password=$UI_PASSWORD" "$UI/login")" == 403 ]] || fail "cross-site login should be 403"
 [[ "$(code -c "$jar" -H "Origin: $UI" --data-urlencode "username=$UI_USER" --data-urlencode "password=$UI_PASSWORD" "$UI/login")" == 303 ]] || fail "login"
+list=$(curl -fsS -b "$jar" "$UI/traces")
+grep -q "href=\"/traces/$TRACE\">smoke.agent.run</a>" <<<"$list" || fail "trace list missing a row for $TRACE named by its root span"
+[[ $(grep -c "href=\"/traces/$TRACE\"" <<<"$list") == 1 ]] || fail "trace list should have exactly one row per trace"
+filtered=$(curl -fsS -b "$jar" -G "$UI/traces" --data-urlencode "agent=$AGENT" --data-urlencode errors=1 --data-urlencode window=1h)
+grep -q "/traces/$TRACE\"" <<<"$filtered" || fail "agent+errors filter dropped $TRACE"
+none=$(curl -fsS -b "$jar" -G "$UI/traces" --data-urlencode agent=no-such-agent)
+grep -q "No traces match these filters" <<<"$none" || fail "unknown-agent filter should match nothing"
+grep -q "<option value=\"$AGENT\">" <<<"$list" || fail "agent suggestions missing $AGENT"
+pass "trace list: one row per trace, agent/errors/window filters, agent suggestions"
+if [[ -n "${PYSTART_NS:-}" ]]; then
+  # The Python trace was sent after the Go one, so the page "older than" it
+  # must contain the Go trace but not the Python trace itself.
+  older=$(curl -fsS -b "$jar" -G "$UI/traces" --data-urlencode "before=$PYSTART_NS.$PYTRACE")
+  grep -q "/traces/$TRACE\"" <<<"$older" || fail "page older than the Python trace is missing the earlier Go trace"
+  ! grep -q "/traces/$PYTRACE\"" <<<"$older" || fail "cursor page repeated the cursor trace itself"
+  grep -q 'Newest</a>' <<<"$older" || fail "older page should link back to the newest page"
+  pass "keyset paging cursor"
+fi
 page=$(curl -fsS -b "$jar" "$UI/traces/$TRACE")
 grep -q smoke.llm.call <<<"$page" && grep -q badge-error <<<"$page" || fail "trace detail page missing spans"
 curl -fsSI -b "$jar" "$UI/traces" | grep -qi '^content-security-policy:' || fail "missing CSP header"

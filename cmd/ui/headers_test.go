@@ -1,7 +1,6 @@
 package main
 
 import (
-	"html/template"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
@@ -59,5 +58,5 @@ func TestTemplatesHaveNoInlineScript(t *testing.T) {
 		}
 	}
 	// Templates must still parse.
-	template.Must(template.ParseFS(conduitui.Assets, "templates/*.html"))
+	parseTemplates()
 }

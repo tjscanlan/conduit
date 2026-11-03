@@ -2,6 +2,32 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — Trace list: agent suggestions
+- Did: `storage.QueryAgents(window, limit)` (DISTINCT non-empty agent_name in the window, sorted, at most 200) feeds a `<datalist>` on the agent filter input, so there's no JS and free text still works. It's skipped for htmx partial refreshes (rows only), and a failed query only drops the suggestions (logged at warn); the page still renders.
+- Verified: handler tests (both agents suggested, no agent query on htmx partials, page renders when suggestions fail). The smoke test checks that the real list page suggests the smoke agent (runs in CI).
+- **Stopping point:** the trace-list theme is done (one row per trace, filters, paging, suggestions). Opened PR https://github.com/tjscanlan/conduit/pull/4; no new work until it is merged.
+
+## 2026-11-03 — Trace list: keyset paging
+- Did: an "Older →" link pages past the 100-trace limit using a keyset cursor `before=<startedUnixNano>.<traceID>`.
+  - Query: `HAVING (started, trace_id) < (fromUnixTimestamp64Nano(toInt64(?)), ?)` with `ORDER BY started DESC, trace_id DESC`. Stable as new traces arrive; the trace_id tiebreak means no gaps or repeats at equal start times. The cursor time is bound as integer ns, avoiding second truncation.
+  - Fetches limit+1 to detect another page. "← Newest" returns to page 1. Older pages don't auto-refresh. The cursor is validated: positive int64 ns plus an ID charset of at most 64 chars.
+- **Bug caught by the new test:** the first version interpolated a pre-encoded query into `href="/traces?{{.}}"`, and html/template URL-escapes query-position values, so `=`/`&` became `%3d`/`%26` and Older silently reloaded page 1. Pager links are now complete `template.URL`s built from `url.Values.Encode()`; the test asserts they aren't double-encoded. (hx-get didn't have this problem: html/template doesn't treat it as a URL attribute.)
+- Verified: handler tests (exactly 100 then 30 rows across 130 traces, no overlap or gap at the boundary, the right links on each page, no polling on older pages, cursor round trip, malformed cursors rejected and dropped from the filter). The smoke test now checks the cursor against real ClickHouse in CI: the page older than the Python trace contains the earlier Go trace and not the cursor trace. Not run locally, because the user's demo stack occupies the local resources.
+- Next candidates: an agent dropdown from recent agents; `restart: unless-stopped` for compose infra; then a PR for this theme.
+
+## 2026-11-03 — Cycle 4 (`loop/trace-list-filters`, after PR #3 merged as f5e7927): one row per trace + filters
+- Theme: the traces list. `/traces` listed the latest 100 *spans* (one chatty trace filled the page), with no filtering.
+- Did:
+  - `storage.QueryTraces(TraceFilter)`: groups spans by trace_id, returning the root span name (`argMin(span_name, (parent_id != '', start_time))`), start, end, span and error counts, agents, tokens, and cost, newest first.
+  - The scan is always bounded by a window (1h, 24h, or 7d allowlist), passed as integer seconds to `now64() - toIntervalSecond(?)`, which avoids the time.Time second-precision binding.
+  - The agent filter selects whole traces containing the agent (an `IN` subquery), so totals still cover every span. Errors-only uses `HAVING`.
+  - UI: a GET filter form (window select, agent search, errors-only checkbox, Clear) with no JS. htmx polling keeps the filter (`hx-get="/traces?{{.Filter.Query}}"`). New columns: Started, Trace (root name links to detail, plus ID), Agents, Spans, Errors, Duration, Tokens, Cost. The empty state is aware of filters.
+  - Params are validated: window is allowlisted; agent must be ≤256 bytes of valid UTF-8 (still a bound parameter); `errors` must be exactly `1`.
+  - Shared `parseTemplates()` with a FuncMap (`durationMs`). Removed `QueryRecentSpans`.
+- Verified: ran the exact SQL on live ClickHouse before wiring it (correct root names and counts; errors+agent filter keeps all 4 smoke traces; unknown agent returns 0 rows). Handler tests: one row per trace, links named by root, default filter, polling URL, filtered form state, the errors-only and agent semantics, the empty state, and rejection of bad params. The smoke test now checks the list and its filters against the real stack (CI).
+- Environment note: the user started a `conduit-demo` compose project from this checkout (`.local/demo`, self-ignored), which held :8428. Two stacks don't fit Colima's 2 GiB (tempo exited 137), and my dev stack's infra had stopped. I stopped **only my** `docker` project (kept its volumes) and left the demo alone. Live checks for this cycle run in CI.
+- Next candidates: paging (an "older" cursor); `restart: unless-stopped` for compose infra services (after a VM restart they stayed down while the apps crash-looped); agent dropdown populated from recent agents.
+
 ## 2026-11-03 — Trace detail: bound huge traces; span deep links
 - Did:
   - `QueryTrace` takes a limit. The detail page loads at most 2000 spans (fetching 2001 to detect truncation) and shows a notice that the totals cover only those spans. Before, a runaway agent could make the UI fetch and render an unbounded trace.

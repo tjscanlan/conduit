@@ -2,6 +2,8 @@ package storage
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
@@ -135,31 +137,122 @@ func (s *ClickHouseStore) InsertSpan(ctx context.Context, row SpanRow) error {
 	return batch.Send()
 }
 
-// QueryRecentSpans returns the most recent spans across all traces, ordered newest first.
-func (s *ClickHouseStore) QueryRecentSpans(ctx context.Context, limit int) ([]SpanRow, error) {
-	rows, err := s.conn.Query(ctx,
-		`SELECT trace_id, span_id, parent_id, agent_name, span_name,
-		        start_time, end_time, duration_ms, status, attributes,
-		        llm_model, llm_input_tokens, llm_output_tokens, llm_cost_usd
-		 FROM spans ORDER BY start_time DESC LIMIT ?`, limit)
+// TraceSummary is one row of the trace list: a whole trace rolled up from its spans.
+type TraceSummary struct {
+	TraceID      string
+	RootName     string // name of the root span (or earliest span if none is a root)
+	Started      time.Time
+	Ended        time.Time
+	SpanCount    uint64
+	ErrorCount   uint64
+	Agents       []string
+	InputTokens  uint64
+	OutputTokens uint64
+	CostUSD      float64
+}
+
+// TraceFilter selects traces for the list page.
+type TraceFilter struct {
+	Window     time.Duration // only traces with spans starting within this window (required, >0)
+	Agent      string        // only traces that include a span from this agent
+	ErrorsOnly bool          // only traces with at least one error span
+	Limit      int
+
+	// Keyset cursor: only traces strictly older than (BeforeStarted, BeforeTraceID)
+	// in (started DESC, trace_id DESC) order. Zero BeforeStarted means the first page.
+	BeforeStarted time.Time
+	BeforeTraceID string
+}
+
+// QueryTraces returns trace summaries, newest first. The time window bounds
+// the scan; it is passed as whole seconds rather than a time.Time, whose
+// positional binding would be truncated to seconds anyway.
+func (s *ClickHouseStore) QueryTraces(ctx context.Context, f TraceFilter) ([]TraceSummary, error) {
+	window := int64(f.Window / time.Second)
+	if window <= 0 || f.Limit <= 0 {
+		return nil, fmt.Errorf("query traces: window and limit must be positive")
+	}
+	where := "start_time >= now64(9) - toIntervalSecond(?)"
+	args := []any{window}
+	if f.Agent != "" {
+		// Select whole traces that include the agent, so totals still cover every span.
+		where += " AND trace_id IN (SELECT trace_id FROM spans WHERE agent_name = ? AND start_time >= now64(9) - toIntervalSecond(?))"
+		args = append(args, f.Agent, window)
+	}
+	var conds []string
+	if f.ErrorsOnly {
+		conds = append(conds, "error_count > 0")
+	}
+	if !f.BeforeStarted.IsZero() {
+		// The cursor time travels as integer nanoseconds: binding a time.Time
+		// would truncate it to seconds and skip or repeat traces at page edges.
+		conds = append(conds, "(started, trace_id) < (fromUnixTimestamp64Nano(toInt64(?), 'UTC'), ?)")
+		args = append(args, f.BeforeStarted.UnixNano(), f.BeforeTraceID)
+	}
+	having := ""
+	if len(conds) > 0 {
+		having = "HAVING " + strings.Join(conds, " AND ")
+	}
+	args = append(args, f.Limit)
+
+	rows, err := s.conn.Query(ctx, `
+		SELECT trace_id,
+		       argMin(span_name, (parent_id != '', start_time)) AS root_name,
+		       min(start_time)                                   AS started,
+		       max(end_time)                                     AS ended,
+		       count()                                           AS span_count,
+		       countIf(status = 'error')                         AS error_count,
+		       arraySort(groupUniqArray(20)(agent_name))         AS agents,
+		       sum(toUInt64(ifNull(llm_input_tokens, 0)))        AS input_tokens,
+		       sum(toUInt64(ifNull(llm_output_tokens, 0)))       AS output_tokens,
+		       sum(ifNull(llm_cost_usd, 0))                      AS cost_usd
+		FROM spans
+		WHERE `+where+`
+		GROUP BY trace_id
+		`+having+`
+		ORDER BY started DESC, trace_id DESC
+		LIMIT ?`, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var result []SpanRow
+	var out []TraceSummary
 	for rows.Next() {
-		var r SpanRow
-		if err := rows.Scan(
-			&r.TraceID, &r.SpanID, &r.ParentID, &r.AgentName, &r.SpanName,
-			&r.StartTime, &r.EndTime, &r.DurationMs, &r.Status, &r.Attributes,
-			&r.LLMModel, &r.LLMInputTokens, &r.LLMOutputTokens, &r.LLMCostUSD,
-		); err != nil {
+		var t TraceSummary
+		if err := rows.Scan(&t.TraceID, &t.RootName, &t.Started, &t.Ended, &t.SpanCount, &t.ErrorCount,
+			&t.Agents, &t.InputTokens, &t.OutputTokens, &t.CostUSD); err != nil {
 			return nil, err
 		}
-		result = append(result, r)
+		out = append(out, t)
 	}
-	return result, rows.Err()
+	return out, rows.Err()
+}
+
+// QueryAgents returns the distinct agent names seen within window, sorted,
+// at most limit of them (for the trace list's agent suggestions).
+func (s *ClickHouseStore) QueryAgents(ctx context.Context, window time.Duration, limit int) ([]string, error) {
+	secs := int64(window / time.Second)
+	if secs <= 0 || limit <= 0 {
+		return nil, fmt.Errorf("query agents: window and limit must be positive")
+	}
+	rows, err := s.conn.Query(ctx, `
+		SELECT DISTINCT agent_name FROM spans
+		WHERE start_time >= now64(9) - toIntervalSecond(?) AND agent_name != ''
+		ORDER BY agent_name LIMIT ?`, secs, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var a string
+		if err := rows.Scan(&a); err != nil {
+			return nil, err
+		}
+		out = append(out, a)
+	}
+	return out, rows.Err()
 }
 
 // QueryTrace returns up to limit spans of one trace, earliest first.
