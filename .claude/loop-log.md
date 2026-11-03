@@ -6,6 +6,7 @@ Newest entries first. Each iteration is driven by `.claude/loop.md`.
 - CI run 41698657967 failed in `compose smoke test` at gen-certs: "certs/agent-example.crt already exists".
   - Cause 1: `certs/{ca,server,agent-example}.crt` had been tracked since the initial "mvp-ish code" commit, before `certs/` was gitignored. They're **public certificates only**. I scanned all history: no private key was ever committed (the only "PRIVATE KEY" matches are PEM labels in sdk_test.go). They're useless without their keys, so I untracked them; local copies stay.
   - Cause 2 (my bug from 388d75b): a full `gen-certs.sh` run creates a new CA, then refused to reissue agent-example because a cert already existed. That cert was signed by the old CA, so it was invalid. The full run now always reissues the example agent cert.
+- Next CI run (41699093345): the whole pipeline worked in CI for the first time. The only mismatch was the expected agent name: the rewritten gen-certs uses the file name as the CN (`agent-example`), and the old script used `example-agent`. The smoke test now reads the expected CN from the cert (handling both LibreSSL and OpenSSL 3 subject formats), which makes the cert-to-agent_name check stricter.
 - Verified: reproduced the CI case in scratch (stale public certs, no keys). The full run now exits 0 and `openssl verify` passes for both server and agent certs. A rerun with a CA present still refuses, and agent mode still works.
 
 ## 2026-11-03 — Cycle 2 begins (PR #1 merged as e914c06). Compose smoke test in CI; trace detail page fixed

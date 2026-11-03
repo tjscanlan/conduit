@@ -35,7 +35,11 @@ ch() {
     'exec clickhouse-client --user obs --password "$CH_PW" --database observability -q "$1"' -- "$1" </dev/null
 }
 
-echo "==> Sending a trace through the gateway"
+# The gateway must record the agent's identity from its certificate CN.
+AGENT=$(openssl x509 -in "$ROOT/certs/agent-example.crt" -noout -subject | sed -n 's/.*CN *= *\([^,/]*\).*/\1/p')
+[[ -n "$AGENT" ]] || fail "could not read CN from certs/agent-example.crt"
+
+echo "==> Sending a trace through the gateway as $AGENT"
 TRACE=$(cd "$ROOT/sdk/go" && go run ./examples/smoke-agent \
   -cert "$ROOT/certs/agent-example.crt" -key "$ROOT/certs/agent-example.key" -ca "$ROOT/certs/ca.crt")
 [[ "$TRACE" =~ ^[0-9a-f]{32}$ ]] || fail "unexpected trace id: $TRACE"
@@ -46,7 +50,7 @@ two_rows() { [[ "$(ch "SELECT count() FROM spans WHERE trace_id = '$TRACE'")" ==
 retry 30 two_rows || fail "expected 2 spans in ClickHouse for $TRACE"
 rows=$(ch "SELECT span_name, agent_name, status, attributes['error.message'], ifNull(llm_model, ''), length(span_id), parent_id != ''
            FROM spans WHERE trace_id = '$TRACE' ORDER BY span_name FORMAT TSV")
-expected=$'smoke.agent.run\texample-agent\tok\t\t\t16\t0\nsmoke.llm.call\texample-agent\terror\ttool call timed out\tsmoke-model\t16\t1'
+expected="smoke.agent.run"$'\t'"$AGENT"$'\tok\t\t\t16\t0\n'"smoke.llm.call"$'\t'"$AGENT"$'\terror\ttool call timed out\tsmoke-model\t16\t1'
 [[ "$rows" == "$expected" ]] || fail "span rows differ:"$'\n'"got:"$'\n'"$rows"$'\n'"want:"$'\n'"$expected"
 pass "spans stored with agent_name from the cert CN, status, error.message, LLM fields, parent link"
 
@@ -56,7 +60,7 @@ pass "trace_summary rollup"
 
 echo "==> VictoriaMetrics"
 vm_has() {
-  curl -fsS -G "$VM/api/v1/export" --data-urlencode 'match[]={__name__="conduit_span_duration_ms",span="smoke.llm.call",agent="example-agent"}' | grep -q conduit_span_duration_ms
+  curl -fsS -G "$VM/api/v1/export" --data-urlencode 'match[]={__name__="conduit_span_duration_ms",span="smoke.llm.call",agent="'"$AGENT"'"}' | grep -q conduit_span_duration_ms
 }
 retry 30 vm_has || fail "no conduit_span_duration_ms series in VictoriaMetrics"
 pass "span duration metrics"
