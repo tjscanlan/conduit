@@ -82,6 +82,15 @@ services:
     environment:
       LISTEN_ADDR: ":8080"
       CLICKHOUSE_DSN: "clickhouse://obs:${CLICKHOUSE_PASSWORD}@clickhouse:9000/observability"
+      # Login form auth. Create ui-users with entries from `ui hash-password`
+      # (see docs/security.md). Set UI_AUTH_MODE=none only for throwaway local use.
+      UI_AUTH_MODE: ${UI_AUTH_MODE:-login}
+      UI_USERS_FILE: /etc/conduit/ui-users
+      UI_SESSION_KEY: ${UI_SESSION_KEY:-}
+      # Local compose serves plain HTTP on localhost; never set this in production.
+      UI_COOKIE_INSECURE: "true"
+    volumes:
+      - ./ui-users:/etc/conduit/ui-users:ro
     depends_on: [clickhouse]
 
 volumes:

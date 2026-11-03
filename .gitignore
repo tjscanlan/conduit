@@ -69,3 +69,6 @@ testdata/generated/
 *.tmp
 # Build output and locally installed tools
 bin/
+
+# Local UI credentials for docker compose
+deployments/docker/ui-users

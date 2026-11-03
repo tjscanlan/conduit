@@ -87,8 +87,28 @@ spec:
                 secretKeyRef:
                   name: conduit-secrets
                   key: clickhouse-dsn
-            - name: UI_API_TOKEN
+            # Login form auth. For Google Cloud IAP, see gke-iap.yaml instead.
+            - name: UI_AUTH_MODE
+              value: login
+            - name: UI_USERS_FILE
+              value: /etc/conduit/ui-users
+            - name: UI_SESSION_KEY # shared by all replicas; >= 32 bytes
               valueFrom:
                 secretKeyRef:
                   name: conduit-secrets
-                  key: ui-api-token
+                  key: ui-session-key
+          volumeMounts:
+            - name: ui-users
+              mountPath: /etc/conduit
+              readOnly: true
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+      volumes:
+        - name: ui-users
+          secret:
+            secretName: conduit-secrets
+            items:
+              - key: ui-users # lines of "username:<output of ui hash-password>"
+                path: ui-users

@@ -8,21 +8,17 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/your-org/agent-observability/internal/auth"
 	conduitui "github.com/your-org/agent-observability/ui"
 )
 
 func TestSecurityHeadersAppliedEvenOnAuthFailure(t *testing.T) {
-	store := auth.NewTokenStore()
-	store.Add("secret-token", "test")
-	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
-	h := securityHeaders(auth.BearerTokenMiddleware(store, inner))
+	router, _ := newTestRouter(t, authModeLogin)
 
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/traces", nil))
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/traces", nil))
 
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("status = %d, want 401", rec.Code)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want 303 redirect to login", rec.Code)
 	}
 	want := map[string]string{
 		"Content-Security-Policy": contentSecurityPolicy,
