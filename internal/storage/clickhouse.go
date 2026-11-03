@@ -81,22 +81,22 @@ func NewClickHouseStore(dsn string) (*ClickHouseStore, error) {
 }
 
 type SpanRow struct {
-	TraceID        string
-	SpanID         string
-	ParentID       string
-	AgentName      string
-	SpanName       string
-	StartTime      time.Time
-	EndTime        time.Time
-	DurationMs     uint64
-	Status         string
-	Attributes     map[string]string
-	LLMModel       *string
-	LLMPrompt      *string
-	LLMCompletion  *string
-	LLMInputTokens *uint32
+	TraceID         string
+	SpanID          string
+	ParentID        string
+	AgentName       string
+	SpanName        string
+	StartTime       time.Time
+	EndTime         time.Time
+	DurationMs      uint64
+	Status          string
+	Attributes      map[string]string
+	LLMModel        *string
+	LLMPrompt       *string
+	LLMCompletion   *string
+	LLMInputTokens  *uint32
 	LLMOutputTokens *uint32
-	LLMCostUSD     *float64
+	LLMCostUSD      *float64
 }
 
 func (s *ClickHouseStore) InsertSpan(ctx context.Context, row SpanRow) error {

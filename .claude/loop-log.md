@@ -2,6 +2,17 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — CI workflow; gofmt the remaining files
+- Did: added `.github/workflows/ci.yml`, which runs on every push and PR with `contents: read` and `persist-credentials: false`. Actions are pinned by commit SHA (checkout v7.0.1, setup-go v7.0.0). Jobs:
+  - test: gofmt check, build, vet, test -race -cover.
+  - generated: `make proto`, then fail if proto/ shows a diff or untracked files.
+  - vuln: govulncheck v1.9.0.
+  - docker: matrix build of gateway, collector, and ui (no push). This covers the docker build I couldn't run locally.
+  - Also ran gofmt on storage/clickhouse.go, telemetry/processor.go, and sdk/go/llm.go (whitespace only), and pinned govulncheck in `make lint`.
+- Verified: simulated every job locally except docker, and all pass. govulncheck reports 0 reachable vulns. The first real CI run happens on this push.
+- Next candidates: check the first CI run (especially docker); wire the Go SDK client TODO (`sdk/go/sdk.go`); tests for `telemetry.Process` and `internal/storage` (both 0% coverage); Dockerfile GOARCH=amd64 is hard-coded.
+- Blockers / needs human: none.
+
 ## 2026-11-03 — Commit generated proto code; loop now pushes loop/auto (requested by user)
 - Decision (user): commit the generated proto code instead of gitignoring it, and have the loop push to its branch.
 - Did: removed `**/*.pb.go` from .gitignore (Python output stays ignored) and committed `proto/*.pb.go`. Dropped the Dockerfile's gen-proto step and the `.dockerignore` entry, so image builds no longer need network codegen. Updated `.claude/loop.md`: after each passing commit, run `git push -u origin loop/auto`. On rejection, rebase rather than force-push. Only `loop/auto` is ever pushed.
