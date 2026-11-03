@@ -2,6 +2,11 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — Loop: descriptive branch names (requested by user)
+- Decision (user): each loop branch must have a useful name after `loop/` that describes the feature being iterated on.
+- Did: added "Branch names" to `.claude/loop.md` step 0: `loop/<feature-name>` in kebab-case, 2–5 words, naming the outcome, never dates, counters, or `auto`/`wip`/`misc`. Pick the theme before creating the branch. Theme drift is a stopping point for a PR, and the PR title matches the theme. The orient step now refers to the current `loop/<feature-name>` branch.
+- Note: the current branch `loop/20261103-1353` keeps its name, since it's PR #2's head and renaming it would close the PR. The rule applies from the next cycle.
+
 ## 2026-11-03 — Python SDK in the smoke test; docs/sdk-python.md
 - Did:
   - `scripts/smoke-test.sh` now also sends a trace with the **Python** SDK (`sdk/python/examples/smoke_agent.py`) through the real gateway and asserts its ClickHouse rows: agent_name from the cert CN, ok and error statuses, exception → error.message, LLM model, 16-hex IDs, and the parent link. It fails if the SDK isn't importable, unless SMOKE_SKIP_PYTHON=1. The CI smoke job installs the SDK first.
