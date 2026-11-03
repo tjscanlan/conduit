@@ -139,17 +139,21 @@ class Client:
         )
 
     @contextmanager
-    def span(self, name: str) -> Iterator[Span]:
+    def span(self, name: str, *, raise_errors: bool = False) -> Iterator[Span]:
         """Open a span as the current span; end and send it on exit.
 
-        Delivery failures are logged, never raised, so instrumentation can't
-        break the agent. Use start_span()/end() to handle them yourself.
+        By default, delivery failures are logged and not raised, so
+        instrumentation can't break the agent. With ``raise_errors=True`` they
+        raise ConduitError, unless the block is already raising its own
+        exception, which is never masked.
         """
         s = self.start_span(name)
         token = _current.set(s)
+        failed = False
         try:
             yield s
         except BaseException as exc:
+            failed = True
             s.set_error(exc)
             raise
         finally:
@@ -157,6 +161,8 @@ class Client:
             try:
                 s.end()
             except ConduitError as err:
+                if raise_errors and not failed:
+                    raise
                 log.warning("conduit: span %r not delivered: %s", s.name, err)
 
     def _send(self, s: Span, end_ns: int) -> None:

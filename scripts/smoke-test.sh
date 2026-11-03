@@ -9,6 +9,8 @@
 # gen-certs.sh, and these env vars are set:
 #   CLICKHOUSE_PASSWORD  the password the stack was started with
 #   UI_USER, UI_PASSWORD credentials from deployments/docker/ui-users
+#   SMOKE_PYTHON         python with sdk/python installed (default: python3);
+#                        set SMOKE_SKIP_PYTHON=1 to skip the Python SDK check
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -57,6 +59,24 @@ pass "spans stored with agent_name from the cert CN, status, error.message, LLM 
 summary=$(ch "SELECT sum(span_count), sum(error_count), sum(total_input_tokens) FROM trace_summary WHERE trace_id = '$TRACE' FORMAT TSV")
 [[ "$summary" == $'2\t1\t12' ]] || fail "trace_summary = '$summary', want 2 spans / 1 error / 12 tokens"
 pass "trace_summary rollup"
+
+echo "==> Python SDK"
+if [[ "${SMOKE_SKIP_PYTHON:-}" == 1 ]]; then
+  echo "skip Python SDK (SMOKE_SKIP_PYTHON=1)"
+else
+  PY="${SMOKE_PYTHON:-python3}"
+  "$PY" -c 'import conduit_sdk' 2>/dev/null || fail "conduit_sdk not importable with $PY (pip install -e sdk/python, set SMOKE_PYTHON, or SMOKE_SKIP_PYTHON=1)"
+  PYTRACE=$("$PY" "$ROOT/sdk/python/examples/smoke_agent.py" \
+    --cert "$ROOT/certs/agent-example.crt" --key "$ROOT/certs/agent-example.key" --ca "$ROOT/certs/ca.crt")
+  [[ "$PYTRACE" =~ ^[0-9a-f]{32}$ ]] || fail "unexpected Python trace id: $PYTRACE"
+  py_rows() { [[ "$(ch "SELECT count() FROM spans WHERE trace_id = '$PYTRACE'")" == 2 ]]; }
+  retry 30 py_rows || fail "expected 2 Python SDK spans in ClickHouse for $PYTRACE"
+  rows=$(ch "SELECT span_name, agent_name, status, attributes['error.message'], ifNull(llm_model, ''), length(span_id), parent_id != ''
+             FROM spans WHERE trace_id = '$PYTRACE' ORDER BY span_name FORMAT TSV")
+  expected="pysmoke.agent.run"$'\t'"$AGENT"$'\tok\t\t\t16\t0\n'"pysmoke.tool.call"$'\t'"$AGENT"$'\terror\ttool call timed out\tpy-model\t16\t1'
+  [[ "$rows" == "$expected" ]] || fail "Python span rows differ:"$'\n'"got:"$'\n'"$rows"$'\n'"want:"$'\n'"$expected"
+  pass "Python SDK trace $PYTRACE: context-manager spans, exception recorded as error, parent link"
+fi
 
 echo "==> VictoriaMetrics"
 vm_has() {

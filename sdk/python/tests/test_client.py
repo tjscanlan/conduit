@@ -150,6 +150,19 @@ def test_explicit_end_raises_on_rejection_but_context_manager_only_logs(gateway,
     assert fake.spans == []
 
 
+def test_raise_errors_option(gateway, caplog):
+    fake, addr, pki, _ = gateway
+    with client_for(addr, pki) as c:
+        with pytest.raises(ConduitError, match="name not allowed"):
+            with c.span("reject-me", raise_errors=True):
+                pass
+        # The block's own exception wins over the delivery error; it is never masked.
+        with pytest.raises(KeyError):
+            with c.span("reject-me", raise_errors=True):
+                raise KeyError("boom")
+    assert "not delivered" in caplog.text
+
+
 def test_rejects_gateway_from_untrusted_ca(gateway):
     fake, addr, pki, tmp_path = gateway
     other = make_pki(tmp_path, "other")

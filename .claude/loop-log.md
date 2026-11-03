@@ -2,6 +2,14 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — Python SDK in the smoke test; docs/sdk-python.md
+- Did:
+  - `scripts/smoke-test.sh` now also sends a trace with the **Python** SDK (`sdk/python/examples/smoke_agent.py`) through the real gateway and asserts its ClickHouse rows: agent_name from the cert CN, ok and error statuses, exception → error.message, LLM model, 16-hex IDs, and the parent link. It fails if the SDK isn't importable, unless SMOKE_SKIP_PYTHON=1. The CI smoke job installs the SDK first.
+  - New API: `client.span(name, raise_errors=True)` for strict delivery in context-manager form. It never masks the block's own exception. Found when the smoke agent needed it; tested.
+  - Wrote `docs/sdk-python.md` (certs, install, instrumentation, an API table with gateway limits, delivery-error semantics, caveats, development), plus pointer READMEs for both SDKs (they were empty).
+- Verified: the full smoke test passes locally, including the Python trace. pytest is 8/8. The documented API was checked against the real signatures.
+- **Stopping point: opening PR #2** (smoke test in CI, the trace detail fix, the cert fixes, and the Python SDK).
+
 ## 2026-11-03 — Python SDK: from stub to working package
 - Did: the Python SDK was in the state the Go SDK was in this morning, plus more:
   - `_flush` was a no-op "Stub", so nothing was ever sent.
