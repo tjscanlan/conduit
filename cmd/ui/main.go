@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/your-org/agent-observability/internal/health"
 	"github.com/your-org/agent-observability/internal/storage"
 	conduitui "github.com/your-org/agent-observability/ui"
 )
@@ -17,6 +18,9 @@ import (
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "hash-password" {
 		os.Exit(hashPassword(os.Stdin, os.Stdout, os.Stderr))
+	}
+	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
+		os.Exit(health.Probe(getEnv("LISTEN_ADDR", ":8080"), os.Stdout))
 	}
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
@@ -79,6 +83,7 @@ type handlers struct {
 type spanQuerier interface {
 	QueryTraces(ctx context.Context, f storage.TraceFilter) ([]storage.TraceSummary, error)
 	QueryAgents(ctx context.Context, window time.Duration, limit int) ([]string, error)
+	Ready(ctx context.Context) error
 	QueryTrace(ctx context.Context, traceID string, limit int) ([]storage.SpanRow, error)
 }
 
@@ -98,6 +103,9 @@ func newRouter(authn *uiAuth, h *handlers) http.Handler {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = w.Write([]byte("ok\n"))
 	})
+	// Readiness: can the UI query ClickHouse? Unauthenticated like /healthz,
+	// and it reports only ok/unavailable.
+	mux.Handle("GET /readyz", health.Handler(map[string]health.Check{"clickhouse": h.ch.Ready}, h.logger))
 	mux.Handle("/static/", http.FileServerFS(conduitui.Assets))
 	authn.register(mux, protected)
 	return securityHeaders(mux)

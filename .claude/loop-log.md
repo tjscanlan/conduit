@@ -2,6 +2,24 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — **User directive for the NEXT cycle:** formal docs, product roadmap, professional branding
+- The user asked (while cycle 5 was in progress): "in the next loop, please focus on formalizing the documentation, adding a product roadmap, and making the logo and graphics of the ui look more like a professional piece of software."
+- **Brand palette (user-specified), plus white:** `#ec0000` (236,0,0) · `#ec2400` (236,36,0) · `#ec5300` (236,83,0) · `#ec9b00` (236,155,0) · `#ecca00` (236,202,0).
+- Plan: finish `loop/service-health-checks` → PR #5 → after it merges, start `loop/docs-roadmap-branding` (or a similar descriptive name) with exactly this theme.
+
+## 2026-11-03 — Cycle 5 (`loop/service-health-checks`, after PR #4 merged as e82857d): health endpoints, probes, restart policies
+- Theme: service health. The gateway and collector had no health endpoints, so k8s couldn't detect a wedged pod and compose couldn't order startup. The compose infra had no restart policy (after a VM restart it stayed down while the apps crash-looped).
+- Did:
+  - `internal/health` (stdlib only): `/livez` and `/readyz` on a plain-HTTP `HEALTH_ADDR` (default :8081). It's a separate port because the gateway's gRPC port requires mTLS client certs that probes can't present. Each check has a 2s timeout. `/readyz` reports only ok or unavailable per check, and errors are logged, never returned (no DSN or host leaks).
+  - Checks: gateway checks NATS; collector checks NATS and ClickHouse (VictoriaMetrics and Tempo are best-effort, so they don't gate readiness); the UI's `/readyz` on its main port checks ClickHouse (unauthenticated, like /healthz).
+  - `Ready()` methods on NATSPublisher, Collector, and ClickHouseStore (ping).
+  - Every binary has a `healthcheck` subcommand that GETs its own /readyz and exits 0 or 1, since scratch images have no curl or wget.
+  - compose: `restart: unless-stopped` on all infra, and healthchecks (`/app healthcheck`) on gateway, collector, and ui, so CI's `up --wait` now waits for real readiness.
+  - k8s: probes on 8081 for gateway and collector; the ui readiness probe now uses /readyz.
+  - docs/deployment.md gained a "Health checks" section and HEALTH_ADDR.
+- Verified: tests for health (livez ignores checks, readyz ok and failing, no error leak, hung checks bounded, Probe exit codes and address normalization) and the UI (/readyz unauthenticated in login mode, 503 when ClickHouse is down). The smoke test runs `/app healthcheck` in each service (CI). The YAML parses.
+- **Stopping point:** opened PR https://github.com/tjscanlan/conduit/pull/5; no new work until it is merged. Then the user's docs, roadmap, and branding cycle.
+
 ## 2026-11-03 — Trace list: agent suggestions
 - Did: `storage.QueryAgents(window, limit)` (DISTINCT non-empty agent_name in the window, sorted, at most 200) feeds a `<datalist>` on the agent filter input, so there's no JS and free text still works. It's skipped for htmx partial refreshes (rows only), and a failed query only drops the suggestions (logged at warn); the page still renders.
 - Verified: handler tests (both agents suggested, no agent query on htmx partials, page renders when suggestions fail). The smoke test checks that the real list page suggests the smoke agent (runs in CI).

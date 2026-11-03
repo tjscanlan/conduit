@@ -12,6 +12,7 @@ type Config struct {
 	TLSCAFile   string
 	NATSUrl     string
 	RateLimit   int // telemetry items (spans, metrics, logs) per second per agent identity
+	HealthAddr  string
 }
 
 func loadConfig() *Config {
@@ -22,6 +23,7 @@ func loadConfig() *Config {
 		TLSCAFile:   getEnv("TLS_CA", "/etc/certs/ca.crt"),
 		NATSUrl:     getEnv("NATS_URL", "nats://localhost:4222"),
 		RateLimit:   getEnvPositiveInt("RATE_LIMIT_RPS", 100),
+		HealthAddr:  getEnv("HEALTH_ADDR", ":8081"),
 	}
 }
 

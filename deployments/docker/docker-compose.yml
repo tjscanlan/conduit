@@ -16,6 +16,7 @@ services:
       interval: 2s
       timeout: 2s
       retries: 30
+    restart: unless-stopped
 
   victoriametrics:
     image: victoriametrics/victoria-metrics:v1.99.0
@@ -26,6 +27,7 @@ services:
     command:
       - -storageDataPath=/storage
       - -retentionPeriod=12
+    restart: unless-stopped
 
   tempo:
     image: grafana/tempo:2.4.1
@@ -33,6 +35,7 @@ services:
     volumes:
       - ./tempo.yaml:/etc/tempo.yaml
       - tempo_data:/var/tempo
+    restart: unless-stopped
 
   nats:
     image: nats:2.10-alpine
@@ -43,6 +46,8 @@ services:
       - nats_data:/data
 
   # ── Application ────────────────────────────────────────────────────
+    restart: unless-stopped
+
   gateway:
     build:
       context: ../..
@@ -61,6 +66,12 @@ services:
       - ../../certs:/etc/certs:ro
     depends_on: [nats]
     restart: unless-stopped
+    # Scratch image: the binary probes its own /readyz.
+    healthcheck:
+      test: ["CMD", "/app", "healthcheck"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
 
   collector:
     build:
@@ -79,6 +90,12 @@ services:
       victoriametrics: { condition: service_started }
       tempo: { condition: service_started }
     restart: unless-stopped
+    # Scratch image: the binary probes its own /readyz.
+    healthcheck:
+      test: ["CMD", "/app", "healthcheck"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
 
   ui:
     build:
@@ -103,6 +120,12 @@ services:
     depends_on:
       clickhouse: { condition: service_healthy }
     restart: unless-stopped
+    # Scratch image: the binary probes its own /readyz.
+    healthcheck:
+      test: ["CMD", "/app", "healthcheck"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
 
 volumes:
   clickhouse_data:

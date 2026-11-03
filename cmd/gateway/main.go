@@ -14,11 +14,15 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
+	"github.com/your-org/agent-observability/internal/health"
 	pb "github.com/your-org/agent-observability/proto"
 )
 
 func main() {
 	cfg := loadConfig()
+	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
+		os.Exit(health.Probe(cfg.HealthAddr, os.Stdout))
+	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	// Load mTLS credentials
@@ -50,6 +54,10 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	go health.Serve(ctx, cfg.HealthAddr, health.Handler(map[string]health.Check{
+		"nats": handler.publisher.Ready,
+	}, logger), logger)
 
 	go func() {
 		logger.Info("gateway listening", "addr", cfg.ListenAddr)
