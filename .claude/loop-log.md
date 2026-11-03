@@ -2,6 +2,12 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — Docker: generate proto code in build; add .dockerignore
+- Did: the Dockerfile now runs `scripts/gen-proto.sh` after `COPY . .`, so gateway and ui images build without committed `*.pb.go`. I made the script POSIX sh with no git dependency (it finds the repo root from its own path), since the alpine builder has neither bash nor git. Added `.dockerignore`: without it, `COPY . .` copied `certs/` (private keys), `.env`, and `deployments/docker/ui-users` into the builder's layers and build cache. Also excluded .git, bin/, .claude, and stale `*.pb.go`.
+- Verified: `rm proto/*.pb.go && sh scripts/gen-proto.sh` regenerates the code; go build and go test PASS. **`docker build` was not run** (loop rule: no long-running networked commands). Please check with `docker build -f deployments/docker/Dockerfile --build-arg BINARY=gateway .`
+- Next candidates: add a CI workflow (go build, vet, test -race, govulncheck, plus a docker build that would cover what I couldn't verify here); gofmt storage/clickhouse.go and telemetry/processor.go; wire the Go SDK client TODO; the Dockerfile hard-codes GOARCH=amd64 (use TARGETARCH for arm64 nodes).
+- Blockers / needs human: run the docker build once to confirm.
+
 ## 2026-11-03 — Fix all reachable dependency and stdlib vulnerabilities
 - Did: govulncheck reachable findings went from 10 to 0. Bumped grpc v1.63.2 to v1.83.2, x/net v0.22.0 to v0.61.0, and clickhouse-go/v2 v2.23.2 to v2.50.0 (ch-go v0.61.5 to v0.74.0; the old clickhouse-go doesn't compile against the fixed ch-go), plus their transitive deps.
   - **Raised the minimum Go version from 1.22 to 1.26.** The x/net fix (v0.60.0+) requires `go 1.26.0`. Go 1.22 is long EOL, since only 1.26 and 1.27 are supported now. Added `toolchain go1.26.10` because 1.26.0–1.26.9 have reachable stdlib vulns (net/http, crypto/x509, html/template, net/url, net/textproto). GOTOOLCHAIN=auto downloads it.

@@ -1,13 +1,14 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # gen-proto.sh — generates Go code from all .proto files in proto/
 #
 # Only Go is required: buf (which bundles its own protobuf compiler) and the
 # protoc-gen-go / protoc-gen-go-grpc plugins are installed at pinned versions
-# into bin/tools. Plugin versions are pinned to match the runtime modules in
+# into bin/tools. POSIX sh, no git, so it also runs in the Docker builder.
+# Plugin versions are pinned to match the runtime modules in
 # go.mod (google.golang.org/protobuf, google.golang.org/grpc).
-set -euo pipefail
+set -eu
 
-ROOT="$(git rev-parse --show-toplevel)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROTO_DIR="$ROOT/proto"
 TOOLS="$ROOT/bin/tools"
 
