@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/nats-io/nats.go"
 )
@@ -27,10 +28,7 @@ func NewNATSPublisher(url string) (*NATSPublisher, error) {
 	}
 
 	// Ensure stream exists; ignore error if it already does.
-	_, err = js.AddStream(&nats.StreamConfig{
-		Name:     streamName,
-		Subjects: []string{SpanSubject},
-	})
+	_, err = js.AddStream(spanStreamConfig())
 	if err != nil {
 		if _, infoErr := js.StreamInfo(streamName); infoErr != nil {
 			return nil, fmt.Errorf("create stream: %w", err)
@@ -40,7 +38,24 @@ func NewNATSPublisher(url string) (*NATSPublisher, error) {
 	return &NATSPublisher{js: js}, nil
 }
 
-// Publish sends pre-serialized (proto-marshaled) span bytes to the ingest subject.
+// spanStreamConfig is a work queue: a span is deleted once the collector acks
+// it. MaxAge bounds disk use if the collector is down for a long time. The
+// default (limits) retention kept every span forever, even after it was acked.
+//
+// JetStream can't change an existing stream's retention policy, so a SPANS
+// stream created by an older version keeps limits retention until it is
+// deleted and recreated: `nats stream rm SPANS`.
+func spanStreamConfig() *nats.StreamConfig {
+	return &nats.StreamConfig{
+		Name:      streamName,
+		Subjects:  []string{SpanSubject},
+		Retention: nats.WorkQueuePolicy,
+		MaxAge:    7 * 24 * time.Hour,
+		Storage:   nats.FileStorage,
+	}
+}
+
+// Publish sends a serialized span (JSON-encoded telemetry.SpanInput) to the ingest subject.
 func (p *NATSPublisher) Publish(_ context.Context, data []byte) error {
 	_, err := p.js.Publish(SpanSubject, data)
 	return err

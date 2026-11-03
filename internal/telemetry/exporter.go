@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -9,12 +10,29 @@ import (
 	"github.com/your-org/agent-observability/internal/storage"
 )
 
+// Backends the exporter writes to; satisfied by the storage package clients.
+type (
+	spanStore interface {
+		InsertSpan(ctx context.Context, row storage.SpanRow) error
+	}
+	metricsWriter interface {
+		WriteMetrics(ctx context.Context, metrics []storage.VMMetric) error
+	}
+	traceWriter interface {
+		WriteSpan(ctx context.Context, s storage.TempoSpan) error
+	}
+)
+
 // Exporter fans out a validated SpanRequest to all storage backends.
-// Individual backend errors are logged but do not abort the others.
+//
+// ClickHouse is the system of record (the UI reads from it), so a failed
+// insert is returned and the message is redelivered. VictoriaMetrics and
+// Tempo are best-effort: their errors are logged, so a span already stored
+// in ClickHouse is never redelivered and duplicated because of them.
 type Exporter struct {
-	ch     *storage.ClickHouseStore
-	vm     *storage.VictoriaMetricsClient
-	tempo  *storage.TempoClient
+	ch     spanStore
+	vm     metricsWriter
+	tempo  traceWriter
 	logger *slog.Logger
 }
 
@@ -55,7 +73,7 @@ func (e *Exporter) Export(ctx context.Context, req *schema.SpanRequest) error {
 		row.LLMCostUSD = &req.LLMCall.CostUSD
 	}
 	if err := e.ch.InsertSpan(ctx, row); err != nil {
-		e.logger.Error("clickhouse insert", "err", err)
+		return fmt.Errorf("clickhouse insert: %w", err)
 	}
 
 	// ── VictoriaMetrics: span duration gauge ─────────────────────────────

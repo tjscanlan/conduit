@@ -2,6 +2,17 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — Collector pipeline: stop losing spans; no poison loops; bounded stream
+- Did, fixing correctness bugs in gateway → NATS → collector → storage:
+  - **Silent data loss:** `Exporter.Export` always returned nil, so a failed ClickHouse insert was acked and the span was lost. It now returns the ClickHouse error, and the message is redelivered. VictoriaMetrics and Tempo stay best-effort (logged), so a span already stored in ClickHouse isn't redelivered and duplicated because of them. Secondary writes are skipped when the primary fails.
+  - **Poison loop:** undecodable messages were `Nak`'d and redelivered forever. They're now `Term`'d.
+  - **Hot retry loop:** transient failures now use `NakWithDelay(5s)` instead of an immediate `Nak`.
+  - **Unbounded NATS disk:** the SPANS stream used limits retention, so acked spans were kept forever. New streams are a work queue with MaxAge 7d. ⚠ JetStream can't change retention on an existing stream, so deployments with an existing SPANS stream must run `nats stream rm SPANS` to pick this up. It's documented in `spanStreamConfig`.
+  - Refactored for testing: the collector logic moved to `handle()`, which returns ack, retry, or term; the exporter now depends on small backend interfaces. Removed the duplicated subject constant, and fixed the Publish comment (the payload is JSON, not proto).
+- Verified: go build, go vet, and go test -race PASS for root and sdk. New tests cover every collector outcome, ClickHouse errors propagating, secondary backends being best-effort, the exporter's row mapping, `Process` (agent_name can't be spoofed, zero-time defaults, validation, LLM mapping), and the stream config. telemetry coverage went from 0% to 72%. Not tested against a real NATS or ClickHouse.
+- Next candidates: **span status is dropped end to end.** proto `SpanStatus` isn't in SpanInput, and the exporter hard-codes `"ok"`. Thread it through, and add SDK `SetError`. Also: an integration test against real NATS (nats-server can run in-process), and the empty docs (sdk-go.md, deployment.md).
+- Blockers / needs human: `gh auth login` is still pending. The SPANS stream recreation note above applies to existing deployments.
+
 ## 2026-11-03 — Go SDK: deliver spans, verify gateway against configured CA
 - Did: `sdk/go` is a separate module that was never built (no go.sum) and wasn't covered by CI.
   - **Security bug:** `New()` ignored `TLSCACert`. With no RootCAs, it verified the gateway against the *system* roots, so a private-CA gateway failed and any publicly-trusted cert for that host was accepted. It now trusts only the configured CA and errors on a missing or unparseable CA.
