@@ -2,6 +2,12 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — Loop now delivers work by PR and waits for merge (requested by user)
+- Decision (user): stop after the next iteration and open a PR. From now on, open PRs at reasonable stopping points, and don't continue looping until the PR is approved and merged to main.
+- Did: `.claude/loop.md` gained "0. PR gate" (no new work while a loop PR is open; address CI failures and review comments on it; after a merge, start a fresh `loop/<date>-<time>` branch from origin/main; if a PR is closed unmerged, stop and ask), "6. Open a PR at a reasonable stopping point", and "Waiting for merge" (a background watcher plus a long fallback, no timer iterations). The push rule is now limited to the loop's own `loop/*` branch, and it never merges.
+- Note: the PR is authored by the repo owner's account and GitHub doesn't allow self-approval, so the gate is **merged to main with no outstanding changes-requested review**.
+- **Pending:** the next iteration does one more task, then opens the first PR (loop/auto → main).
+
 ## 2026-11-03 — Deployment fixes (k8s mTLS chain, Tempo) + docs/deployment.md
 - Did: wrote `docs/deployment.md` (components and ports, the compose quickstart, k8s certs, secrets, and apply steps, upgrade notes, a config reference). Writing it turned up real deployment bugs:
   - **k8s mTLS couldn't work:** the `selfSigned` ClusterIssuer made the gateway cert its own CA, so agent certs couldn't chain to it. Replaced it with the standard bootstrap selfSigned issuer, then a root CA Certificate (in cert-manager's namespace), then the `conduit-ca-issuer` CA ClusterIssuer. The gateway cert has `usages: server auth`, and there's an example agent cert with `client auth`.
