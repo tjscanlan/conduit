@@ -146,11 +146,9 @@ func (h *handlers) traceDetail(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	// "Rows" is what the traces-rows template iterates over.
-	h.render(w, r, "traces", map[string]any{
-		"Page":    "traces",
-		"TraceID": traceID,
-		"Rows":    spans,
+	h.render(w, r, "trace", map[string]any{
+		"Page":  "traces",
+		"Trace": buildTraceView(traceID, spans),
 	})
 }
 

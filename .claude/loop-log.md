@@ -2,6 +2,17 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — Cycle 3 (`loop/trace-detail-view`, after PR #2 merged as cba594e): trace detail page; fix second-truncated timestamps
+- Theme: trace detail view. Users couldn't see attributes, error.message, LLM model, tokens, or cost, which is the core of an LLM observability tool.
+- Did:
+  - `cmd/ui/traceview.go` `buildTraceView`: spans in depth-first tree order (children under parents by start time; spans with missing parents become roots; cycles, self-parenting, and duplicate IDs are each shown exactly once), depth capped at 10, waterfall geometry, totals (duration, spans, errors, tokens, cost, agents), and preformatted LLM fields.
+  - New `trace` template: summary bar; one `<details>` row per span with name, status badge, LLM tag, offset and duration, and an SVG waterfall bar. Expanding a row shows error.message, IDs, agent, LLM model/tokens/cost, and a sorted attribute table (excluding promoted keys).
+  - The CSP holds: indentation uses `depth-N` classes and bars use SVG x/width attributes, with no inline styles.
+  - Prompts and completions are **not shown** (the proto reserves "payload-level access control", and the query doesn't select them). **Decision for the human.** The traces list template lost its detail branch.
+- **Data bug found while checking the page:** every ClickHouse start_time and end_time was **truncated to whole seconds**. `InsertSpan` used `Exec` with `?` placeholders, and clickhouse-go's positional binding formats time.Time at second precision. duration_ms looked right only because the exporter computes it. Switched to `PrepareBatch`/`Append` (native DateTime64(9)). The smoke test now asserts sub-second precision, and it fails against the old collector (0 ms) and passes against the new one (21 ms). **Existing rows stay truncated**; that can't be recovered.
+- Verified: tests for tree order, totals and geometry (including instant spans at the end), cycles and duplicates, the depth cap, and escaping of hostile attribute and error values. The handler test checks the detail page. Live: the full smoke test passes, and the page for a real trace shows 111 ms total with the child bar at 189/1000.
+- Next candidates: list page improvements (one row per trace rather than per span, filtering by agent or status); show prompts/completions behind an explicit access control (needs a decision); attribute search.
+
 ## 2026-11-03 — Loop: descriptive branch names (requested by user)
 - Decision (user): each loop branch must have a useful name after `loop/` that describes the feature being iterated on.
 - Did: added "Branch names" to `.claude/loop.md` step 0: `loop/<feature-name>` in kebab-case, 2–5 words, naming the outcome, never dates, counters, or `auto`/`wip`/`misc`. Pick the theme before creating the branch. Theme drift is a stopping point for a PR, and the PR title matches the theme. The orient step now refers to the current `loop/<feature-name>` branch.

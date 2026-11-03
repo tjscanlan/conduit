@@ -109,19 +109,30 @@ type SpanRow struct {
 	LLMCostUSD      *float64
 }
 
+// InsertSpan writes one span. It uses the native batch protocol rather than
+// Exec with ? placeholders: positional binding formats time.Time at second
+// precision, which silently truncated every DateTime64(9) timestamp.
 func (s *ClickHouseStore) InsertSpan(ctx context.Context, row SpanRow) error {
-	return s.conn.Exec(ctx, `
+	batch, err := s.conn.PrepareBatch(ctx, `
 		INSERT INTO spans (
 			trace_id, span_id, parent_id, agent_name, span_name,
 			start_time, end_time, duration_ms, status, attributes,
 			llm_model, llm_prompt, llm_completion,
 			llm_input_tokens, llm_output_tokens, llm_cost_usd
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		)`)
+	if err != nil {
+		return err
+	}
+	if err := batch.Append(
 		row.TraceID, row.SpanID, row.ParentID, row.AgentName, row.SpanName,
 		row.StartTime, row.EndTime, row.DurationMs, row.Status, row.Attributes,
 		row.LLMModel, row.LLMPrompt, row.LLMCompletion,
 		row.LLMInputTokens, row.LLMOutputTokens, row.LLMCostUSD,
-	)
+	); err != nil {
+		_ = batch.Abort()
+		return err
+	}
+	return batch.Send()
 }
 
 // QueryRecentSpans returns the most recent spans across all traces, ordered newest first.

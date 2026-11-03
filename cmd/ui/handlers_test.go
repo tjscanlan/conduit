@@ -54,7 +54,7 @@ func TestTraceDetailShowsOnlyThatTrace(t *testing.T) {
 		t.Fatalf("status = %d", rec.Code)
 	}
 	body := rec.Body.String()
-	for _, want := range []string{"agent.run", "llm.call", "badge-error", "aaaa"} {
+	for _, want := range []string{"agent.run", "llm.call", "badge-error", "aaaa", "depth-1", `class="waterfall"`, "<details>"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("detail page missing %q", want)
 		}
