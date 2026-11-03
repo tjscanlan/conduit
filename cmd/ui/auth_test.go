@@ -60,7 +60,7 @@ func newTestRouter(t *testing.T, mode string) (http.Handler, *uiAuth) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h := &handlers{tmpls: tmpls, logger: testLogger()}
+	h := &handlers{ch: &fakeSpans{}, tmpls: tmpls, logger: testLogger()}
 	return newRouter(a, h), a
 }
 

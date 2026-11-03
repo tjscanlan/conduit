@@ -2,6 +2,16 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — Cycle 2 begins (PR #1 merged as e914c06). Compose smoke test in CI; trace detail page fixed
+- PR gate: PR #1 was merged at 18:50 UTC (merge commit, history kept). Started branch `loop/20261103-1353` from origin/main.
+- Did: automated the manual smoke test so deployment regressions like the four fixed in a5600cd fail CI.
+  - `scripts/smoke-test.sh`: sends a trace with the SDK and asserts ClickHouse rows (agent_name from cert CN, statuses, error.message, LLM fields, span ID length, parent), trace_summary totals, VictoriaMetrics series, the Tempo trace with OK and ERROR statuses, and the UI (healthz, login redirect, 401, cross-site 403, login, trace detail, CSP). Retries cover eventual consistency.
+  - `sdk/go/examples/smoke-agent` sends the trace. New SDK API: `Span.TraceID()` and `Span.SpanID()` (log correlation); tested.
+  - CI job `smoke`: random masked passwords, gen-certs, `compose up --build --wait`, the script, logs on failure, and `down -v` always.
+  - **The smoke script found a UI bug right away:** `/traces/{id}` passed `Spans`, but the template iterates `Rows`, so the detail page always showed "No spans yet". It also polled `hx-get="/traces"`, which would swap in the global list. Fixed: it passes Rows, shows a "Trace <id>" heading and a back link, doesn't poll, and returns 404 for unknown traces. The UI handlers now take a `spanQuerier` interface; added tests for the detail, list, and 404 cases. (My manual check before PR #1 only looked at the HTTP 200.)
+- Verified: the smoke test passes against the local compose stack after rebuilding the UI. go vet and test -race pass for root and sdk. CI pending.
+- Next candidates: Python SDK tests plus a CI job (it's untested; the smoke harness could send a Python trace too); contributing.md and sdk-python.md; UI trace detail could show attributes and LLM fields (the SpanRow query doesn't select prompt or completion, which is probably right by default).
+
 ## 2026-11-03 — Compose smoke test (requested by user): 4 bugs fixed; full pipeline verified
 - Ran `colima start` (already running: aarch64, 2 CPU, 2 GiB) and installed the docker compose plugin (brew). Then `docker compose up`. Fixed what it found:
   - **Dockerfile:** every image compiled all three binaries (9 parallel compiles OOM-killed the 2 GiB VM), and `GOARCH=amd64` was hard-coded (exec format error on arm64). It now builds only `${BINARY}`, with `GOARCH="${TARGETARCH:-$(go env GOARCH)}"` and `-trimpath`. Note: a first attempt using `${TARGETARCH:+GOARCH=…}` only worked because it expanded to nothing; POSIX sh doesn't treat expanded text as an assignment. Fixed before committing.

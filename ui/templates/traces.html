@@ -12,6 +12,13 @@
 <body>
 {{template "nav" .}}
 <main>
+  {{if .TraceID}}
+  <h1>Trace <span class="mono">{{.TraceID}}</span></h1>
+  <p><a href="/traces">← all traces</a></p>
+  <div id="span-list">
+    {{template "traces-rows" .}}
+  </div>
+  {{else}}
   <h1>Traces</h1>
   <div id="span-list"
        hx-get="/traces"
@@ -19,6 +26,7 @@
        hx-swap="innerHTML">
     {{template "traces-rows" .}}
   </div>
+  {{end}}
 </main>
 </body>
 </html>
