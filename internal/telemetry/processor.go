@@ -11,21 +11,22 @@ import (
 // by the gRPC handler. Using raw fields keeps this package proto-free until
 // gen-proto.sh has been run.
 type SpanInput struct {
-	TraceID      string
-	SpanID       string
-	ParentID     string
-	Name         string
-	StartNano    int64
-	EndNano      int64
-	Attributes   map[string]string
-	AgentName    string // set by handler from mTLS CommonName
-	LLMModel     string
-	LLMPrompt    string
-	LLMCompletion string
+	TraceID         string
+	SpanID          string
+	ParentID        string
+	Name            string
+	Status          string // schema.Status*; empty means unset
+	StartNano       int64
+	EndNano         int64
+	Attributes      map[string]string
+	AgentName       string // set by handler from mTLS CommonName
+	LLMModel        string
+	LLMPrompt       string
+	LLMCompletion   string
 	LLMInputTokens  int32
 	LLMOutputTokens int32
-	LLMCostUSD   float64
-	HasLLMCall   bool
+	LLMCostUSD      float64
+	HasLLMCall      bool
 }
 
 // Process validates a SpanInput and returns a schema.SpanRequest ready for export.
@@ -41,6 +42,10 @@ func Process(in SpanInput) (*schema.SpanRequest, error) {
 	end := nanoToTime(in.EndNano)
 
 	req := schema.New(in.TraceID, in.SpanID, in.ParentID, in.Name, start, end, in.Attributes)
+
+	if in.Status != "" {
+		req.Status = in.Status
+	}
 
 	if in.HasLLMCall {
 		req.LLMCall = schema.NewLLMCall(

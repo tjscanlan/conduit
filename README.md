@@ -48,13 +48,14 @@ docker compose -f deployments/docker/docker-compose.yml up
 - All agent→gateway communication over mTLS (mutual TLS)
 - Schema validation at ingestion boundary — malformed spans rejected before storage
 - Rate limiting per agent identity
+- UI requires sign-in: a login form with signed session cookies, or Google Cloud IAP (see [docs/security.md](docs/security.md#ui-authentication))
 - Ingestion and query networks are separated
 - Single static Go binary, deployable as `FROM scratch` container
 - Zero external JS dependencies — UI assets embedded in binary
 
 ## Tech Stack
 
-- **Language**: Go 1.22+
+- **Language**: Go 1.26+
 - **Wire format**: Protobuf / OTLP
 - **Transport**: gRPC + mTLS
 - **Message buffer**: NATS JetStream

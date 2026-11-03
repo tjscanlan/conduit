@@ -1,0 +1,8 @@
+# Keep secrets and local artifacts out of the build context.
+.git
+.env
+.claude
+bin/
+certs/
+deployments/docker/ui-users
+sdk/python/.venv/

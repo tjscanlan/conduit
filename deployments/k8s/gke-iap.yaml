@@ -1,0 +1,75 @@
+# Conduit UI behind Google Cloud Identity-Aware Proxy on GKE.
+#
+# Apply instead of the `ui` Service in service.yaml, and change the ui
+# Deployment's env to:
+#
+#   - name: UI_AUTH_MODE
+#     value: iap
+#   - name: UI_IAP_AUDIENCE   # /projects/PROJECT_NUMBER/global/backendServices/BACKEND_SERVICE_ID
+#     valueFrom: { configMapKeyRef: { name: conduit-config, key: ui-iap-audience } }
+#
+# The backend service ID exists only after the Ingress is created. Find it with:
+#   gcloud compute backend-services list --filter="name~conduit-ui" --format="value(id)"
+# then set ui-iap-audience and restart the ui Deployment.
+#
+# Grant access with roles/iap.httpsResourceAccessor on the backend service.
+# The UI verifies IAP's signed JWT on every request, so traffic that reaches
+# the pod without passing through IAP is rejected.
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: conduit-ui-iap
+  namespace: conduit
+spec:
+  iap:
+    enabled: true
+    # Omit to use a Google-managed OAuth client, or reference your own:
+    # oauthclientCredentials:
+    #   secretName: conduit-iap-oauth   # keys: client_id, client_secret
+  healthCheck:
+    # GCP health checks bypass IAP and send no JWT; /healthz is unauthenticated.
+    type: HTTP
+    requestPath: /healthz
+    port: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ui
+  namespace: conduit
+  annotations:
+    cloud.google.com/neg: '{"ingress": true}'
+    cloud.google.com/backend-config: '{"default": "conduit-ui-iap"}'
+spec:
+  selector:
+    app: ui
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: conduit-ui
+  namespace: conduit
+spec:
+  domains:
+    - conduit.example.com # your UI hostname
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: conduit-ui
+  namespace: conduit
+  annotations:
+    kubernetes.io/ingress.class: gce
+    networking.gke.io/managed-certificates: conduit-ui
+    kubernetes.io/ingress.allow-http: "false"
+spec:
+  defaultBackend:
+    service:
+      name: ui
+      port:
+        number: 80

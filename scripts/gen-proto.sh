@@ -1,23 +1,29 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # gen-proto.sh — generates Go code from all .proto files in proto/
 #
-# Prerequisites:
-#   brew install protobuf
-#   go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-#   go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-set -euo pipefail
+# Only Go is required: buf (which bundles its own protobuf compiler) and the
+# protoc-gen-go / protoc-gen-go-grpc plugins are installed at pinned versions
+# into bin/tools. POSIX sh, no git, so it also runs in the Docker builder.
+# Plugin versions are pinned to match the runtime modules in
+# go.mod (google.golang.org/protobuf, google.golang.org/grpc).
+set -eu
 
-ROOT="$(git rev-parse --show-toplevel)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROTO_DIR="$ROOT/proto"
+TOOLS="$ROOT/bin/tools"
 
-protoc \
-  --proto_path="$PROTO_DIR" \
-  --go_out="$PROTO_DIR" --go_opt=paths=source_relative \
-  --go-grpc_out="$PROTO_DIR" --go-grpc_opt=paths=source_relative \
-  "$PROTO_DIR"/span.proto \
-  "$PROTO_DIR"/metric.proto \
-  "$PROTO_DIR"/log.proto \
-  "$PROTO_DIR"/ingestion.proto
+BUF_VERSION=v1.75.0
+PROTOC_GEN_GO_VERSION=v1.36.11
+PROTOC_GEN_GO_GRPC_VERSION=v1.6.2
+
+export GOBIN="$TOOLS"
+go install "github.com/bufbuild/buf/cmd/buf@$BUF_VERSION"
+go install "google.golang.org/protobuf/cmd/protoc-gen-go@$PROTOC_GEN_GO_VERSION"
+go install "google.golang.org/grpc/cmd/protoc-gen-go-grpc@$PROTOC_GEN_GO_GRPC_VERSION"
+
+export PATH="$TOOLS:$PATH"
+cd "$PROTO_DIR"
+buf generate --template buf.gen.yaml
 
 echo "Proto generation complete. Generated files in $PROTO_DIR:"
-ls "$PROTO_DIR"/*.pb.go 2>/dev/null || echo "  (none — run protoc again if missing)"
+ls "$PROTO_DIR"/*.pb.go

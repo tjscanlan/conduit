@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   # ── Storage ────────────────────────────────────────────────────────
   clickhouse:
@@ -12,7 +10,12 @@ services:
     environment:
       CLICKHOUSE_DB: observability
       CLICKHOUSE_USER: obs
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8123/ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
 
   victoriametrics:
     image: victoriametrics/victoria-metrics:v1.99.0
@@ -57,6 +60,7 @@ services:
     volumes:
       - ../../certs:/etc/certs:ro
     depends_on: [nats]
+    restart: unless-stopped
 
   collector:
     build:
@@ -66,10 +70,15 @@ services:
         BINARY: collector
     environment:
       NATS_URL: "nats://nats:4222"
-      CLICKHOUSE_DSN: "clickhouse://obs:${CLICKHOUSE_PASSWORD}@clickhouse:9000/observability"
+      CLICKHOUSE_DSN: "clickhouse://obs:${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD}@clickhouse:9000/observability"
       VICTORIAMETRICS_URL: "http://victoriametrics:8428"
-      TEMPO_ENDPOINT: "http://tempo:4317"
-    depends_on: [nats, clickhouse, victoriametrics, tempo]
+      TEMPO_ENDPOINT: "http://tempo:4318"
+    depends_on:
+      nats: { condition: service_started }
+      clickhouse: { condition: service_healthy }
+      victoriametrics: { condition: service_started }
+      tempo: { condition: service_started }
+    restart: unless-stopped
 
   ui:
     build:
@@ -81,8 +90,19 @@ services:
       - "8080:8080"
     environment:
       LISTEN_ADDR: ":8080"
-      CLICKHOUSE_DSN: "clickhouse://obs:${CLICKHOUSE_PASSWORD}@clickhouse:9000/observability"
-    depends_on: [clickhouse]
+      CLICKHOUSE_DSN: "clickhouse://obs:${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD}@clickhouse:9000/observability"
+      # Login form auth. Create ui-users with entries from `ui hash-password`
+      # (see docs/security.md). Set UI_AUTH_MODE=none only for throwaway local use.
+      UI_AUTH_MODE: ${UI_AUTH_MODE:-login}
+      UI_USERS_FILE: /etc/conduit/ui-users
+      UI_SESSION_KEY: ${UI_SESSION_KEY:-}
+      # Local compose serves plain HTTP on localhost; never set this in production.
+      UI_COOKIE_INSECURE: "true"
+    volumes:
+      - ./ui-users:/etc/conduit/ui-users:ro
+    depends_on:
+      clickhouse: { condition: service_healthy }
+    restart: unless-stopped
 
 volumes:
   clickhouse_data:

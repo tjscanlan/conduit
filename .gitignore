@@ -29,9 +29,10 @@ sdk/python/.mypy_cache/
 sdk/python/.ruff_cache/
 
 # ── Protobuf generated files ─────────────────────────────────
-# Keep .proto sources; ignore generated Go/Python output
+# Generated Go code (proto/*.pb.go) IS committed so the repo builds with only
+# Go; regenerate with `make proto` after editing .proto files.
+# Generated Python output is ignored.
 proto/gen/
-**/*.pb.go
 **/*_pb2.py
 **/*_pb2_grpc.py
 **/*_pb2.pyi
@@ -67,3 +68,8 @@ Thumbs.db
 testdata/generated/
 *.log
 *.tmp
+# Build output and locally installed tools
+bin/
+
+# Local UI credentials for docker compose
+deployments/docker/ui-users

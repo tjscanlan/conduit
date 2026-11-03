@@ -33,7 +33,7 @@ type TempoSpan struct {
 	Status    string
 }
 
-// WriteSpan sends a single span to Tempo in OTLP JSON format.
+// WriteSpan sends a single span to Tempo's OTLP/HTTP receiver (POST /v1/traces, JSON).
 func (c *TempoClient) WriteSpan(ctx context.Context, s TempoSpan) error {
 	payload := buildOTLPPayload(s)
 	data, err := json.Marshal(payload)
@@ -42,7 +42,7 @@ func (c *TempoClient) WriteSpan(ctx context.Context, s TempoSpan) error {
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		c.endpoint+"/otlp/v1/traces", bytes.NewReader(data))
+		c.endpoint+"/v1/traces", bytes.NewReader(data))
 	if err != nil {
 		return err
 	}
@@ -70,6 +70,13 @@ func buildOTLPPayload(s TempoSpan) map[string]any {
 	}
 	if s.ParentID != "" {
 		span["parentSpanId"] = s.ParentID
+	}
+	// OTLP status codes: 0 unset, 1 ok, 2 error.
+	switch s.Status {
+	case "ok":
+		span["status"] = map[string]any{"code": 1}
+	case "error":
+		span["status"] = map[string]any{"code": 2}
 	}
 
 	return map[string]any{

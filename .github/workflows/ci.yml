@@ -1,0 +1,91 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+# Least privilege: CI only reads the repo.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Third-party actions are pinned to full commit SHAs (tags are mutable).
+env:
+  GOVULNCHECK_VERSION: v1.9.0
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "::error::Run gofmt -w on:"; echo "$unformatted"; exit 1
+          fi
+      - run: go build ./...
+      - run: go vet ./...
+      - run: go test -race -cover ./...
+      # sdk/go is a separate module, which ./... at the root does not include.
+      - name: sdk/go build, vet, test
+        working-directory: sdk/go
+        run: |
+          go build ./...
+          go vet ./...
+          go test -race -cover ./...
+
+  generated:
+    name: generated code is up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - run: make proto
+      - name: check for drift
+        run: |
+          if ! git diff --exit-code -- proto/; then
+            echo "::error::proto/*.pb.go is stale. Run 'make proto' and commit the result."
+            exit 1
+          fi
+          if [ -n "$(git status --porcelain -- proto/)" ]; then
+            echo "::error::make proto created untracked files:"; git status --porcelain -- proto/; exit 1
+          fi
+
+  vuln:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - run: go run golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION} ./...
+      - name: govulncheck sdk/go
+        working-directory: sdk/go
+        run: go run golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION} ./...
+
+  docker:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        binary: [gateway, collector, ui]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: docker build (no push)
+        run: docker build -f deployments/docker/Dockerfile --build-arg BINARY=${{ matrix.binary }} -t conduit-${{ matrix.binary }}:ci .

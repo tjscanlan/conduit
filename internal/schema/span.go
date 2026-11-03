@@ -19,6 +19,7 @@ func New(traceID, spanID, parentID, name string, start, end time.Time, attrs map
 		SpanID:     spanID,
 		ParentID:   parentID,
 		Name:       name,
+		Status:     StatusUnset,
 		StartTime:  start,
 		EndTime:    end,
 		Attributes: attrs,

@@ -1,6 +1,53 @@
-# cert-manager Certificate for the gateway mTLS server cert.
-# Requires cert-manager (https://cert-manager.io) installed in the cluster.
-# Adjust issuerRef to match your PKI (Vault, ACME, or self-signed CA).
+# mTLS certificates via cert-manager (https://cert-manager.io).
+#
+# Development setup: a self-signed root CA issues the gateway server cert
+# and agent client certs, so they all chain to one CA. The gateway trusts
+# that CA (ca.crt) for client certificates.
+#
+# In production, replace the bootstrap issuer and root CA below with your
+# PKI (for example a Vault or private CA issuer). Keep conduit-ca-issuer as
+# the name so the Certificates below don't change.
+#
+# Note: the cert-manager "selfSigned" issuer makes each certificate its own
+# CA. Issuing the gateway cert from it directly leaves agent certs with
+# nothing to chain to, so it is used here only to bootstrap the root CA.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: conduit-selfsigned-bootstrap
+spec:
+  selfSigned: {}
+---
+# Root CA. A CA ClusterIssuer reads its secret from cert-manager's cluster
+# resource namespace ("cert-manager" by default).
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: conduit-root-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: conduit-root-ca
+  secretName: conduit-root-ca
+  duration: 87600h   # 10 years
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: conduit-selfsigned-bootstrap
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: conduit-ca-issuer
+spec:
+  ca:
+    secretName: conduit-root-ca
+---
+# Gateway server cert. The secret holds tls.crt, tls.key and ca.crt; the
+# gateway Deployment mounts them as server.crt, server.key and ca.crt.
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -17,16 +64,28 @@ spec:
   dnsNames:
     - gateway
     - gateway.conduit.svc.cluster.local
+  usages:
+    - server auth
   issuerRef:
     name: conduit-ca-issuer
     kind: ClusterIssuer
     group: cert-manager.io
 ---
-# Self-signed ClusterIssuer for development.
-# Replace with Vault or Let's Encrypt issuer in production.
+# Example agent client cert. The commonName is the agent's identity (rate
+# limiting and agent_name). Create one per agent, in the agent's namespace.
 apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
+kind: Certificate
 metadata:
-  name: conduit-ca-issuer
+  name: example-agent-cert
+  namespace: conduit
 spec:
-  selfSigned: {}
+  secretName: example-agent-mtls
+  duration: 2160h    # 90 days
+  renewBefore: 360h
+  commonName: example-agent
+  usages:
+    - client auth
+  issuerRef:
+    name: conduit-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io

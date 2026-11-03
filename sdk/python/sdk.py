@@ -23,7 +23,7 @@ Usage:
 
 import ssl
 import time
-import uuid
+import secrets
 import os
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -103,9 +103,10 @@ class Client:
                 s.set_attr("db.table", "documents")
                 result = db.query(...)
         """
-        tid = trace_id or self._trace_id_var or str(uuid.uuid4()).replace("-", "")
+        # W3C/OTLP sizes: 16-byte trace ID, 8-byte span ID, lowercase hex.
+        tid = trace_id or self._trace_id_var or secrets.token_hex(16)
         parent = self._span_id_var
-        sid = str(uuid.uuid4()).replace("-", "")
+        sid = secrets.token_hex(8)
 
         s = Span(
             trace_id=tid,
