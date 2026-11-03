@@ -8,7 +8,7 @@ Newest entries first. Each iteration is driven by `.claude/loop.md`.
   - New API: `client.span(name, raise_errors=True)` for strict delivery in context-manager form. It never masks the block's own exception. Found when the smoke agent needed it; tested.
   - Wrote `docs/sdk-python.md` (certs, install, instrumentation, an API table with gateway limits, delivery-error semantics, caveats, development), plus pointer READMEs for both SDKs (they were empty).
 - Verified: the full smoke test passes locally, including the Python trace. pytest is 8/8. The documented API was checked against the real signatures.
-- **Stopping point: opening PR #2** (smoke test in CI, the trace detail fix, the cert fixes, and the Python SDK).
+- **Stopping point: opened PR https://github.com/tjscanlan/conduit/pull/2. No new work until it is merged.**
 
 ## 2026-11-03 — Python SDK: from stub to working package
 - Did: the Python SDK was in the state the Go SDK was in this morning, plus more:
