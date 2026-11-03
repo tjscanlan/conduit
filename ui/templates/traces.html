@@ -26,12 +26,19 @@
     <button type="submit">Apply</button>
     {{if .Filter.Active}}<a href="/traces">Clear</a>{{end}}
   </form>
+  {{if .Filter.Before}}
+  {{/* An older page doesn't poll: new traces would shift it under the reader. */}}
+  <div id="trace-list">
+    {{template "traces-rows" .}}
+  </div>
+  {{else}}
   <div id="trace-list"
        hx-get="/traces?{{.Filter.Query}}"
        hx-trigger="every 10s"
        hx-swap="innerHTML">
     {{template "traces-rows" .}}
   </div>
+  {{end}}
 </main>
 </body>
 </html>
@@ -68,4 +75,8 @@
   {{end}}
   </tbody>
 </table>
+<nav class="pager" aria-label="Trace list pages">
+  {{if $.Filter.Before}}<a href="{{$.Filter.NewestURL}}">← Newest</a>{{end}}
+  {{with $.OlderURL}}<a href="{{.}}">Older →</a>{{end}}
+</nav>
 {{end}}

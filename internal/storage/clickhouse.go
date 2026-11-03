@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
@@ -156,6 +157,11 @@ type TraceFilter struct {
 	Agent      string        // only traces that include a span from this agent
 	ErrorsOnly bool          // only traces with at least one error span
 	Limit      int
+
+	// Keyset cursor: only traces strictly older than (BeforeStarted, BeforeTraceID)
+	// in (started DESC, trace_id DESC) order. Zero BeforeStarted means the first page.
+	BeforeStarted time.Time
+	BeforeTraceID string
 }
 
 // QueryTraces returns trace summaries, newest first. The time window bounds
@@ -173,9 +179,19 @@ func (s *ClickHouseStore) QueryTraces(ctx context.Context, f TraceFilter) ([]Tra
 		where += " AND trace_id IN (SELECT trace_id FROM spans WHERE agent_name = ? AND start_time >= now64(9) - toIntervalSecond(?))"
 		args = append(args, f.Agent, window)
 	}
-	having := ""
+	var conds []string
 	if f.ErrorsOnly {
-		having = "HAVING error_count > 0"
+		conds = append(conds, "error_count > 0")
+	}
+	if !f.BeforeStarted.IsZero() {
+		// The cursor time travels as integer nanoseconds: binding a time.Time
+		// would truncate it to seconds and skip or repeat traces at page edges.
+		conds = append(conds, "(started, trace_id) < (fromUnixTimestamp64Nano(toInt64(?), 'UTC'), ?)")
+		args = append(args, f.BeforeStarted.UnixNano(), f.BeforeTraceID)
+	}
+	having := ""
+	if len(conds) > 0 {
+		having = "HAVING " + strings.Join(conds, " AND ")
 	}
 	args = append(args, f.Limit)
 
@@ -194,7 +210,7 @@ func (s *ClickHouseStore) QueryTraces(ctx context.Context, f TraceFilter) ([]Tra
 		WHERE `+where+`
 		GROUP BY trace_id
 		`+having+`
-		ORDER BY started DESC
+		ORDER BY started DESC, trace_id DESC
 		LIMIT ?`, args...)
 	if err != nil {
 		return nil, err

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -50,7 +51,14 @@ func (f *fakeSpans) QueryTraces(_ context.Context, tf storage.TraceFilter) ([]st
 		if (tf.Agent != "" && !hasAgent[t.TraceID]) || (tf.ErrorsOnly && t.ErrorCount == 0) {
 			continue
 		}
+		if !tf.BeforeStarted.IsZero() && !(t.Started.Before(tf.BeforeStarted) ||
+			(t.Started.Equal(tf.BeforeStarted) && t.TraceID < tf.BeforeTraceID)) {
+			continue
+		}
 		out = append(out, *t)
+		if len(out) == tf.Limit {
+			break
+		}
 	}
 	return out, nil
 }
@@ -137,7 +145,7 @@ func TestTraceListOneRowPerTrace(t *testing.T) {
 	if strings.Contains(body, ">llm.call<") {
 		t.Error("child spans should not get their own rows")
 	}
-	if fs.lastFilter.Window != 24*time.Hour || fs.lastFilter.Limit != traceListLimit {
+	if fs.lastFilter.Window != 24*time.Hour || fs.lastFilter.Limit != traceListLimit+1 {
 		t.Errorf("default filter = %+v", fs.lastFilter)
 	}
 	if !strings.Contains(body, `hx-get="/traces?window=24h"`) {
@@ -204,5 +212,71 @@ func TestTraceDetailTruncatesHugeTraces(t *testing.T) {
 	}
 	if !strings.Contains(small, `id="span-s2"`) || !strings.Contains(small, `href="#span-s2"`) {
 		t.Error("span deep-link anchors missing")
+	}
+}
+
+func manyTraces(n int) []storage.SpanRow {
+	var rows []storage.SpanRow
+	t0 := time.Date(2026, 11, 3, 12, 0, 0, 0, time.UTC)
+	for i := 0; i < n; i++ { // ascending start: trace i starts at t0 + i ms
+		rows = append(rows, storage.SpanRow{TraceID: fmt.Sprintf("t%04d", i), SpanID: "s", SpanName: fmt.Sprintf("root-%d", i),
+			Status: "ok", StartTime: t0.Add(time.Duration(i) * time.Millisecond), EndTime: t0.Add(time.Duration(i+1) * time.Millisecond)})
+	}
+	return rows
+}
+
+func TestTraceListPaging(t *testing.T) {
+	router, fs := listRouter(t, manyTraces(traceListLimit+30))
+
+	first := do(router, httptest.NewRequest(http.MethodGet, "/traces", nil)).Body.String()
+	if n := strings.Count(first, `class="span-row`); n != traceListLimit {
+		t.Fatalf("first page has %d rows, want %d", n, traceListLimit)
+	}
+	if fs.lastFilter.Limit != traceListLimit+1 {
+		t.Errorf("should fetch one extra row to detect more pages, got limit %d", fs.lastFilter.Limit)
+	}
+	if strings.Contains(first, "Newest</a>") || !strings.Contains(first, "Older →") {
+		t.Error("first page should link Older only")
+	}
+	m := regexp.MustCompile(`href="/traces\?([^"]+)">Older`).FindStringSubmatch(first)
+	if m == nil {
+		t.Fatal("no Older link")
+	}
+	if strings.Contains(m[1], "%3d") || strings.Contains(m[1], "%26") {
+		t.Fatalf("Older link query was double-encoded: %s", m[1])
+	}
+	olderURL := "/traces?" + strings.ReplaceAll(m[1], "&amp;", "&")
+
+	second := do(router, httptest.NewRequest(http.MethodGet, olderURL, nil)).Body.String()
+	if n := strings.Count(second, `class="span-row`); n != 30 {
+		t.Errorf("second page has %d rows, want the remaining 30", n)
+	}
+	// Newest-first: page 1 ends at root-30, page 2 starts at root-29 with no overlap or gap.
+	if !strings.Contains(first, ">root-30<") || strings.Contains(first, ">root-29<") ||
+		!strings.Contains(second, ">root-29<") || strings.Contains(second, ">root-30<") || !strings.Contains(second, ">root-0<") {
+		t.Error("pages overlap or skip a trace at the boundary")
+	}
+	if strings.Contains(second, "Older →") || !strings.Contains(second, "Newest</a>") {
+		t.Error("last page should link back to Newest only")
+	}
+	if strings.Contains(second, `hx-get=`) {
+		t.Error("an older page must not auto-refresh")
+	}
+}
+
+func TestTraceCursorParsing(t *testing.T) {
+	ts := time.Date(2026, 11, 3, 12, 0, 0, 123456789, time.UTC)
+	c := traceCursor(storage.TraceSummary{TraceID: "abc123", Started: ts})
+	got, id, ok := parseTraceCursor(c)
+	if !ok || !got.Equal(ts) || id != "abc123" {
+		t.Fatalf("round trip %q -> %v %q %v", c, got, id, ok)
+	}
+	for _, bad := range []string{"", "123", ".abc", "abc.def", "-5.abc", "0.abc", "123.a b", "123.x'--", "123." + strings.Repeat("a", 65)} {
+		if _, _, ok := parseTraceCursor(bad); ok {
+			t.Errorf("cursor %q accepted", bad)
+		}
+	}
+	if f := parseTraceListFilter(url.Values{"before": {"123.x'--"}}); f.Before != "" {
+		t.Error("invalid cursor kept in filter")
 	}
 }

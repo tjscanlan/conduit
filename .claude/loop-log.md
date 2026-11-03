@@ -2,6 +2,14 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — Trace list: keyset paging
+- Did: an "Older →" link pages past the 100-trace limit using a keyset cursor `before=<startedUnixNano>.<traceID>`.
+  - Query: `HAVING (started, trace_id) < (fromUnixTimestamp64Nano(toInt64(?)), ?)` with `ORDER BY started DESC, trace_id DESC`. Stable as new traces arrive; the trace_id tiebreak means no gaps or repeats at equal start times. The cursor time is bound as integer ns, avoiding second truncation.
+  - Fetches limit+1 to detect another page. "← Newest" returns to page 1. Older pages don't auto-refresh. The cursor is validated: positive int64 ns plus an ID charset of at most 64 chars.
+- **Bug caught by the new test:** the first version interpolated a pre-encoded query into `href="/traces?{{.}}"`, and html/template URL-escapes query-position values, so `=`/`&` became `%3d`/`%26` and Older silently reloaded page 1. Pager links are now complete `template.URL`s built from `url.Values.Encode()`; the test asserts they aren't double-encoded. (hx-get didn't have this problem: html/template doesn't treat it as a URL attribute.)
+- Verified: handler tests (exactly 100 then 30 rows across 130 traces, no overlap or gap at the boundary, the right links on each page, no polling on older pages, cursor round trip, malformed cursors rejected and dropped from the filter). The smoke test now checks the cursor against real ClickHouse in CI: the page older than the Python trace contains the earlier Go trace and not the cursor trace. Not run locally, because the user's demo stack occupies the local resources.
+- Next candidates: an agent dropdown from recent agents; `restart: unless-stopped` for compose infra; then a PR for this theme.
+
 ## 2026-11-03 — Cycle 4 (`loop/trace-list-filters`, after PR #3 merged as f5e7927): one row per trace + filters
 - Theme: the traces list. `/traces` listed the latest 100 *spans* (one chatty trace filled the page), with no filtering.
 - Did:

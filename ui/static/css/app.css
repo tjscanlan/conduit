@@ -255,3 +255,5 @@ nav .nav-logout button:hover { color: var(--text); }
 }
 .data-table .num { text-align: right; white-space: nowrap; }
 .muted { color: var(--muted); font-size: 11px; }
+.pager { display: flex; justify-content: space-between; margin-top: 0.75rem; }
+.pager a:only-child { margin-left: auto; }

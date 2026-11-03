@@ -81,6 +81,7 @@ else
   expected="pysmoke.agent.run"$'\t'"$AGENT"$'\tok\t\t\t16\t0\n'"pysmoke.tool.call"$'\t'"$AGENT"$'\terror\ttool call timed out\tpy-model\t16\t1'
   [[ "$rows" == "$expected" ]] || fail "Python span rows differ:"$'\n'"got:"$'\n'"$rows"$'\n'"want:"$'\n'"$expected"
   pass "Python SDK trace $PYTRACE: context-manager spans, exception recorded as error, parent link"
+  PYSTART_NS=$(ch "SELECT toUnixTimestamp64Nano(min(start_time)) FROM spans WHERE trace_id = '$PYTRACE'")
 fi
 
 echo "==> VictoriaMetrics"
@@ -117,6 +118,15 @@ grep -q "/traces/$TRACE\"" <<<"$filtered" || fail "agent+errors filter dropped $
 none=$(curl -fsS -b "$jar" -G "$UI/traces" --data-urlencode agent=no-such-agent)
 grep -q "No traces match these filters" <<<"$none" || fail "unknown-agent filter should match nothing"
 pass "trace list: one row per trace, agent/errors/window filters"
+if [[ -n "${PYSTART_NS:-}" ]]; then
+  # The Python trace was sent after the Go one, so the page "older than" it
+  # must contain the Go trace but not the Python trace itself.
+  older=$(curl -fsS -b "$jar" -G "$UI/traces" --data-urlencode "before=$PYSTART_NS.$PYTRACE")
+  grep -q "/traces/$TRACE\"" <<<"$older" || fail "page older than the Python trace is missing the earlier Go trace"
+  ! grep -q "/traces/$PYTRACE\"" <<<"$older" || fail "cursor page repeated the cursor trace itself"
+  grep -q 'Newest</a>' <<<"$older" || fail "older page should link back to the newest page"
+  pass "keyset paging cursor"
+fi
 page=$(curl -fsS -b "$jar" "$UI/traces/$TRACE")
 grep -q smoke.llm.call <<<"$page" && grep -q badge-error <<<"$page" || fail "trace detail page missing spans"
 curl -fsSI -b "$jar" "$UI/traces" | grep -qi '^content-security-policy:' || fail "missing CSP header"

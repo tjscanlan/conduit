@@ -127,7 +127,12 @@ func (h *handlers) traces(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "query error", http.StatusInternalServerError)
 		return
 	}
-	data := map[string]any{"Page": "traces", "Traces": traces, "Filter": f, "Windows": traceWindows}
+	data := map[string]any{"Page": "traces", "Filter": f, "Windows": traceWindows}
+	if len(traces) > traceListLimit {
+		traces = traces[:traceListLimit]
+		data["OlderURL"] = f.OlderURL(traces[len(traces)-1])
+	}
+	data["Traces"] = traces
 	if r.Header.Get("HX-Request") == "true" {
 		h.render(w, r, "traces-rows", data)
 		return
