@@ -1,5 +1,25 @@
 # Security
 
+## Ingestion rate limiting
+
+The gateway rate-limits each agent separately, using a token bucket keyed
+on the CommonName of its mTLS client certificate. Authentication runs
+first, so every request already has a verified identity when it reaches
+the limiter.
+
+`RATE_LIMIT_RPS` (default 100) counts telemetry items per second, not
+RPCs. An `IngestBatch` call costs one token for each span, metric and log
+it carries, so batching can't multiply an agent's throughput. Bursts can
+use up to `RATE_LIMIT_RPS` tokens at once.
+
+Some batches are rejected with `InvalidArgument` because they could never
+succeed:
+- the batch has more items than `RATE_LIMIT_RPS`
+- the batch has more than 1000 items
+
+A request rejected only because the bucket is currently empty gets
+`ResourceExhausted` and can be retried.
+
 ## UI authentication
 
 The UI (`cmd/ui`) always requires authentication unless you explicitly

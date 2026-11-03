@@ -2,6 +2,17 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — Rate limit: batches could bypass the per-agent limit
+- Did: the limiter charged 1 token per RPC, so one `IngestBatch` carrying thousands of spans cost the same as one span. Within gRPC's 4 MB limit that's about 40k small spans per call, so an agent allowed 100/s could send millions per second.
+  - Now charges one token per telemetry item (spans + metrics + logs).
+  - Caps batches at 1000 items.
+  - Rejects with InvalidArgument any batch larger than the bucket (it could never succeed), and keeps ResourceExhausted for retryable rejections.
+  - `RATE_LIMIT_RPS` that is ≤0 or malformed now falls back to the default instead of silently rejecting everything.
+  - Documented in docs/security.md ("Ingestion rate limiting"). `RATE_LIMIT_RPS` now means items per second.
+- Verified: go build, go vet, and go test -race PASS. New tests: per-item charging (a 6-item batch, then a second batch is refused while 4 singles succeed), impossible batches, empty-batch cost, and config fallback.
+- Next candidates: integration test of gateway → NATS → collector with an in-process nats-server (adds the nats-server/v2 module as a test-only dependency, which is heavy, so justify it or decide against); the empty docs (sdk-go.md, deployment.md, contributing.md); the UI has no trace-detail view of attributes or error.message.
+- Blockers / needs human: `gh auth login` is still pending.
+
 ## 2026-11-03 — Span status flows end to end (was always "ok")
 - Did: `SpanStatus` was on the wire but dropped at the gateway, missing from SpanInput and SpanRequest, and hard-coded to "ok" in the exporter, so failed agent steps showed as successful in the UI and in the trace_summary error_count.
   - schema: `StatusUnset`, `StatusOK`, and `StatusError` match the ClickHouse enum. `Validate` rejects anything else, including empty. An empty value would fail the enum insert and now retry forever. `New` defaults to unset.
