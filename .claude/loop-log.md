@@ -2,8 +2,15 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — Commit generated proto code; loop now pushes loop/auto (requested by user)
+- Decision (user): commit the generated proto code instead of gitignoring it, and have the loop push to its branch.
+- Did: removed `**/*.pb.go` from .gitignore (Python output stays ignored) and committed `proto/*.pb.go`. Dropped the Dockerfile's gen-proto step and the `.dockerignore` entry, so image builds no longer need network codegen. Updated `.claude/loop.md`: after each passing commit, run `git push -u origin loop/auto`. On rejection, rebase rather than force-push. Only `loop/auto` is ever pushed.
+- Verified: regeneration is deterministic (re-running `make proto` leaves no diff). go build, go vet, and go test -race ./... PASS.
+- Next candidates: CI workflow (in progress before this request): build, vet, test -race, govulncheck, a **generated-code drift check** (`make proto && git diff --exit-code proto/`), and a docker build, with actions pinned by commit SHA. Then gofmt the remaining files and wire the Go SDK client TODO.
+- Blockers / needs human: none.
+
 ## 2026-11-03 — Docker: generate proto code in build; add .dockerignore
-- Did: the Dockerfile now runs `scripts/gen-proto.sh` after `COPY . .`, so gateway and ui images build without committed `*.pb.go`. I made the script POSIX sh with no git dependency (it finds the repo root from its own path), since the alpine builder has neither bash nor git. Added `.dockerignore`: without it, `COPY . .` copied `certs/` (private keys), `.env`, and `deployments/docker/ui-users` into the builder's layers and build cache. Also excluded .git, bin/, .claude, and stale `*.pb.go`.
+- (Superseded by the next entry: generated code is now committed.) Did: the Dockerfile now runs `scripts/gen-proto.sh` after `COPY . .`, so gateway and ui images build without committed `*.pb.go`. I made the script POSIX sh with no git dependency (it finds the repo root from its own path), since the alpine builder has neither bash nor git. Added `.dockerignore`: without it, `COPY . .` copied `certs/` (private keys), `.env`, and `deployments/docker/ui-users` into the builder's layers and build cache. Also excluded .git, bin/, .claude, and stale `*.pb.go`.
 - Verified: `rm proto/*.pb.go && sh scripts/gen-proto.sh` regenerates the code; go build and go test PASS. **`docker build` was not run** (loop rule: no long-running networked commands). Please check with `docker build -f deployments/docker/Dockerfile --build-arg BINARY=gateway .`
 - Next candidates: add a CI workflow (go build, vet, test -race, govulncheck, plus a docker build that would cover what I couldn't verify here); gofmt storage/clickhouse.go and telemetry/processor.go; wire the Go SDK client TODO; the Dockerfile hard-codes GOARCH=amd64 (use TARGETARCH for arm64 nodes).
 - Blockers / needs human: run the docker build once to confirm.

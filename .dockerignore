@@ -5,5 +5,4 @@
 bin/
 certs/
 deployments/docker/ui-users
-**/*.pb.go
 sdk/python/.venv/

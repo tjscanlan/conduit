@@ -11,9 +11,6 @@ RUN go mod download
 
 COPY . .
 
-# Generated protobuf code is not committed; generate it with pinned tools.
-RUN sh scripts/gen-proto.sh
-
 # Build all three binaries — static, no CGO
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags="-s -w" \

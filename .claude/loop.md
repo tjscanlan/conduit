@@ -9,7 +9,7 @@ You are improving Conduit, a self-directed project. Do exactly ONE focused unit 
 
 ## 2. Pick the single most valuable next task
 Priority order:
-1. **Broken build, vet, or tests.** Fix these first. (Known at loop start: gateway fails because the proto types were never generated, and `protoc` and `buf` aren't installed. Find a reproducible way to generate them, such as `go run` of a pinned tool or the buf CLI via `go install`, then commit the generated code and update `scripts/gen-proto.sh`.)
+1. **Broken build, vet, or tests.** Fix these first. Generated proto code (`proto/*.pb.go`) is committed. If you edit a `.proto` file, run `make proto` and commit the regenerated files in the same commit.
 2. **Correctness and security bugs**, especially at the mTLS, schema-validation, and rate-limiting boundaries described in `README.md` and `docs/security.md`.
 3. **Missing tests** for existing logic in `internal/*`, `sdk/go`, and the `cmd/*` handlers.
 4. **Gaps between the docs and the code**: features in `README.md` and `docs/*.md` that are missing or stubbed.
@@ -26,8 +26,9 @@ Keep each task small enough to finish in one iteration (roughly one coherent com
 ## 4. Verify, then commit
 - Required: `go build ./... && go vet ./... && go test -race ./...` must pass. If the build was already broken before you started and you didn't fully fix it, you may commit only if you made it strictly less broken and didn't break any package that was passing.
 - Commit on `loop/auto` with a clear message (`area: what and why`). One commit per iteration.
-- **Never push. Never force-push. Never rewrite history. Never merge into main.**
-- If you can't get to a passing state, run `git stash` or `git restore` to drop the work, and log what blocked you.
+- Then push the branch: `git push -u origin loop/auto`. If the push fails, for example because the remote has commits you don't have, do not force it. Run `git pull --rebase origin loop/auto`, re-run the checks, and push again. If it still fails, log the error under "Blockers / needs human".
+- **Only ever push `loop/auto`. Never push `main` or any other branch. Never force-push. Never rewrite pushed history. Never merge into main or open PRs.**
+- If you can't get to a passing state, run `git stash` or `git restore` to drop the work, and log what blocked you. Never push a failing state.
 
 ## 5. Log
 Prepend an entry to `.claude/loop-log.md` and include it in the commit:
