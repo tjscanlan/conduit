@@ -2,6 +2,12 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — Cycle 6 (`loop/docs-roadmap-branding`, after PR #5 merged as cf4ccd1): branding, iteration 1
+- Did: SVG logo mark (five concentric arcs in the palette, red outside to yellow inside, forming a "C" open toward the flow) and favicon; full app.css rewrite around design tokens. Light white UI, warm near-black ink text, ink nav bar with a 3px palette-gradient rule, sans UI with mono for IDs, the logo plus wordmark in the nav, and a login card with the logo, tagline, and gradient top. metrics.js canvas colors updated.
+- Contrast rules (computed): only #ec0000 passes AA as text on white (4.6:1), so it's used for links, buttons, and errors. #ec9b00 and #ecca00 take ink, never white. Error text on the red tint uses #b80000 (6.3:1).
+- Verified: go test; CSP template test (no inline styles). **Not yet viewed in a browser.**
+- Remaining in this cycle: formal docs (README overhaul with logo, docs index, architecture refresh, contributing.md), docs/roadmap.md, a browser check of the new look, then PR #6.
+
 ## 2026-11-03 — **User directive for the NEXT cycle:** formal docs, product roadmap, professional branding
 - The user asked (while cycle 5 was in progress): "in the next loop, please focus on formalizing the documentation, adding a product roadmap, and making the logo and graphics of the ui look more like a professional piece of software."
 - **Brand palette (user-specified), plus white:** `#ec0000` (236,0,0) · `#ec2400` (236,36,0) · `#ec5300` (236,83,0) · `#ec9b00` (236,155,0) · `#ecca00` (236,202,0).

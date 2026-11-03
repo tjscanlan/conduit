@@ -35,14 +35,14 @@
       const x = PAD.left + i * (plotW / values.length);
       const bh = (v / maxVal) * plotH;
       const y = PAD.top + plotH - bh;
-      ctx.fillStyle = "#58a6ff";
+      ctx.fillStyle = "#ec5300";
       ctx.fillRect(x, y, barW, bh);
     });
   }
 
   function drawAxes(maxVal) {
-    ctx.strokeStyle = "#30363d";
-    ctx.fillStyle = "#8b949e";
+    ctx.strokeStyle = "#e7e5e4";
+    ctx.fillStyle = "#57534e";
     ctx.font = "11px monospace";
     ctx.lineWidth = 1;
 
@@ -64,7 +64,7 @@
   }
 
   function drawPlaceholder() {
-    ctx.fillStyle = "#8b949e";
+    ctx.fillStyle = "#57534e";
     ctx.font = "12px monospace";
     ctx.textAlign = "center";
     ctx.fillText("No data — emit spans to see durations", W / 2, H / 2);

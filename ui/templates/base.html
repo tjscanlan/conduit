@@ -1,6 +1,6 @@
 {{define "nav"}}
 <nav>
-  <a class="logo" href="/traces">conduit</a>
+  <a class="logo" href="/traces"><img src="/static/img/logo.svg" alt="" width="26" height="26">Conduit</a>
   <a href="/traces" {{if eq .Page "traces"}}class="active"{{end}}>Traces</a>
   <a href="/logs"   {{if eq .Page "logs"}}class="active"{{end}}>Logs</a>
   <a href="/metrics"{{if eq .Page "metrics"}}class="active"{{end}}>Metrics</a>

@@ -5,11 +5,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Conduit — Sign in</title>
+  <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#1c1917">
   <link rel="stylesheet" href="/static/css/app.css">
 </head>
 <body class="login-page">
 <main class="login">
-  <h1 class="logo">conduit</h1>
+  <h1 class="logo"><img src="/static/img/logo.svg" alt="" width="36" height="36">Conduit</h1>
+  <p class="tagline">Observability for AI agents</p>
   <form method="post" action="/login" class="login-form">
     {{if .Error}}<p class="login-error" role="alert">{{.Error}}</p>{{end}}
     <input type="hidden" name="next" value="{{.Next}}">
