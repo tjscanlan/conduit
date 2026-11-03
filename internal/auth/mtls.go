@@ -53,12 +53,17 @@ func AuthInterceptor() grpc.UnaryServerInterceptor {
 		if err != nil {
 			return nil, status.Errorf(codes.Unauthenticated, "identity extraction failed: %v", err)
 		}
-		ctx = context.WithValue(ctx, agentIdentityKey{}, identity)
+		ctx = WithIdentity(ctx, identity)
 		return handler(ctx, req)
 	}
 }
 
 type agentIdentityKey struct{}
+
+// WithIdentity returns a context carrying id, as AuthInterceptor does.
+func WithIdentity(ctx context.Context, id *AgentIdentity) context.Context {
+	return context.WithValue(ctx, agentIdentityKey{}, id)
+}
 
 // IdentityFromContext retrieves the agent identity set by AuthInterceptor
 func IdentityFromContext(ctx context.Context) (*AgentIdentity, bool) {

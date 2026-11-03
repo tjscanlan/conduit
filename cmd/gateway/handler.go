@@ -112,6 +112,15 @@ func (h *IngestionHandler) ingestOne(ctx context.Context, in telemetry.SpanInput
 	return true, ""
 }
 
+// unaryInterceptors returns the gateway's interceptor chain. Auth must run
+// first: the rate limiter keys buckets on the mTLS identity it attaches.
+func unaryInterceptors(rps int) []grpc.UnaryServerInterceptor {
+	return []grpc.UnaryServerInterceptor{
+		authInterceptor(),
+		rateLimitInterceptor(rps),
+	}
+}
+
 // rateLimitInterceptor is a token-bucket rate limiter keyed on mTLS CommonName.
 func rateLimitInterceptor(rps int) grpc.UnaryServerInterceptor {
 	type bucket struct {

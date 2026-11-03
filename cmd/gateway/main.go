@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"log/slog"
 	"net"
 	"os"
@@ -30,10 +31,7 @@ func main() {
 	creds := credentials.NewTLS(tlsCfg)
 	srv := grpc.NewServer(
 		grpc.Creds(creds),
-		grpc.ChainUnaryInterceptor(
-			rateLimitInterceptor(cfg.RateLimit),
-			authInterceptor(),
-		),
+		grpc.ChainUnaryInterceptor(unaryInterceptors(cfg.RateLimit)...),
 	)
 
 	// Register ingestion service
@@ -77,7 +75,9 @@ func loadMTLSConfig(cfg *Config) (*tls.Config, error) {
 	}
 
 	caPool := x509.NewCertPool()
-	caPool.AppendCertsFromPEM(caCert)
+	if !caPool.AppendCertsFromPEM(caCert) {
+		return nil, errors.New("failed to parse CA certificate")
+	}
 
 	return &tls.Config{
 		Certificates: []tls.Certificate{cert},
