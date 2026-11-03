@@ -8,7 +8,7 @@ Newest entries first. Each iteration is driven by `.claude/loop.md`.
   - Each span row has `id="span-<spanID>"` and a hover `#` link; `/traces/<id>#span-<spanID>` opens, highlights, and scrolls to that span (traces.js, which also handles `hashchange`).
   - Removed traces.js's dead `highlightCurrent`, which targeted the old flat table and set an inline style.
 - Verified: handler tests for exactly 2000 rendered spans plus the notice, no notice on small traces, and the anchors and links being present. traces.js parses (JavaScriptCore; node isn't installed). The smoke test passes. **Deep-link behavior isn't browser-tested.**
-- **Stopping point:** the trace-detail theme is done. Opening PR #3. Next themes: the traces list (one row per trace, filter by agent or status), and LLM payload display (needs an access-control decision).
+- **Stopping point:** the trace-detail theme is done. Opened PR https://github.com/tjscanlan/conduit/pull/3; no new work until it is merged. Next themes: the traces list (one row per trace, filter by agent or status), and LLM payload display (needs an access-control decision).
 
 ## 2026-11-03 — Cycle 3 (`loop/trace-detail-view`, after PR #2 merged as cba594e): trace detail page; fix second-truncated timestamps
 - Theme: trace detail view. Users couldn't see attributes, error.message, LLM model, tokens, or cost, which is the core of an LLM observability tool.
