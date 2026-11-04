@@ -31,7 +31,7 @@ from typing import Iterator, Optional
 
 import grpc
 
-from ._proto import ingestion_pb2, ingestion_pb2_grpc, log_pb2, span_pb2
+from ._proto import ingestion_pb2, ingestion_pb2_grpc, log_pb2, metric_pb2, span_pb2
 
 log = logging.getLogger("conduit_sdk")
 
@@ -190,6 +190,26 @@ class Client:
         if resp.logs_accepted != 1:
             reason = resp.errors[0] if resp.errors else "unknown reason"
             raise ConduitError(f"gateway rejected log: {reason}")
+
+    def gauge(self, name: str, value: float, labels: Optional[dict] = None) -> None:
+        """Record the current value of ``name`` (e.g. a queue depth)."""
+        self._metric(name, value, labels, metric_pb2.METRIC_TYPE_GAUGE)
+
+    def counter(self, name: str, value: float, labels: Optional[dict] = None) -> None:
+        """Record a cumulative, non-negative value of ``name`` (e.g. requests_total)."""
+        self._metric(name, value, labels, metric_pb2.METRIC_TYPE_COUNTER)
+
+    def _metric(self, name: str, value: float, labels: Optional[dict], typ: int) -> None:
+        m = metric_pb2.Metric(name=name, value=float(value), type=typ,
+                              labels={k: str(v) for k, v in (labels or {}).items()})
+        m.timestamp.FromNanoseconds(time.time_ns())
+        try:
+            resp = self._stub.IngestBatch(ingestion_pb2.IngestBatchRequest(metrics=[m]), timeout=self._timeout)
+        except grpc.RpcError as err:
+            raise ConduitError(f"ingest metric: {err.code().name}: {err.details()}") from err
+        if resp.metrics_accepted != 1:
+            reason = resp.errors[0] if resp.errors else "unknown reason"
+            raise ConduitError(f"gateway rejected metric: {reason}")
 
     def _send(self, s: Span, end_ns: int) -> None:
         req = ingestion_pb2.IngestSpanRequest(span=_to_proto(s, end_ns))

@@ -17,7 +17,12 @@ import (
 	pb "github.com/your-org/agent-observability/proto"
 )
 
-type capturePublisher struct{ msgs, logs [][]byte }
+type capturePublisher struct{ msgs, logs, metrics [][]byte }
+
+func (c *capturePublisher) PublishMetric(_ context.Context, data []byte) error {
+	c.metrics = append(c.metrics, data)
+	return nil
+}
 
 func (c *capturePublisher) PublishLog(_ context.Context, data []byte) error {
 	c.logs = append(c.logs, data)

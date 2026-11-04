@@ -120,6 +120,15 @@ vm_has() {
 }
 retry 30 vm_has || fail "no conduit_span_duration_ms series in VictoriaMetrics"
 pass "span duration metrics"
+gauge_has() {
+  curl -fsS -G "$VM/api/v1/export" --data-urlencode 'match[]={__name__="smoke_queue_depth",sdk="go",agent="'"$AGENT"'"}' | grep -q '"values":\[7\]'
+}
+retry 30 gauge_has || fail "Go SDK gauge smoke_queue_depth{sdk=go,agent=$AGENT}=7 not in VictoriaMetrics"
+if [[ "${SMOKE_SKIP_PYTHON:-}" != 1 ]]; then
+  pygauge_has() { curl -fsS -G "$VM/api/v1/export" --data-urlencode 'match[]={__name__="smoke_queue_depth",sdk="python",agent="'"$AGENT"'"}' | grep -q '"values":\[9\]'; }
+  retry 30 pygauge_has || fail "Python SDK gauge not in VictoriaMetrics"
+fi
+pass "SDK gauges stored with the agent label from the cert"
 
 echo "==> Tempo"
 tempo_trace() {

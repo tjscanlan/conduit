@@ -45,7 +45,7 @@ func main() {
 	tempo := storage.NewTempoClient(cfg.TempoEndpoint)
 	exporter := telemetry.NewExporter(ch, vm, tempo, logger)
 
-	collector, err := telemetry.NewCollector(cfg.NATSUrl, exporter, ch, logger)
+	collector, err := telemetry.NewCollector(cfg.NATSUrl, exporter, ch, vm, logger)
 	if err != nil {
 		logger.Error("collector init", "err", err)
 		os.Exit(1)

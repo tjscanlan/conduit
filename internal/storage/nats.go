@@ -28,7 +28,7 @@ func NewNATSPublisher(url string) (*NATSPublisher, error) {
 		return nil, fmt.Errorf("jetstream context: %w", err)
 	}
 
-	for _, cfg := range []*nats.StreamConfig{spanStreamConfig(), logStreamConfig()} {
+	for _, cfg := range []*nats.StreamConfig{spanStreamConfig(), logStreamConfig(), metricStreamConfig()} {
 		if err := ensureStream(js, cfg); err != nil {
 			return nil, err
 		}
@@ -93,6 +93,24 @@ func ensureStream(js nats.JetStreamContext, cfg *nats.StreamConfig) error {
 		}
 	}
 	return nil
+}
+
+// MetricSubject and metricStreamName carry metric samples in their own work queue.
+const (
+	MetricSubject    = "metrics.ingest"
+	metricStreamName = "METRICS"
+)
+
+func metricStreamConfig() *nats.StreamConfig {
+	cfg := spanStreamConfig()
+	cfg.Name, cfg.Subjects = metricStreamName, []string{MetricSubject}
+	return cfg
+}
+
+// PublishMetric sends a serialized metric sample (JSON-encoded telemetry.MetricInput).
+func (p *NATSPublisher) PublishMetric(_ context.Context, data []byte) error {
+	_, err := p.js.Publish(MetricSubject, data)
+	return err
 }
 
 // PublishLog sends a serialized log record (JSON-encoded telemetry.LogInput).

@@ -13,9 +13,16 @@ import (
 )
 
 const (
-	consumerName    = "collector"
-	logConsumerName = "collector-logs"
+	consumerName       = "collector"
+	logConsumerName    = "collector-logs"
+	metricConsumerName = "collector-metrics"
 )
+
+// metricSink is where validated metric samples go (VictoriaMetrics). Unlike
+// span-duration export, it is the system of record for metrics: failures retry.
+type metricSink interface {
+	WriteMetrics(ctx context.Context, metrics []storage.VMMetric) error
+}
 
 // logStore is where validated log records go (ClickHouse).
 type logStore interface {
@@ -36,6 +43,7 @@ type Collector struct {
 	js       nats.JetStreamContext
 	exporter spanExporter
 	logs     logStore
+	metrics  metricSink
 	logger   *slog.Logger
 }
 
@@ -48,7 +56,7 @@ const (
 	term                     // undecodable: never redeliver
 )
 
-func NewCollector(natsURL string, exporter *Exporter, logs logStore, logger *slog.Logger) (*Collector, error) {
+func NewCollector(natsURL string, exporter *Exporter, logs logStore, metrics metricSink, logger *slog.Logger) (*Collector, error) {
 	nc, err := nats.Connect(natsURL)
 	if err != nil {
 		return nil, err
@@ -57,7 +65,7 @@ func NewCollector(natsURL string, exporter *Exporter, logs logStore, logger *slo
 	if err != nil {
 		return nil, err
 	}
-	return &Collector{nc: nc, js: js, exporter: exporter, logs: logs, logger: logger}, nil
+	return &Collector{nc: nc, js: js, exporter: exporter, logs: logs, metrics: metrics, logger: logger}, nil
 }
 
 // Ready reports whether the collector's NATS connection is up.
@@ -89,9 +97,35 @@ func (c *Collector) Start(ctx context.Context) error {
 		return err
 	}
 	defer logs.Unsubscribe() //nolint:errcheck
+	metrics, err := c.js.Subscribe(storage.MetricSubject, dispose(c.handleMetric), nats.Durable(metricConsumerName), nats.AckExplicit())
+	if err != nil {
+		return err
+	}
+	defer metrics.Unsubscribe() //nolint:errcheck
 
 	<-ctx.Done()
 	return nil
+}
+
+// handleMetric writes one metric sample: same delivery rules as spans and logs.
+func (c *Collector) handleMetric(ctx context.Context, data []byte) disposition {
+	var in MetricInput
+	if err := json.Unmarshal(data, &in); err != nil {
+		c.logger.Error("unmarshal metric: terminating message", "err", err)
+		return term
+	}
+	req, err := ProcessMetric(in, time.Now())
+	if err != nil {
+		c.logger.Warn("invalid metric: acking to avoid redelivery loop", "err", err)
+		return ack
+	}
+	if err := c.metrics.WriteMetrics(ctx, []storage.VMMetric{{
+		Name: req.Name, Labels: req.Labels, Value: req.Value, Timestamp: req.Timestamp,
+	}}); err != nil {
+		c.logger.Error("write metric: will retry", "err", err)
+		return retry
+	}
+	return ack
 }
 
 // handleLog stores one log record: same delivery rules as spans.

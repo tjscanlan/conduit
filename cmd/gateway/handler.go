@@ -35,6 +35,7 @@ type IngestionHandler struct {
 type spanPublisher interface {
 	Publish(ctx context.Context, data []byte) error
 	PublishLog(ctx context.Context, data []byte) error
+	PublishMetric(ctx context.Context, data []byte) error
 	Ready(ctx context.Context) error
 }
 
@@ -69,8 +70,12 @@ func (h *IngestionHandler) IngestBatch(ctx context.Context, req *pb.IngestBatchR
 			resp.Errors = append(resp.Errors, fmt.Sprintf("span[%d]: %s", i, reason))
 		}
 	}
-	if n := len(req.GetMetrics()); n > 0 {
-		resp.Errors = append(resp.Errors, fmt.Sprintf("%d metrics rejected: metric ingestion not supported yet", n))
+	for i, m := range req.GetMetrics() {
+		if ok, reason := h.ingestMetric(ctx, metricInputFromProto(m)); ok {
+			resp.MetricsAccepted++
+		} else {
+			resp.Errors = append(resp.Errors, fmt.Sprintf("metric[%d]: %s", i, reason))
+		}
 	}
 	for i, l := range req.GetLogs() {
 		if ok, reason := h.ingestLog(ctx, logInputFromProto(l)); ok {
@@ -155,6 +160,45 @@ func logInputFromProto(l *pb.LogRecord) telemetry.LogInput {
 		in.TimestampNano = t.AsTime().UnixNano()
 	}
 	return in
+}
+
+func metricTypeFromProto(t pb.MetricType) string {
+	switch t {
+	case pb.MetricType_METRIC_TYPE_UNSPECIFIED:
+		return schema.MetricUnspecified
+	case pb.MetricType_METRIC_TYPE_GAUGE:
+		return schema.MetricGauge
+	case pb.MetricType_METRIC_TYPE_COUNTER:
+		return schema.MetricCounter
+	}
+	return t.String() // unknown: rejected by validation
+}
+
+func metricInputFromProto(m *pb.Metric) telemetry.MetricInput {
+	in := telemetry.MetricInput{Name: m.GetName(), Labels: m.GetLabels(), Value: m.GetValue(), Type: metricTypeFromProto(m.GetType())}
+	if t := m.GetTimestamp(); t != nil {
+		in.TimestampNano = t.AsTime().UnixNano()
+	}
+	return in
+}
+
+// ingestMetric validates a metric sample and publishes it to NATS.
+func (h *IngestionHandler) ingestMetric(ctx context.Context, in telemetry.MetricInput) (bool, string) {
+	if id, ok := auth.IdentityFromContext(ctx); ok {
+		in.AgentName = id.CommonName
+	}
+	if _, err := telemetry.ProcessMetric(in, time.Now()); err != nil {
+		return false, err.Error()
+	}
+	data, err := json.Marshal(in)
+	if err != nil {
+		return false, "internal marshal error"
+	}
+	if err := h.publisher.PublishMetric(ctx, data); err != nil {
+		h.logger.Error("nats publish metric", "err", err)
+		return false, "publish failed"
+	}
+	return true, ""
 }
 
 // ingestLog validates a log record and publishes it to NATS.

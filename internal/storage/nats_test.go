@@ -25,3 +25,10 @@ func TestLogStreamIsSeparateBoundedWorkQueue(t *testing.T) {
 		t.Errorf("log stream config = %+v", cfg)
 	}
 }
+
+func TestMetricStreamIsSeparateBoundedWorkQueue(t *testing.T) {
+	cfg := metricStreamConfig()
+	if cfg.Name == spanStreamConfig().Name || cfg.Name == logStreamConfig().Name || cfg.Subjects[0] != MetricSubject || cfg.Retention != nats.WorkQueuePolicy {
+		t.Errorf("metric stream config = %+v", cfg)
+	}
+}

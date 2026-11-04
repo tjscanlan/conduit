@@ -13,9 +13,9 @@ component guarantees, and how the data is stored.
 | **Gateway** | `cmd/gateway` | Authenticates agents, validates spans, rate-limits each agent and publishes to NATS |
 | **Collector** | `cmd/collector` | Consumes from NATS and writes to ClickHouse (required), VictoriaMetrics and Tempo (both best-effort) |
 | **UI** | `cmd/ui` | Server-rendered trace list and trace detail, read from ClickHouse, with sign-in |
-| NATS JetStream | | A durable buffer between ingestion and storage. Spans and logs use separate work-queue streams (`SPANS`, `LOGS`), so a backlog of one never blocks the other. |
+| NATS JetStream | | A durable buffer between ingestion and storage. Spans, logs and metrics use separate work-queue streams (`SPANS`, `LOGS`, `METRICS`), so a backlog in one never blocks the others. |
 | ClickHouse | | The system of record for spans, LLM data and trace rollups |
-| VictoriaMetrics | | Span duration metrics |
+| VictoriaMetrics | | Agent metrics (the system of record for them) and span duration metrics |
 | Tempo | | A copy of each trace, in OTLP format, for Grafana |
 
 ## Data flow
@@ -153,6 +153,23 @@ certificate, as for spans.
 
 The table is partitioned by day and ordered by `(agent_name, timestamp)`.
 `SPAN_RETENTION_DAYS` applies to it as well.
+
+### VictoriaMetrics: agent metrics
+
+Gauges and counters sent in `IngestBatch` are written to VictoriaMetrics.
+The gateway validates them:
+- **Names** must be valid Prometheus names. `conduit_*` is reserved for
+  Conduit's own series, so agents can't forge them, and `__*` is reserved
+  too.
+- **Labels:** at most 32, with Prometheus-style keys and values of at most
+  1 KiB.
+- **Values** must be finite, and counters must be ≥ 0.
+- **The `agent` label** is always set from the certificate.
+
+For metrics, VictoriaMetrics is the system of record, so a failed write is
+retried, unlike the best-effort span-duration export. Label values are
+escaped for the Prometheus text format (backslash, quote and newline), so a
+value can't inject extra samples.
 
 ### ClickHouse `trace_summary`
 

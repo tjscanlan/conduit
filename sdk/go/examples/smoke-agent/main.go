@@ -43,6 +43,9 @@ func main() {
 	if err := child.End(ctx); err != nil {
 		log.Fatalf("send child span: %v", err)
 	}
+	if err := c.Gauge(ctx, "smoke_queue_depth", 7, map[string]string{"sdk": "go"}); err != nil {
+		log.Fatalf("send metric: %v", err)
+	}
 	root.SetOK()
 	if err := root.End(ctx); err != nil {
 		log.Fatalf("send root span: %v", err)

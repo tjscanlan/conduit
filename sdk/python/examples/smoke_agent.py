@@ -28,6 +28,7 @@ def main() -> None:
                     raise TimeoutError("tool call timed out")
             except TimeoutError:
                 pass
+            client.gauge("smoke_queue_depth", 9, {"sdk": "python"})
             root.set_ok()
         print(root.trace_id)
 

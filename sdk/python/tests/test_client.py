@@ -69,10 +69,18 @@ class FakeGateway(ingestion_pb2_grpc.IngestionServiceServicer):
     def __init__(self):
         self.spans = []
         self.logs = []
+        self.metrics = []
         self.lock = threading.Lock()
 
     def IngestBatch(self, request, context):
         resp = ingestion_pb2.IngestBatchResponse()
+        for i, m in enumerate(request.metrics):
+            if m.name.startswith("conduit_"):
+                resp.errors.append(f"metric[{i}]: validation: metric names starting with conduit_ or __ are reserved")
+                continue
+            with self.lock:
+                self.metrics.append(m)
+            resp.metrics_accepted += 1
         for i, rec in enumerate(request.logs):
             if not rec.body:
                 resp.errors.append(f"log[{i}]: validation: log body is required")
@@ -189,6 +197,19 @@ def test_log_links_to_current_span(gateway):
     assert inside.trace_id == s.trace_id and inside.span_id == s.span_id
     assert inside.severity == SEVERITY_WARN and inside.attributes["attempt"] == "2"
     assert inside.timestamp.ToNanoseconds() > 0
+
+
+def test_gauge_and_counter(gateway):
+    fake, addr, pki, _ = gateway
+    with client_for(addr, pki) as c:
+        c.gauge("queue_depth", 7, {"queue": "tasks"})
+        c.counter("tool_calls_total", 12)
+        with pytest.raises(ConduitError, match="reserved"):
+            c.gauge("conduit_fake", 1)
+    gauge, counter = fake.metrics
+    assert gauge.name == "queue_depth" and gauge.value == 7 and gauge.labels["queue"] == "tasks"
+    assert gauge.type == 1 and counter.type == 2 and counter.value == 12  # GAUGE, COUNTER
+    assert gauge.timestamp.ToNanoseconds() > 0
 
 
 def test_rejects_gateway_from_untrusted_ca(gateway):

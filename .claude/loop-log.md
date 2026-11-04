@@ -2,6 +2,18 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — Metrics pipeline + SDK Gauge/Counter
+- Did:
+  - `schema.MetricRequest.Validate`: Prometheus name and label-key regexes; **`conduit_*` and `__*` names reserved** (agents can't forge Conduit's own series); `__*` label keys rejected; at most 32 labels; values at most 1 KiB; finite values; counters ≥0; at most 1h in the future.
+  - `telemetry.ProcessMetric` **always sets `agent` from the mTLS identity** (it overwrites any client label and clones the map rather than mutating it).
+  - The gateway maps `pb.Metric` (unknown type enums are rejected) and publishes to a separate `METRICS` work-queue stream.
+  - Collector: a third durable consumer (`collector-metrics`) writes VictoriaMetrics. **Failures retry**, because VM is the system of record for metrics (unlike the best-effort span-duration export).
+  - SDKs: Go `Gauge`/`Counter`, Python `gauge`/`counter`, with gateway rejection reasons surfaced.
+  - Smoke agents send gauges, and the smoke test asserts they're in VM with `agent=<cert CN>` (both SDKs).
+  - Docs (SDK rows, architecture) updated; on the roadmap, "Metrics and logs ingestion" moved Now → Shipped.
+- Verified: gateway test with 11 metrics (1 accepted; reserved, bad name, NaN, Inf, negative counter, bad and reserved label keys, too many labels, and unknown type rejected with matching reasons; a spoofed `agent` label overwritten); ProcessMetric (agent override, no mutation, defaults); collector metric dispositions; metric stream config; SDK tests against the mTLS fake (Go, and Python 10/10). Smoke runs in CI.
+- Next: the UI logs page (it's a placeholder today), then PR.
+
 ## 2026-11-04 — **Security fix:** Prometheus label injection into VictoriaMetrics
 - Found while starting the metrics work: `promLine` escaped only `"` in label values. The Prometheus text format requires escaping `\`, `"`, and newline. The `span` label is the agent-supplied span name (any characters), so:
   - a newline in a span name ended the sample and **injected arbitrary samples**, e.g. a forged `conduit_span_duration_ms{agent="victim"}`;
