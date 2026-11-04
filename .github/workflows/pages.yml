@@ -46,7 +46,7 @@ jobs:
           ! grep -l '{{\|{%' _site/*.md _site/llms-full.txt || { echo "::error::Liquid left in agent docs"; exit 1; }
       - name: built site has every page
         run: |
-          for p in index architecture deployment security sdk-go sdk-python roadmap contributing brand; do
+          for p in index architecture deployment security sdk-go sdk-python api roadmap contributing brand; do
             test -s "_site/$p.html" || { echo "::error::missing _site/$p.html"; exit 1; }
           done
           # Relative .md links must have been rewritten to .html pages.

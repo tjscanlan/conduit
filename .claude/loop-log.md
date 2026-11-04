@@ -11,6 +11,13 @@ Newest entries first. Each iteration is driven by `.claude/loop.md`.
 - Scope: real module paths everywhere (go.mod files, imports, generated `go_package`, docs); a tag-triggered `release.yml` (on `v*`) that builds multi-arch images (gateway, collector, ui) and pushes them to GHCR, signs them (cosign keyless, OIDC), attaches an SBOM (syft or docker buildx `--sbom`) and provenance, creates a GitHub Release with notes from the CHANGELOG, publishes the Python SDK to PyPI and verifies the Go module tag; CHANGELOG.md (Keep a Changelog), a versioning policy (SemVer, pre-1.0 caveats, what's API), and release docs (how to cut a release, verify signatures, upgrade).
 - **Release itself:** the user merges the PR and pushes the `v0.1.0` (and `sdk/go/v0.1.0`) tags. The loop never pushes tags.
 
+## 2026-11-04 — API reference generated from the source
+- Did: `scripts/gen-api-docs.py` (stdlib) generates `docs/api.md` from **proto/*.proto** (services, RPCs, messages, field numbers and types, enums, and comments, via a small line parser that fails loudly on anything it can't parse) and the **validation constants** in internal/schema/*.go plus the gateway's maxBatchItems (it evaluates `N`, `a << b`, `N * time.Hour`, and strings, failing loudly otherwise). The page covers auth and identity, partial-acceptance errors (IngestBatch per-item `errors`, RESOURCE_EXHAUSTED, INVALID_ARGUMENT, UNAUTHENTICATED), and a 14-row limits table with exactly what the gateway enforces.
+  - **Fixed a wrong proto comment found by documenting from source:** `IngestBatch` said "atomically", but it is per-item. Regenerated the Go and Python stubs.
+  - Wired in: a "Reference" section in docs.json (nav, llms.txt, llms-full), `make api-docs` (also run by `make proto`), CI drift check on docs/api.md, the Pages page-exists list, and AGENTS.md and contributing.
+- Verified: generator output is stable (rerun leaves no diff); manifest check OK; llms.txt lists the API reference with its description; builds pass. CI pending.
+- **Stopping point:** the agent-docs theme is done. Opening the PR, then the v0.1.0 release cycle.
+
 ## 2026-11-04 — Cycle 11 (`loop/agent-readable-docs`, after PR #10 merged as 6e4c0b6): agent-readable docs, part 1
 - Theme (user directive): make all docs first-class for agents to read.
 - Did:

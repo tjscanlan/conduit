@@ -32,7 +32,9 @@ const (
 type IngestionServiceClient interface {
 	// IngestSpan submits a single span. Used for real-time streaming from agents.
 	IngestSpan(ctx context.Context, in *IngestSpanRequest, opts ...grpc.CallOption) (*IngestSpanResponse, error)
-	// IngestBatch submits a batch of spans, metrics, and logs atomically.
+	// IngestBatch submits spans, metrics, and logs. Each item is validated and
+	// accepted independently (not atomically); rejected items are reported in
+	// IngestBatchResponse.errors.
 	IngestBatch(ctx context.Context, in *IngestBatchRequest, opts ...grpc.CallOption) (*IngestBatchResponse, error)
 }
 
@@ -73,7 +75,9 @@ func (c *ingestionServiceClient) IngestBatch(ctx context.Context, in *IngestBatc
 type IngestionServiceServer interface {
 	// IngestSpan submits a single span. Used for real-time streaming from agents.
 	IngestSpan(context.Context, *IngestSpanRequest) (*IngestSpanResponse, error)
-	// IngestBatch submits a batch of spans, metrics, and logs atomically.
+	// IngestBatch submits spans, metrics, and logs. Each item is validated and
+	// accepted independently (not atomically); rejected items are reported in
+	// IngestBatchResponse.errors.
 	IngestBatch(context.Context, *IngestBatchRequest) (*IngestBatchResponse, error)
 	mustEmbedUnimplementedIngestionServiceServer()
 }

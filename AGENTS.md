@@ -24,6 +24,7 @@ go build ./... && go vet ./... && go test -race ./...    # root module
 gofmt -l .                                               # must print nothing
 make proto        # after editing proto/*.proto; commit the generated Go and Python code
 make roadmap      # after editing docs/_data/roadmap.json; commit docs/roadmap.md
+make api-docs     # after changing a .proto or a limit in internal/schema; commit docs/api.md
 python3 scripts/build-agent-docs.py --check              # docs manifest is complete
 ```
 
@@ -40,7 +41,7 @@ End-to-end check (needs Docker): start the stack as in [docs/deployment.md](docs
 - **Schema changes go in a new migration,** `internal/storage/migrations/NNNN_name.sql`: one idempotent statement (`IF NOT EXISTS` / `IF EXISTS`). Never edit a shipped migration; checksums are enforced at startup.
 - **UI: no inline scripts or styles.** The CSP forbids them, and `TestTemplatesHaveNoInlineScript` enforces it. Build links that carry query strings as `template.URL` in Go; `html/template` re-encodes queries interpolated into an `href`.
 - **UI colors follow [docs/brand.md](docs/brand.md).** Only `#ec0000` may be text on white, and `#ec9b00`/`#ecca00` never carry white text.
-- **Generated code is committed and drift-checked.** That covers `proto/*.pb.go`, `sdk/python/src/conduit_sdk/_proto/` and `docs/roadmap.md`. Regenerate it; don't hand-edit it.
+- **Generated code is committed and drift-checked.** That covers `proto/*.pb.go`, `sdk/python/src/conduit_sdk/_proto/`, `docs/roadmap.md` and `docs/api.md`. Regenerate it; don't hand-edit it.
 - **Few dependencies.** The project's pitch includes "no supply-chain surprises". Justify any new module in the PR, pin GitHub Actions by commit SHA, and pin CDN assets with SRI.
 
 ## Making a change
@@ -58,7 +59,7 @@ End-to-end check (needs Docker): start the stack as in [docs/deployment.md](docs
 | Validation rules and limits | `internal/schema/` |
 | NATS publish and consume, delivery semantics | `internal/storage/nats.go`, `internal/telemetry/collector.go` |
 | ClickHouse queries and migrations | `internal/storage/clickhouse.go`, `internal/storage/migrations/` |
-| Wire API | `proto/*.proto` (`IngestSpan`, `IngestBatch`) |
+| Wire API | `proto/*.proto` (`IngestSpan`, `IngestBatch`); generated reference: [docs/api.md](docs/api.md) |
 | UI handlers and templates | `cmd/ui/`, `ui/templates/`, `ui/static/` |
 | Auth (mTLS, UI login, GCP IAP) | `internal/auth/`, `cmd/ui/auth.go` |
 | Environment variables | [docs/deployment.md](docs/deployment.md), section "Configuration reference" |

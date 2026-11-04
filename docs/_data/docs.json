@@ -5,20 +5,85 @@
     "base_url": "https://tjscanlan.github.io/conduit"
   },
   "sections": [
-    {"name": "Guides", "pages": [
-      {"file": "index.md", "url": "/", "title": "Overview", "description": "What Conduit is, its highlights, and where to start."},
-      {"file": "architecture.md", "url": "/architecture.html", "title": "Architecture", "description": "Components, data flow, delivery and failure guarantees, storage schema (spans, logs, metrics), schema migrations, sensitive data."},
-      {"file": "deployment.md", "url": "/deployment.html", "title": "Deployment", "description": "Docker Compose and Kubernetes setup, health checks, upgrades, and the configuration reference (every environment variable)."},
-      {"file": "security.md", "url": "/security.html", "title": "Security", "description": "Threat model, mTLS agent identity, ingestion rate limiting, UI authentication (login form or GCP IAP), browser hardening."}
-    ]},
-    {"name": "SDKs", "pages": [
-      {"file": "sdk-go.md", "url": "/sdk-go.html", "title": "Go SDK", "description": "Instrument a Go agent: spans, status, LLM calls, logs, gauges and counters; API table and limits."},
-      {"file": "sdk-python.md", "url": "/sdk-python.html", "title": "Python SDK", "description": "Instrument a Python agent: context-manager spans (thread- and asyncio-safe), logs, metrics; API table and limits."}
-    ]},
-    {"name": "Project", "pages": [
-      {"file": "roadmap.md", "url": "/roadmap.html", "title": "Roadmap", "description": "What has shipped, what is Now / Next / Later, and open decisions awaiting a maintainer."},
-      {"file": "contributing.md", "url": "/contributing.html", "title": "Contributing", "description": "Development setup, required checks, code generation, schema migrations, conventions, and the PR process."},
-      {"file": "brand.md", "url": "/brand.html", "title": "Brand", "description": "Logo usage, color palette, and WCAG contrast rules for the UI."}
-    ]}
+    {
+      "name": "Guides",
+      "pages": [
+        {
+          "file": "index.md",
+          "url": "/",
+          "title": "Overview",
+          "description": "What Conduit is, its highlights, and where to start."
+        },
+        {
+          "file": "architecture.md",
+          "url": "/architecture.html",
+          "title": "Architecture",
+          "description": "Components, data flow, delivery and failure guarantees, storage schema (spans, logs, metrics), schema migrations, sensitive data."
+        },
+        {
+          "file": "deployment.md",
+          "url": "/deployment.html",
+          "title": "Deployment",
+          "description": "Docker Compose and Kubernetes setup, health checks, upgrades, and the configuration reference (every environment variable)."
+        },
+        {
+          "file": "security.md",
+          "url": "/security.html",
+          "title": "Security",
+          "description": "Threat model, mTLS agent identity, ingestion rate limiting, UI authentication (login form or GCP IAP), browser hardening."
+        }
+      ]
+    },
+    {
+      "name": "SDKs",
+      "pages": [
+        {
+          "file": "sdk-go.md",
+          "url": "/sdk-go.html",
+          "title": "Go SDK",
+          "description": "Instrument a Go agent: spans, status, LLM calls, logs, gauges and counters; API table and limits."
+        },
+        {
+          "file": "sdk-python.md",
+          "url": "/sdk-python.html",
+          "title": "Python SDK",
+          "description": "Instrument a Python agent: context-manager spans (thread- and asyncio-safe), logs, metrics; API table and limits."
+        }
+      ]
+    },
+    {
+      "name": "Reference",
+      "pages": [
+        {
+          "file": "api.md",
+          "url": "/api.html",
+          "title": "API reference",
+          "description": "The gRPC ingestion API (IngestSpan, IngestBatch): every message, field and enum, authentication, partial-acceptance errors, and the exact validation limits the gateway enforces. Generated from the .proto files and the source."
+        }
+      ]
+    },
+    {
+      "name": "Project",
+      "pages": [
+        {
+          "file": "roadmap.md",
+          "url": "/roadmap.html",
+          "title": "Roadmap",
+          "description": "What has shipped, what is Now / Next / Later, and open decisions awaiting a maintainer."
+        },
+        {
+          "file": "contributing.md",
+          "url": "/contributing.html",
+          "title": "Contributing",
+          "description": "Development setup, required checks, code generation, schema migrations, conventions, and the PR process."
+        },
+        {
+          "file": "brand.md",
+          "url": "/brand.html",
+          "title": "Brand",
+          "description": "Logo usage, color palette, and WCAG contrast rules for the UI."
+        }
+      ]
+    }
   ]
 }

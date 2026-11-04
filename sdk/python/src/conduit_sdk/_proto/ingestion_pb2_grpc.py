@@ -61,7 +61,9 @@ class IngestionServiceServicer:
         raise NotImplementedError('Method not implemented!')
 
     def IngestBatch(self, request, context):
-        """IngestBatch submits a batch of spans, metrics, and logs atomically.
+        """IngestBatch submits spans, metrics, and logs. Each item is validated and
+        accepted independently (not atomically); rejected items are reported in
+        IngestBatchResponse.errors.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')

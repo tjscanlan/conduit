@@ -182,7 +182,7 @@ type IngestBatchResponse struct {
 	SpansAccepted   int32                  `protobuf:"varint,1,opt,name=spans_accepted,json=spansAccepted,proto3" json:"spans_accepted,omitempty"`
 	MetricsAccepted int32                  `protobuf:"varint,2,opt,name=metrics_accepted,json=metricsAccepted,proto3" json:"metrics_accepted,omitempty"`
 	LogsAccepted    int32                  `protobuf:"varint,3,opt,name=logs_accepted,json=logsAccepted,proto3" json:"logs_accepted,omitempty"`
-	Errors          []string               `protobuf:"bytes,4,rep,name=errors,proto3" json:"errors,omitempty"`
+	Errors          []string               `protobuf:"bytes,4,rep,name=errors,proto3" json:"errors,omitempty"` // one per rejected item, e.g. "log[2]: validation: ..."
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }

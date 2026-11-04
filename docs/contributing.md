@@ -63,7 +63,10 @@ The Go and Python protobuf stubs are committed. After editing anything in
 make proto
 ```
 
-and commit the regenerated files in the same commit. Both generators pin
+and commit the regenerated files in the same commit. `make proto` also
+regenerates `docs/api.md`, the API reference, which is built from the
+`.proto` files and the validation constants in `internal/schema`. Run
+`make api-docs` on its own after changing only a limit. Both generators pin
 their tool versions, and CI fails if the committed code differs from what
 they produce.
 
