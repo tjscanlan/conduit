@@ -142,6 +142,13 @@ func (f traceListFilter) Active() bool {
 // templateFuncs are available to every UI template.
 var templateFuncs = template.FuncMap{
 	"durationMs": func(start, end time.Time) int64 { return end.Sub(start).Milliseconds() },
+	// shortID abbreviates an ID for display; IDs may be shorter than the cut.
+	"shortID": func(id string) string {
+		if len(id) <= 8 {
+			return id
+		}
+		return id[:8] + "…"
+	},
 }
 
 // parseTemplates loads the embedded templates with templateFuncs.

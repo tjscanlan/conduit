@@ -275,6 +275,57 @@ func (s *ClickHouseStore) QueryTraces(ctx context.Context, f TraceFilter) ([]Tra
 	return out, rows.Err()
 }
 
+// LogFilter selects log records for the logs page.
+type LogFilter struct {
+	Window     time.Duration // required, >0: bounds the scan
+	Agent      string
+	Severities []string // allowed severities (from an allowlist); empty = all
+	Search     string   // case-insensitive substring of the body
+	TraceID    string
+	Limit      int
+}
+
+// QueryLogs returns log records, newest first. All filter values are bound
+// parameters; Severities must come from schema's fixed set.
+func (s *ClickHouseStore) QueryLogs(ctx context.Context, f LogFilter) ([]LogRow, error) {
+	window := int64(f.Window / time.Second)
+	if window <= 0 || f.Limit <= 0 {
+		return nil, fmt.Errorf("query logs: window and limit must be positive")
+	}
+	where := []string{"timestamp >= now64(9) - toIntervalSecond(?)"}
+	args := []any{window}
+	if f.Agent != "" {
+		where, args = append(where, "agent_name = ?"), append(args, f.Agent)
+	}
+	if len(f.Severities) > 0 {
+		where, args = append(where, "severity IN ?"), append(args, f.Severities)
+	}
+	if f.Search != "" {
+		where, args = append(where, "positionCaseInsensitiveUTF8(body, ?) > 0"), append(args, f.Search)
+	}
+	if f.TraceID != "" {
+		where, args = append(where, "trace_id = ?"), append(args, f.TraceID)
+	}
+	args = append(args, f.Limit)
+	rows, err := s.conn.Query(ctx, `
+		SELECT timestamp, agent_name, toString(severity), body, attributes, trace_id, span_id
+		FROM logs WHERE `+strings.Join(where, " AND ")+`
+		ORDER BY timestamp DESC LIMIT ?`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []LogRow
+	for rows.Next() {
+		var r LogRow
+		if err := rows.Scan(&r.Timestamp, &r.AgentName, &r.Severity, &r.Body, &r.Attributes, &r.TraceID, &r.SpanID); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
 // QueryAgents returns the distinct agent names seen within window, sorted,
 // at most limit of them (for the trace list's agent suggestions).
 func (s *ClickHouseStore) QueryAgents(ctx context.Context, window time.Duration, limit int) ([]string, error) {

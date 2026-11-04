@@ -186,6 +186,7 @@ reads it yet.
 | Trace list | A time window (1h, 24h or 7d), up to 100 traces per page, keyset paging |
 | Trace detail | Up to 2000 spans, ordered by start time |
 | Agent suggestions | A time window, up to 200 names |
+| Logs page | A time window, up to 200 records, newest first. Filters by agent, minimum severity, case-insensitive text and trace. |
 
 The UI never reads prompts or completions. See [Roadmap: open decisions](roadmap.md#open-decisions).
 

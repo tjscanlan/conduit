@@ -14,23 +14,58 @@
 {{template "nav" .}}
 <main>
   <h1>Logs</h1>
-  <p class="muted">Log storage via ClickHouse is not yet wired — ingest logs through the
-     <code>IngestBatch</code> RPC and they will appear here.</p>
-  <div id="log-stream"
-       hx-get="/logs"
-       hx-trigger="every 5s"
-       hx-swap="innerHTML"
-       hx-select="#log-stream">
-    <table class="data-table">
-      <thead>
-        <tr><th>Time</th><th>Severity</th><th>Trace</th><th>Message</th></tr>
-      </thead>
-      <tbody>
-        <tr><td colspan="4" class="empty">No log records yet.</td></tr>
-      </tbody>
-    </table>
+  <form class="filters" method="get" action="/logs" role="search">
+    <label>Time
+      <select name="window">
+        {{range .Windows}}<option value="{{.Key}}"{{if eq .Key $.Filter.Window}} selected{{end}}>{{.Label}}</option>{{end}}
+      </select>
+    </label>
+    <label>Severity
+      <select name="min">
+        <option value="">All</option>
+        {{range .Levels}}<option value="{{.}}"{{if eq . $.Filter.MinSeverity}} selected{{end}}>{{.}} and above</option>{{end}}
+      </select>
+    </label>
+    <label>Agent
+      <input type="search" name="agent" value="{{.Filter.Agent}}" placeholder="any" maxlength="256" autocomplete="off">
+    </label>
+    <label>Message contains
+      <input type="search" name="q" value="{{.Filter.Search}}" placeholder="text" maxlength="200" autocomplete="off">
+    </label>
+    {{if .Filter.TraceID}}<input type="hidden" name="trace" value="{{.Filter.TraceID}}">{{end}}
+    <button type="submit">Apply</button>
+    {{if .Filter.Active}}<a href="/logs">Clear</a>{{end}}
+  </form>
+  {{if .Filter.TraceID}}<p class="notice" role="status">Showing logs for trace <a class="mono" href="/traces/{{.Filter.TraceID}}">{{.Filter.TraceID}}</a>.</p>{{end}}
+  <div id="log-list"
+       hx-get="{{.Filter.URL}}"
+       hx-trigger="every 10s"
+       hx-swap="innerHTML">
+    {{template "logs-rows" .}}
   </div>
 </main>
 </body>
 </html>
+{{end}}
+
+{{define "logs-rows"}}
+<table class="data-table logs-table">
+  <thead>
+    <tr><th>Time</th><th>Severity</th><th>Agent</th><th>Message</th><th>Trace</th></tr>
+  </thead>
+  <tbody>
+  {{range .Logs}}
+  <tr class="sev-{{.Severity}}">
+    <td class="mono nowrap">{{.Timestamp.Format "Jan 02 15:04:05.000"}}</td>
+    <td><span class="badge sev-badge sev-badge-{{.Severity}}">{{.Severity}}</span></td>
+    <td>{{.AgentName}}</td>
+    <td class="log-body">{{.Body}}</td>
+    <td class="mono">{{if .TraceID}}<a href="/traces/{{.TraceID}}{{if .SpanID}}#span-{{.SpanID}}{{end}}" title="Open trace">{{shortID .TraceID}}</a>{{else}}<span class="muted">–</span>{{end}}</td>
+  </tr>
+  {{else}}
+  <tr><td colspan="5" class="empty">{{if $.Filter.Active}}No logs match these filters.{{else}}No logs in this time range yet. Send one with an SDK's <code>Log</code> call.{{end}}</td></tr>
+  {{end}}
+  </tbody>
+</table>
+{{if .Full}}<p class="muted">Showing the newest {{.Limit}} records. Narrow the filters to see others.</p>{{end}}
 {{end}}

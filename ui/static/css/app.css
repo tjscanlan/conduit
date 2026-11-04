@@ -358,3 +358,13 @@ canvas { display: block; max-width: 100%; background: var(--white); border: 1px 
   padding: 0.5rem 0.7rem;
   font-size: 13px;
 }
+
+/* ── Logs ── severity uses the palette's warm ramp; text colors keep AA on tints. */
+.logs-table .log-body { font-family: var(--mono); font-size: 12.5px; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 640px; }
+.nowrap { white-space: nowrap; }
+.sev-badge-debug, .sev-badge-unspecified { background: var(--white); color: var(--ink-2); border-color: var(--line); }
+.sev-badge-info  { background: var(--surface); color: var(--ink); border-color: var(--line); }
+.sev-badge-warn  { background: var(--brand-4); color: var(--ink); border-color: var(--brand-4); }
+.sev-badge-error { background: var(--tint-red); color: var(--error-text); border-color: #fecaca; }
+.logs-table tr.sev-error td:first-child { box-shadow: inset 3px 0 0 var(--error); }
+.logs-table tr.sev-warn td:first-child { box-shadow: inset 3px 0 0 var(--brand-4); }

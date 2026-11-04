@@ -27,7 +27,8 @@
         "Sign-in: a login form with signed session cookies, or Google Cloud IAP",
         "Strict CSP and browser hardening",
         "Trace list: one row per trace, filters by time, agent and errors, keyset paging, agent suggestions",
-        "Trace detail: span tree, waterfall timeline, error and LLM details, deep links"
+        "Trace detail: span tree, waterfall timeline, error and LLM details, deep links",
+        "Logs page: filters by time, severity, agent, text and trace, with deep links to spans"
       ]
     },
     {

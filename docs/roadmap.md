@@ -33,6 +33,7 @@ This roadmap is ordered by priority, not by date. Items move as we learn. To sug
 - Strict CSP and browser hardening
 - Trace list: one row per trace, filters by time, agent and errors, keyset paging, agent suggestions
 - Trace detail: span tree, waterfall timeline, error and LLM details, deep links
+- Logs page: filters by time, severity, agent, text and trace, with deep links to spans
 
 **Data governance**
 - `STORE_LLM_PAYLOADS=false` drops prompts and completions at the gateway

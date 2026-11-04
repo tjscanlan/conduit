@@ -11,6 +11,16 @@ Newest entries first. Each iteration is driven by `.claude/loop.md`.
   - Consistent front matter on every doc (title, description, audience, last-reviewed), and self-contained sections (no "see above").
   - A machine-readable API reference generated from `proto/*.proto` (and the SDK APIs), plus a docs drift check in CI.
 
+## 2026-11-04 — UI logs page
+- Did: replaced the "not yet wired" placeholder with a real logs page.
+  - `storage.QueryLogs(LogFilter)`: bounded by the window allowlist, at most 200 rows newest first, with bound parameters for agent, severities (from a fixed allowlist), case-insensitive search (`positionCaseInsensitiveUTF8`), and trace_id.
+  - Filters: window, minimum severity (`warn` → {warn, error}), agent (≤256 valid UTF-8), text (≤200), trace (ID charset, ≤64). Invalid values are dropped.
+  - Rows: time, severity badge (palette ramp, AA text), agent, the body in mono pre-wrap (escaped), and a trace link that deep-links `#span-<id>`.
+  - htmx polling keeps the filter (a complete `template.URL`); a "showing newest 200" notice; filter-aware empty state. The trace detail links "Logs for this trace".
+  - Added a `shortID` template func; a `{{slice .TraceID 0 8}}` draft would have panicked on short IDs (validID allows 1..64).
+- Verified: handler tests (defaults, the severity ramp, filtered rows, form state, the trace notice, the empty state, the partial, polling URL, the detail link, XSS escaping, short IDs, and rejection of bad params). On the **real engine**: `severity IN ['warn','error']` on Enum8 (array literal, as clickhouse-go binds []string), case-insensitive search, and the full query all returned the right rows. Smoke checks the trace, severity, and text filters through the real driver (CI).
+- **Stopping point:** the theme is done (logs and metrics pipelines, SDK APIs, logs UI, plus the label-injection fix). Opening the PR, then the user's agent-first docs cycle.
+
 ## 2026-11-04 — Metrics pipeline + SDK Gauge/Counter
 - Did:
   - `schema.MetricRequest.Validate`: Prometheus name and label-key regexes; **`conduit_*` and `__*` names reserved** (agents can't forge Conduit's own series); `__*` label keys rejected; at most 32 labels; values at most 1 KiB; finite values; counters ≥0; at most 1h in the future.

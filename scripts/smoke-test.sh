@@ -170,6 +170,14 @@ fi
 page=$(curl -fsS -b "$jar" "$UI/traces/$TRACE")
 grep -q smoke.llm.call <<<"$page" && grep -q badge-error <<<"$page" || fail "trace detail page missing spans"
 curl -fsSI -b "$jar" "$UI/traces" | grep -qi '^content-security-policy:' || fail "missing CSP header"
+logs_page=$(curl -fsS -b "$jar" -G "$UI/logs" --data-urlencode "trace=$TRACE" --data-urlencode window=1h)
+grep -q "smoke: retrying tool call" <<<"$logs_page" || fail "logs page (trace filter) missing the Go SDK log"
+grep -q "#span-" <<<"$logs_page" || fail "log row should deep-link to its span"
+none=$(curl -fsS -b "$jar" -G "$UI/logs" --data-urlencode "trace=$TRACE" --data-urlencode min=error)
+grep -q "No logs match these filters" <<<"$none" || fail "min=error should exclude the WARN log"
+hit=$(curl -fsS -b "$jar" -G "$UI/logs" --data-urlencode q=RETRYING --data-urlencode min=warn)
+grep -q "smoke: retrying tool call" <<<"$hit" || fail "case-insensitive search + severity filter missed the log"
+pass "logs page: trace, severity, and text filters on real ClickHouse"
 pass "login flow, trace detail page, CSP"
 
 echo "PASS: smoke test for trace $TRACE"

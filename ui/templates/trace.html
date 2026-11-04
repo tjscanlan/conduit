@@ -12,7 +12,7 @@
 <body>
 {{template "nav" .}}
 <main>
-  <p><a href="/traces">← all traces</a></p>
+  <p><a href="/traces">← all traces</a> · <a href="/logs?trace={{.Trace.TraceID}}&amp;window=7d">Logs for this trace</a></p>
   {{with .Trace}}
   <h1>Trace <span class="mono">{{.TraceID}}</span></h1>
 
