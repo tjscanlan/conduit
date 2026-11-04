@@ -1,0 +1,60 @@
+name: docs site
+
+on:
+  # Every branch builds (so changes are checked before a PR); only main deploys.
+  push:
+    paths: ["docs/**", "ui/static/img/**", ".github/workflows/pages.yml"]
+  pull_request:
+    paths: ["docs/**", "ui/static/img/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time; never cancel an in-progress deploy.
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: brand assets match the app
+        run: |
+          cmp ui/static/img/logo.svg docs/assets/img/logo.svg
+          cmp ui/static/img/favicon.svg docs/assets/img/favicon.svg
+      - uses: actions/jekyll-build-pages@44a6e6beabd48582f863aeeb6cb2151cc1716697 # v1.0.13
+        with:
+          source: ./docs
+          destination: ./_site
+      - name: built site has every page
+        run: |
+          for p in index architecture deployment security sdk-go sdk-python roadmap contributing brand; do
+            test -s "_site/$p.html" || { echo "::error::missing _site/$p.html"; exit 1; }
+          done
+          # Relative .md links must have been rewritten to .html pages.
+          if grep -rl 'href="[^"#:]*\.md\(#[^"]*\)\?"' _site --include='*.html'; then
+            echo "::error::unconverted .md links in the built site"; exit 1
+          fi
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: ./_site
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write      # deploy to Pages
+      id-token: write   # verify the deployment's origin
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

@@ -2,6 +2,17 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — Cycle 8 (`loop/docs-site-roadmap`, after PR #7 merged as fa8a13f): GitHub Pages site scaffold
+- Theme (user directive): a GitHub Pages documentation site plus a visual product roadmap, using the Conduit brand.
+- Did:
+  - Jekyll site with `docs/` as the source, built by GitHub's own `jekyll-build-pages` action, so the repo gains no Ruby or npm dependencies. Only plugins Pages supports natively: relative-links (`.md` links work on GitHub and on the site), optional-front-matter, titles-from-headings, seo-tag.
+  - Branded layout: an ink header with a gradient rule, the logo and "Conduit Docs", a sticky sidebar nav, an edit-on-GitHub link, and a footer. site.css reuses the app's tokens and contrast rules.
+  - Home page (docs/index.md): a hero with the logo and CTAs, six feature cards with palette accents, and a docs grid.
+  - Mermaid renders client-side from jsDelivr, **pinned to 11.17.2 with an SRI sha384**, loaded only on pages that have diagrams, with a brand-themed config and securityLevel strict.
+  - `.github/workflows/pages.yml`: every push builds; the deploy job is gated to main (pages:write and id-token:write only there). Checks: the logo and favicon copies match the app's (`cmp`), every page exists, and no unconverted `.md` links remain. Actions are pinned by SHA.
+  - The brand.md logo now uses a path that works on both GitHub and the site.
+- Next: the visual roadmap page (data-driven, branded), inspect the built artifact, enable Pages (Source: GitHub Actions), then the PR.
+
 ## 2026-11-04 — **User directive for the NEXT cycle:** GitHub Pages docs site + visual roadmap
 - The user asked (during cycle 7): "in the next loop, create a github-pages site for the documentation and a visual product roadmap using the brand identity created in the earlier loop".
 - Brand to apply: the logo mark (ui/static/img/logo.svg) and favicon; the palette `#ec0000` `#ec2400` `#ec5300` `#ec9b00` `#ecca00` plus white, with ink `#1c1917`; the contrast rules in docs/brand.md (only #ec0000 as text on white; #ec9b00 and #ecca00 take ink, never white text).
