@@ -73,6 +73,8 @@ reviewer on the `pypi` environment in the repository settings.
    - `sdk/python/pyproject.toml`
    - the `require github.com/tjscanlan/conduit` line in `sdk/go/go.mod`
    - the image tags in `deployments/k8s/deployment.yaml`
+   - the `${CONDUIT_VERSION:-vX.Y.Z}` image defaults in `deployments/quickstart/compose.yml`
+     (embedded in `conduitctl`)
    - `CHANGELOG.md`: move `[Unreleased]` into an `[X.Y.Z]` section and update the
      links at the bottom
 
@@ -87,7 +89,8 @@ reviewer on the `pypi` environment in the repository settings.
    ```
 
 3. Watch the `release` workflow. It tests the commit, builds, pushes and signs the
-   images, publishes to PyPI, checks that the Go SDK resolves the way a consumer
+   images (gateway, collector, ui, and the quickstart's init and demo-agent),
+   builds the `conduitctl` binaries with a cosign-signed `SHA256SUMS`, publishes to PyPI, checks that the Go SDK resolves the way a consumer
    would fetch it, and creates the GitHub Release from the changelog section.
 
 A failed run can be re-run: images are rebuilt and re-signed, and PyPI files that

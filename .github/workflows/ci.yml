@@ -202,3 +202,41 @@ jobs:
       - name: tear down
         if: always()
         run: ./deployments/quickstart/quickstart.sh reset
+
+  conduitctl:
+    name: conduitctl end to end
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      # No release has these images yet, so build them all from this checkout.
+      - name: build the images conduitctl runs
+        run: ./scripts/build-quickstart-images.sh ci-local
+      - name: build conduitctl
+        run: go build -o "$RUNNER_TEMP/conduitctl" ./cmd/conduitctl
+      - name: quickstart, outside the checkout
+        working-directory: ${{ runner.temp }}
+        run: ./conduitctl quickstart -images ci-local
+      - name: doctor reports a healthy stack
+        run: $RUNNER_TEMP/conduitctl doctor -images ci-local
+      - name: a new agent's certificate works end to end
+        run: |
+          "$RUNNER_TEMP/conduitctl" agent-cert research-bot
+          cd examples/go
+          CONDUIT_CERT_DIR="$HOME/.conduit/quickstart/.conduit/certs" CONDUIT_AGENT=research-bot go run ./hello-trace
+      - name: doctor catches a stopped gateway
+        run: |
+          docker compose -p conduit-quickstart stop gateway
+          if "$RUNNER_TEMP/conduitctl" doctor; then echo "::error::doctor passed with the gateway stopped"; exit 1; fi
+      - name: logs on failure
+        if: failure()
+        run: docker compose -p conduit-quickstart logs --no-color --tail 200
+      - name: tear down
+        if: always()
+        run: $RUNNER_TEMP/conduitctl reset
+

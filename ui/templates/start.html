@@ -24,7 +24,7 @@
       <p>The UI is connected to ClickHouse.</p>
       {{else}}
       <p>The UI can't reach ClickHouse yet. Check the collector and ClickHouse logs, e.g.
-         <code>docker compose -f deployments/quickstart/compose.yml logs clickhouse collector</code>.</p>
+         <code>docker compose -p conduit-quickstart logs clickhouse collector</code>.</p>
       {{end}}
     </li>
 
@@ -38,7 +38,7 @@
         <p>{{.RecentSpans}} spans arrived in the last 15 minutes. <a href="/traces">See the trace list</a>.</p>
         {{else}}
         <p>Nothing in the last 15 minutes. The quickstart's <strong>{{$.DemoAgent}}</strong> sends a run every few seconds;
-           if it's stopped, start it with <code>docker compose -f deployments/quickstart/compose.yml start demo-agent</code>.</p>
+           if it's stopped, start it with <code>docker compose -p conduit-quickstart start demo-agent</code>.</p>
         {{end}}
       {{else}}
       <p>Couldn't query telemetry right now.</p>
@@ -52,8 +52,12 @@
          command line and never shown or served by this UI.</p>
       <dl class="cmds">
         <dt>Using the quickstart</dt>
-        <dd>It already made one for <strong>my-agent</strong>, in <code>deployments/quickstart/.conduit/certs</code>.</dd>
-        <dt>Another agent name, or your own stack</dt>
+        <dd>It already made one for <strong>my-agent</strong>: in <code>~/.conduit/quickstart/.conduit/certs</code> with
+            <code>conduitctl</code>, or <code>deployments/quickstart/.conduit/certs</code> with <code>make quickstart</code>.</dd>
+        <dt>Another agent, with conduitctl</dt>
+        <dd><pre class="cmd"><code>conduitctl agent-cert research-bot</code></pre>
+            <span class="muted">Signed by the quickstart's CA; prints the <code>CONDUIT_*</code> settings to use.</span></dd>
+        <dt>From a checkout, or for your own stack</dt>
         <dd><pre class="cmd"><code>./scripts/gen-certs.sh agent research-bot</code></pre>
             <span class="muted">Writes <code>certs/research-bot.crt</code> and <code>.key</code>, signed by <code>certs/ca.crt</code>. In production, issue it from your own PKI.</span></dd>
       </dl>
@@ -103,7 +107,7 @@ defer span.End(ctx)</code></pre>
         <li><a href="https://tjscanlan.github.io/conduit/sdk-python.html">Python SDK</a> and
             <a href="https://tjscanlan.github.io/conduit/sdk-go.html">Go SDK</a> guides: record LLM calls, tools, logs and metrics.</li>
         <li><a href="https://tjscanlan.github.io/conduit/deployment.html">Deploy for real</a>: Kubernetes, your own PKI, retention.</li>
-        <li>Done with the sample data? <code>docker compose -f deployments/quickstart/compose.yml stop {{.DemoAgent}}</code></li>
+        <li>Done with the sample data? <code>docker compose -p conduit-quickstart stop {{.DemoAgent}}</code></li>
       </ul>
     </li>
   </ol>

@@ -2,6 +2,27 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — Activation cycle 5: conduitctl (`loop/conduitctl`)
+- **`cmd/conduitctl`:**
+  - **Commands:** quickstart (alias up), status, agent-cert NAME, doctor, down, reset, version. Flags: -dir (default ~/.conduit/quickstart), -ui-port, -gateway-port, -images (default: own version), -no-demo.
+  - **Self-contained:** the compose bundle (compose.yml, tempo.yaml, clickhouse/*.xml) is embedded through the new `deployments/quickstart` Go package, so no checkout is needed. It writes a 0600 .env, runs compose `up --wait`, waits for the first demo span and prints the banner.
+  - **Version:** release builds set it via ldflags; `go install @vX` builds read it from build info (pseudo-versions ignored). A dev build refuses to run without -images.
+- **doctor:** Docker running with Compose v2, ≥2 GiB memory, free ports (when stopped), every service healthy (parses `compose ps --format json`), UI /readyz, gateway accepts my-agent (empty IngestBatch over mTLS), and demo data in ClickHouse. Each failure says what to do. Verified healthy, then with the gateway stopped (2 FAILs, exit 1).
+- **`internal/devpki`:** conduit-init's PKI moved here with `Init` and `IssueAgent`. conduit-init is now a thin main (init.Dockerfile copies internal/devpki). New test: IssueAgent chains to the CA for clientAuth, is idempotent, and rejects path-like names.
+- **Compose split:**
+  - compose.yml now only pulls `ghcr.io/tjscanlan/conduit-{init,demo-agent}:${CONDUIT_VERSION}` too, and uses a bundled tempo.yaml.
+  - compose.local.yml builds init and demo-agent from the checkout. quickstart.sh always adds it, because v0.1.0 lacks those images. **After the next release** it could become opt-in.
+  - Both entry points share project `conduit-quickstart` and its volumes, one stack at a time. Switching between them was tested: ClickHouse applies the new password on each start, so it stays healthy. UI hints use `docker compose -p conduit-quickstart ...`.
+- **Pitfall found:** a -dir outside $HOME (e.g. /private/tmp) fails under Colima and Docker Desktop because the bind mount isn't shared. conduitctl now says so on failure; documented.
+- **Release:**
+  - The images matrix now covers 5 images (init and demo-agent added).
+  - A new `cli` job builds conduitctl for linux/darwin amd64+arm64 and windows/amd64 as tar.gz, with SHA256SUMS signed by `cosign sign-blob --bundle`. github-release attaches them.
+  - release-check verifies the quickstart compose image defaults match the tag. docs/releasing.md is updated.
+- **CI:** new `conduitctl` job runs `scripts/build-quickstart-images.sh ci-local` (refuses v* tags, never pushes), then conduitctl quickstart from outside the checkout, doctor, agent-cert research-bot plus a hello-trace with it, and doctor failing with the gateway stopped.
+- **Docs:** new docs/cli.md (Guides section, in the manifest); README points at it; the Get started page offers `conduitctl agent-cert`. Makefile builds bin/conduitctl.
+- **Verified locally:** with images built under the ci-local tag, quickstart from /tmp went healthy plus first trace in 12s, and a research-bot trace was sent. Test state was removed from ~/.conduit and the ci-local images deleted afterwards.
+- **Activation program:** all 5 cycles are done after this merges. **Next natural step:** cut the release (v0.2.0) so conduitctl, the new SDKs, Get started and the init/demo images ship. The user must approve tagging.
+
 ## 2026-11-04 — Activation cycle 4: onboarding walkthrough (`loop/onboarding-walkthrough`)
 - **`/start` (Get started):** five steps.
   1. Conduit running (ClickHouse Ready).
