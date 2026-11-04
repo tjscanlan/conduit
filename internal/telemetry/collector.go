@@ -12,7 +12,15 @@ import (
 	"github.com/your-org/agent-observability/internal/storage"
 )
 
-const consumerName = "collector"
+const (
+	consumerName    = "collector"
+	logConsumerName = "collector-logs"
+)
+
+// logStore is where validated log records go (ClickHouse).
+type logStore interface {
+	InsertLog(ctx context.Context, row storage.LogRow) error
+}
 
 // retryDelay spaces out redeliveries while a backend is down, instead of
 // JetStream redelivering immediately in a hot loop.
@@ -27,6 +35,7 @@ type Collector struct {
 	nc       *nats.Conn
 	js       nats.JetStreamContext
 	exporter spanExporter
+	logs     logStore
 	logger   *slog.Logger
 }
 
@@ -39,7 +48,7 @@ const (
 	term                     // undecodable: never redeliver
 )
 
-func NewCollector(natsURL string, exporter *Exporter, logger *slog.Logger) (*Collector, error) {
+func NewCollector(natsURL string, exporter *Exporter, logs logStore, logger *slog.Logger) (*Collector, error) {
 	nc, err := nats.Connect(natsURL)
 	if err != nil {
 		return nil, err
@@ -48,7 +57,7 @@ func NewCollector(natsURL string, exporter *Exporter, logger *slog.Logger) (*Col
 	if err != nil {
 		return nil, err
 	}
-	return &Collector{nc: nc, js: js, exporter: exporter, logger: logger}, nil
+	return &Collector{nc: nc, js: js, exporter: exporter, logs: logs, logger: logger}, nil
 }
 
 // Ready reports whether the collector's NATS connection is up.
@@ -56,25 +65,55 @@ func (c *Collector) Ready(context.Context) error {
 	return storage.NATSReady(c.nc)
 }
 
-// Start subscribes and blocks until ctx is cancelled.
+// Start subscribes to spans and logs and blocks until ctx is cancelled.
 func (c *Collector) Start(ctx context.Context) error {
-	sub, err := c.js.Subscribe(storage.SpanSubject, func(msg *nats.Msg) {
-		switch c.handle(ctx, msg.Data) {
-		case ack:
-			_ = msg.Ack()
-		case retry:
-			_ = msg.NakWithDelay(retryDelay)
-		case term:
-			_ = msg.Term()
+	dispose := func(handle func(context.Context, []byte) disposition) nats.MsgHandler {
+		return func(msg *nats.Msg) {
+			switch handle(ctx, msg.Data) {
+			case ack:
+				_ = msg.Ack()
+			case retry:
+				_ = msg.NakWithDelay(retryDelay)
+			case term:
+				_ = msg.Term()
+			}
 		}
-	}, nats.Durable(consumerName), nats.AckExplicit())
+	}
+	spans, err := c.js.Subscribe(storage.SpanSubject, dispose(c.handle), nats.Durable(consumerName), nats.AckExplicit())
 	if err != nil {
 		return err
 	}
-	defer sub.Unsubscribe() //nolint:errcheck
+	defer spans.Unsubscribe() //nolint:errcheck
+	logs, err := c.js.Subscribe(storage.LogSubject, dispose(c.handleLog), nats.Durable(logConsumerName), nats.AckExplicit())
+	if err != nil {
+		return err
+	}
+	defer logs.Unsubscribe() //nolint:errcheck
 
 	<-ctx.Done()
 	return nil
+}
+
+// handleLog stores one log record: same delivery rules as spans.
+func (c *Collector) handleLog(ctx context.Context, data []byte) disposition {
+	var in LogInput
+	if err := json.Unmarshal(data, &in); err != nil {
+		c.logger.Error("unmarshal log: terminating message", "err", err)
+		return term
+	}
+	req, err := ProcessLog(in, time.Now())
+	if err != nil {
+		c.logger.Warn("invalid log: acking to avoid redelivery loop", "err", err)
+		return ack
+	}
+	if err := c.logs.InsertLog(ctx, storage.LogRow{
+		Timestamp: req.Timestamp, AgentName: req.AgentName, Severity: req.Severity, Body: req.Body,
+		Attributes: req.Attributes, TraceID: req.TraceID, SpanID: req.SpanID,
+	}); err != nil {
+		c.logger.Error("insert log: will retry", "err", err)
+		return retry
+	}
+	return ack
 }
 
 func (c *Collector) handle(ctx context.Context, data []byte) disposition {

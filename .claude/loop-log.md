@@ -2,6 +2,18 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — Cycle 10 (`loop/metrics-logs-ingestion`, after PR #9 merged as 53e7ea1): logs pipeline (server side)
+- Theme: metrics and logs ingestion (roadmap Now). `IngestBatch` accepted both in the API and rejected them.
+- Did, for logs end to end on the server:
+  - `schema.LogRequest.Validate`: severity enum; body 1..32 KiB; no more than 1h in the future; optional trace and span IDs validated, with span_id requiring trace_id; attribute limits shared with spans via `validateAttributes`.
+  - `telemetry.LogInput` and `ProcessLog` (defaults: unspecified severity, receive time).
+  - The gateway maps `pb.LogRecord` (unknown severity enums pass through as invalid), stamps agent_name from the mTLS identity, and publishes per item, with errors reported per index. Rate limiting already charged logs per item.
+  - NATS: a separate `LOGS` work-queue stream (`logs.ingest`), so backlogs are isolated; `ensureStream` is shared.
+  - Collector: a second durable consumer (`collector-logs`) with the same ack/retry/term rules, writing ClickHouse via `InsertLog` (batch protocol, ns precision).
+  - Migration 0003 creates the `logs` table. Retention reconcile is generalized to {spans, logs}, and the TTL regex now accepts any time column.
+- Verified: tests cover gateway batch logs (1 accepted, 5 rejected with the right per-index reasons, published only to the log subject, identity not spoofable), ProcessLog defaults, collector log dispositions, the log stream config, the generalized TTL parse with the real engine string, and the migration resume test generalized to N migrations. On the real engine (clickhouse local 24.4), 0003 ran twice, MODIFY TTL on logs worked, and the normalized form matches the regex. Smoke now asserts the TTL on both tables and migrations 1..3 (CI).
+- Next: SDK `Log` APIs (Go and Python), a smoke assertion that logs land, metrics → VictoriaMetrics, and the UI logs page.
+
 ## 2026-11-04 — Cycle 9 (`loop/clickhouse-migrations`, after PR #8 merged as 8013ddc): versioned schema migrations
 - PR #8's first live deploy succeeded (pages run 41754108734, build and deploy green); https://tjscanlan.github.io/conduit/ serves every page, the CSS, and the logo with 200s.
 - Theme: schema migrations, from the roadmap's Now lane (prompt access control still needs a human decision).

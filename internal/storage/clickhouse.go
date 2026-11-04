@@ -73,7 +73,13 @@ func clickhouseOptions(dsn string) (*clickhouse.Options, error) {
 	return clickhouse.ParseDSN(dsn)
 }
 
-var ttlDaysRe = regexp.MustCompile(`TTL toDateTime\(start_time\) \+ toIntervalDay\((\d+)\)`)
+var ttlDaysRe = regexp.MustCompile(`TTL toDateTime\(\w+\) \+ toIntervalDay\((\d+)\)`)
+
+// retentionTables maps each table with a TTL to its time column.
+var retentionTables = []struct{ table, column string }{
+	{"spans", "start_time"},
+	{"logs", "timestamp"},
+}
 
 // ttlDays extracts the retention from a spans table's engine_full, as
 // ClickHouse normalizes it ("TTL toDateTime(start_time) + toIntervalDay(90)").
@@ -86,19 +92,50 @@ func ttlDays(engineFull string) (int, bool) {
 	return n, err == nil
 }
 
-// reconcileRetention changes an existing spans table's TTL when it differs
-// from days. Shortening it lets ClickHouse drop rows that are now too old.
+// reconcileRetention changes each retained table's TTL when it differs from
+// days. Shortening it lets ClickHouse drop rows that are now too old.
 func (s *ClickHouseStore) reconcileRetention(ctx context.Context, days int) error {
-	var engineFull string
-	if err := s.conn.QueryRow(ctx,
-		`SELECT engine_full FROM system.tables WHERE database = currentDatabase() AND name = 'spans'`,
-	).Scan(&engineFull); err != nil {
+	for _, t := range retentionTables {
+		var engineFull string
+		if err := s.conn.QueryRow(ctx,
+			`SELECT engine_full FROM system.tables WHERE database = currentDatabase() AND name = ?`, t.table,
+		).Scan(&engineFull); err != nil {
+			return fmt.Errorf("%s: %w", t.table, err)
+		}
+		if current, ok := ttlDays(engineFull); ok && current == days {
+			continue
+		}
+		// Table and column names are constants above; days is a validated int.
+		if err := s.conn.Exec(ctx, fmt.Sprintf(`ALTER TABLE %s MODIFY TTL toDateTime(%s) + INTERVAL %d DAY`,
+			t.table, t.column, days)); err != nil {
+			return fmt.Errorf("%s: %w", t.table, err)
+		}
+	}
+	return nil
+}
+
+// LogRow is one row of the logs table.
+type LogRow struct {
+	Timestamp  time.Time
+	AgentName  string
+	Severity   string
+	Body       string
+	Attributes map[string]string
+	TraceID    string
+	SpanID     string
+}
+
+// InsertLog writes one log record with the batch protocol (full-precision timestamps).
+func (s *ClickHouseStore) InsertLog(ctx context.Context, row LogRow) error {
+	batch, err := s.conn.PrepareBatch(ctx, `INSERT INTO logs (timestamp, agent_name, severity, body, attributes, trace_id, span_id)`)
+	if err != nil {
 		return err
 	}
-	if current, ok := ttlDays(engineFull); ok && current == days {
-		return nil
+	if err := batch.Append(row.Timestamp, row.AgentName, row.Severity, row.Body, row.Attributes, row.TraceID, row.SpanID); err != nil {
+		_ = batch.Abort()
+		return err
 	}
-	return s.conn.Exec(ctx, fmt.Sprintf(`ALTER TABLE spans MODIFY TTL toDateTime(start_time) + INTERVAL %d DAY`, days))
+	return batch.Send()
 }
 
 type SpanRow struct {

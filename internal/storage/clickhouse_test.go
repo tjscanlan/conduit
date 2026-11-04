@@ -10,6 +10,8 @@ func TestTTLDaysParsesClickHouseEngineFull(t *testing.T) {
 	for s, want := range map[string]int{
 		"MergeTree ORDER BY start_time TTL toDateTime(start_time) + toIntervalDay(90) SETTINGS index_granularity = 8192":                                                             90,
 		"MergeTree PARTITION BY toYYYYMMDD(start_time) ORDER BY (agent_name, trace_id, start_time) TTL toDateTime(start_time) + toIntervalDay(30) SETTINGS index_granularity = 8192": 30,
+		// logs table (0003), verbatim after MODIFY TTL on ClickHouse 24.4
+		"MergeTree PARTITION BY toYYYYMMDD(timestamp) ORDER BY (agent_name, timestamp) TTL toDateTime(timestamp) + toIntervalDay(30) SETTINGS index_granularity = 8192": 30,
 	} {
 		if got, ok := ttlDays(s); !ok || got != want {
 			t.Errorf("ttlDays(%q) = %d, %v; want %d", s, got, ok, want)

@@ -56,9 +56,11 @@ pass "schema_migrations has versions $versions"
 
 echo "==> Retention"
 want_days="${SPAN_RETENTION_DAYS:-90}"
-ttl_ok() { ch "SELECT engine_full FROM system.tables WHERE database = currentDatabase() AND name = 'spans'" | grep -q "toIntervalDay($want_days)"; }
-retry 15 ttl_ok || fail "spans TTL is not $want_days days: $(ch "SELECT engine_full FROM system.tables WHERE name = 'spans'")"
-pass "spans TTL is $want_days days (SPAN_RETENTION_DAYS)"
+for table in spans logs; do
+  ttl_ok() { ch "SELECT engine_full FROM system.tables WHERE database = currentDatabase() AND name = '$table'" | grep -q "toIntervalDay($want_days)"; }
+  retry 15 ttl_ok || fail "$table TTL is not $want_days days: $(ch "SELECT engine_full FROM system.tables WHERE name = '$table'")"
+done
+pass "spans and logs TTL are $want_days days (SPAN_RETENTION_DAYS)"
 
 echo "==> Sending a trace through the gateway as $AGENT"
 TRACE=$(cd "$ROOT/sdk/go" && go run ./examples/smoke-agent \

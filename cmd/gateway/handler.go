@@ -34,6 +34,7 @@ type IngestionHandler struct {
 // spanPublisher is the part of storage.NATSPublisher the handler uses.
 type spanPublisher interface {
 	Publish(ctx context.Context, data []byte) error
+	PublishLog(ctx context.Context, data []byte) error
 	Ready(ctx context.Context) error
 }
 
@@ -71,8 +72,12 @@ func (h *IngestionHandler) IngestBatch(ctx context.Context, req *pb.IngestBatchR
 	if n := len(req.GetMetrics()); n > 0 {
 		resp.Errors = append(resp.Errors, fmt.Sprintf("%d metrics rejected: metric ingestion not supported yet", n))
 	}
-	if n := len(req.GetLogs()); n > 0 {
-		resp.Errors = append(resp.Errors, fmt.Sprintf("%d logs rejected: log ingestion not supported yet", n))
+	for i, l := range req.GetLogs() {
+		if ok, reason := h.ingestLog(ctx, logInputFromProto(l)); ok {
+			resp.LogsAccepted++
+		} else {
+			resp.Errors = append(resp.Errors, fmt.Sprintf("log[%d]: %s", i, reason))
+		}
 	}
 	return resp, nil
 }
@@ -118,6 +123,57 @@ func statusFromProto(st pb.SpanStatus) string {
 		return schema.StatusError
 	}
 	return st.String()
+}
+
+// severityFromProto maps the wire enum; unknown values from newer clients
+// pass through as invalid so validation rejects them.
+func severityFromProto(s pb.LogSeverity) string {
+	switch s {
+	case pb.LogSeverity_LOG_SEVERITY_UNSPECIFIED:
+		return schema.SeverityUnspecified
+	case pb.LogSeverity_LOG_SEVERITY_DEBUG:
+		return schema.SeverityDebug
+	case pb.LogSeverity_LOG_SEVERITY_INFO:
+		return schema.SeverityInfo
+	case pb.LogSeverity_LOG_SEVERITY_WARN:
+		return schema.SeverityWarn
+	case pb.LogSeverity_LOG_SEVERITY_ERROR:
+		return schema.SeverityError
+	}
+	return s.String()
+}
+
+func logInputFromProto(l *pb.LogRecord) telemetry.LogInput {
+	in := telemetry.LogInput{
+		Severity:   severityFromProto(l.GetSeverity()),
+		Body:       l.GetBody(),
+		Attributes: l.GetAttributes(),
+		TraceID:    l.GetTraceId(),
+		SpanID:     l.GetSpanId(),
+	}
+	if t := l.GetTimestamp(); t != nil {
+		in.TimestampNano = t.AsTime().UnixNano()
+	}
+	return in
+}
+
+// ingestLog validates a log record and publishes it to NATS.
+func (h *IngestionHandler) ingestLog(ctx context.Context, in telemetry.LogInput) (bool, string) {
+	if id, ok := auth.IdentityFromContext(ctx); ok {
+		in.AgentName = id.CommonName // never client-supplied
+	}
+	if _, err := telemetry.ProcessLog(in, time.Now()); err != nil {
+		return false, err.Error()
+	}
+	data, err := json.Marshal(in)
+	if err != nil {
+		return false, "internal marshal error"
+	}
+	if err := h.publisher.PublishLog(ctx, data); err != nil {
+		h.logger.Error("nats publish log", "err", err)
+		return false, "publish failed"
+	}
+	return true, ""
 }
 
 // ingestOne validates a SpanInput and publishes it to NATS as JSON.

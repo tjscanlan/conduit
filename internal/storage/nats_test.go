@@ -18,3 +18,10 @@ func TestSpanStreamIsBoundedWorkQueue(t *testing.T) {
 		t.Errorf("subjects = %v", cfg.Subjects)
 	}
 }
+
+func TestLogStreamIsSeparateBoundedWorkQueue(t *testing.T) {
+	cfg := logStreamConfig()
+	if cfg.Name == spanStreamConfig().Name || cfg.Subjects[0] != LogSubject || cfg.Retention != nats.WorkQueuePolicy || cfg.MaxAge <= 0 {
+		t.Errorf("log stream config = %+v", cfg)
+	}
+}
