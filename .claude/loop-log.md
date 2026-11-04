@@ -10,7 +10,7 @@ Newest entries first. Each iteration is driven by `.claude/loop.md`.
   - `optional_front_matter.remove_originals` so raw `.md` sources aren't published. `contributing.md` got front matter, since jekyll-optional-front-matter skips CONTRIBUTING (and README/LICENSE) without it (caught by the build check).
   - **Enabled GitHub Pages** (build_type=workflow) at https://tjscanlan.github.io/conduit/; it first deploys when this branch merges to main. README has a docs badge and link.
 - Verified: both workflows are green; I downloaded the built Pages artifact and screenshotted the home, deployment, and roadmap pages (the brand renders correctly and links are rewritten to `/conduit/*.html` including anchors). **The live deploy can't be verified until merge.**
-- **Stopping point:** opening PR #8.
+- **Stopping point:** opened PR https://github.com/tjscanlan/conduit/pull/8; no new work until it is merged. After merge: verify the first live Pages deploy.
 
 ## 2026-11-04 — Cycle 8 (`loop/docs-site-roadmap`, after PR #7 merged as fa8a13f): GitHub Pages site scaffold
 - Theme (user directive): a GitHub Pages documentation site plus a visual product roadmap, using the Conduit brand.
