@@ -40,7 +40,7 @@ jobs:
           sudo chown -R "$(id -u)" _site   # jekyll-build-pages writes as root
           python3 scripts/build-agent-docs.py _site
           # Every llms.txt link to this site must resolve to a built file.
-          grep -o 'https://tjscanlan.github.io/conduit/[^)]*' _site/llms.txt | sed 's#https://tjscanlan.github.io/conduit/##' | while read -r f; do
+          grep -o '](https://tjscanlan.github.io/conduit/[^)]*)' _site/llms.txt | sed 's#^](https://tjscanlan.github.io/conduit/##; s#)$##' | while read -r f; do
             test -s "_site/$f" || { echo "::error::llms.txt links to missing $f"; exit 1; }
           done
           ! grep -l '{{\|{%' _site/*.md _site/llms-full.txt || { echo "::error::Liquid left in agent docs"; exit 1; }
