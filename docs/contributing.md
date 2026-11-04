@@ -24,7 +24,7 @@ cmd/{gateway,collector,ui}   service entry points
 internal/{auth,health,schema,storage,telemetry}
 proto/                        .proto sources and the generated Go code (committed)
 sdk/go                        Go SDK, a separate module
-sdk/python                    Python SDK (src/conduit_sdk, with generated stubs committed)
+sdk/python                    Python SDK (src/conduit_observability, with generated stubs committed)
 ui/                           templates and static assets, embedded into cmd/ui
 deployments/{docker,k8s}      compose stack and Kubernetes manifests
 scripts/                      certs, codegen, smoke test

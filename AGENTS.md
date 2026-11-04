@@ -11,7 +11,7 @@ Conduit is secure, self-hosted observability for AI agents. Agents send spans, l
 | gateway | `cmd/gateway` | Authenticates agents (client certificate CommonName = agent identity), rate-limits, validates, and publishes to NATS JetStream (`SPANS`, `LOGS`, `METRICS` streams) |
 | collector | `cmd/collector` | Consumes NATS. Writes ClickHouse (spans, logs) and VictoriaMetrics (metrics; span durations best-effort) and Tempo (best-effort). Owns the schema: runs migrations, reconciles retention |
 | ui | `cmd/ui` | Server-rendered UI (`html/template` + htmx), reading ClickHouse only |
-| SDKs | `sdk/go` (separate Go module), `sdk/python` (`conduit_sdk`) | Client libraries |
+| SDKs | `sdk/go` (separate Go module), `sdk/python` (`conduit_observability`) | Client libraries |
 
 Docs: `docs/`, published at https://tjscanlan.github.io/conduit/. The machine-readable index is https://tjscanlan.github.io/conduit/llms.txt.
 
@@ -41,7 +41,7 @@ End-to-end check (needs Docker): start the stack as in [docs/deployment.md](docs
 - **Schema changes go in a new migration,** `internal/storage/migrations/NNNN_name.sql`: one idempotent statement (`IF NOT EXISTS` / `IF EXISTS`). Never edit a shipped migration; checksums are enforced at startup.
 - **UI: no inline scripts or styles.** The CSP forbids them, and `TestTemplatesHaveNoInlineScript` enforces it. Build links that carry query strings as `template.URL` in Go; `html/template` re-encodes queries interpolated into an `href`.
 - **UI colors follow [docs/brand.md](docs/brand.md).** Only `#ec0000` may be text on white, and `#ec9b00`/`#ecca00` never carry white text.
-- **Generated code is committed and drift-checked.** That covers `proto/*.pb.go`, `sdk/python/src/conduit_sdk/_proto/`, `docs/roadmap.md` and `docs/api.md`. Regenerate it; don't hand-edit it.
+- **Generated code is committed and drift-checked.** That covers `proto/*.pb.go`, `sdk/python/src/conduit_observability/_proto/`, `docs/roadmap.md` and `docs/api.md`. Regenerate it; don't hand-edit it.
 - **Few dependencies.** The project's pitch includes "no supply-chain surprises". Justify any new module in the PR, pin GitHub Actions by commit SHA, and pin CDN assets with SRI.
 
 ## Making a change

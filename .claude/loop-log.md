@@ -2,6 +2,15 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — Cycle 12 (`loop/release-v0-1`, stacked on PR #11 by user request): Python SDK packaged for PyPI
+- User: "I have my PyPI account set up. Use [packaging.python.org's packaging tutorial] to publish the Python SDK, then continue with this loop." PR #11 was still open, so I started the release branch **stacked on `loop/agent-readable-docs`** (it avoids conflicts in the regenerated stubs). Its PR goes to main after #11 merges.
+- Did:
+  - **Renamed** the dist `conduit-sdk` (taken on PyPI) to `conduit-observability`, and the import `conduit_sdk` to `conduit_observability` (git mv; all references in code, tests, codegen script, CI, docs, AGENTS.md, smoke). `conduit-sdk-go` was deliberately left alone; it's renamed later in this cycle.
+  - pyproject per the guide: version **0.1.0**, SPDX `license = "Apache-2.0"` plus `license-files` (hatchling ≥1.27), classifiers (3.10–3.14, Alpha), keywords, project URLs (docs site, repo, issues), author name only (no email). LICENSE copied into sdk/python. A PyPI-ready README with absolute links.
+  - **sdist bug caught by inspection:** unanchored `include` patterns (`LICENSE`, `tests/`) matched about 25 files inside `.venv-build/`. They're now anchored (`/src`, `/LICENSE`, …) and `.venv*` is excluded. Verified 0 venv files in the sdist.
+- Verified: `python -m build` produced the sdist and a py3-none-any wheel; `twine check --strict` passed both; the wheel contains only the package, stubs, and license; the METADATA is complete. **Installed the built wheel in clean venvs on Python 3.10 and 3.14 and ran the suite against the installed package: 10/10 on each.** `make proto` regenerates byte-identical stubs at the new path.
+- Next: upload to TestPyPI and verify an install, then PyPI (needs the user's token in `~/.pypirc`, never in chat). Then the rest of the release cycle: Go module paths, release.yml (GHCR multi-arch signed images, SBOM, provenance, PyPI trusted publishing for future releases), CHANGELOG, versioning policy, release docs.
+
 ## 2026-11-04 — **User directive for the NEXT cycle:** release v0.1.0 (`loop/release-v0-1`)
 - The user asked: make the cycle right after the agent-docs PR merges a dedicated release cycle, and don't wait for more features (prompt access control, batched SDK delivery, OTel, and Helm go to v0.2+).
 - **SDK publishing decision (user): publish both**, a tagged Go module and PyPI.

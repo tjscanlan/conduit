@@ -30,7 +30,7 @@ sdk/python/.ruff_cache/
 
 # ── Protobuf generated files ─────────────────────────────────
 # Generated code IS committed: Go (proto/*.pb.go) and the Python SDK's stubs
-# (sdk/python/src/conduit_sdk/_proto). Regenerate both with `make proto`
+# (sdk/python/src/conduit_observability/_proto). Regenerate both with `make proto`
 # after editing .proto files; CI fails if they drift.
 proto/gen/
 
@@ -75,3 +75,7 @@ deployments/docker/ui-users
 __pycache__/
 *.py[co]
 .pytest_cache/
+
+# Python SDK build artifacts
+sdk/python/dist/
+sdk/python/.venv-build/

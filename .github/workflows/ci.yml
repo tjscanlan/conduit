@@ -63,7 +63,7 @@ jobs:
         run: python3 scripts/build-agent-docs.py --check
       - name: check for drift
         run: |
-          gen="proto/ sdk/python/src/conduit_sdk/_proto/ docs/roadmap.md docs/api.md"
+          gen="proto/ sdk/python/src/conduit_observability/_proto/ docs/roadmap.md docs/api.md"
           if ! git diff --exit-code -- $gen; then
             echo "::error::Generated code is stale. Run 'make proto' and commit the result."
             exit 1
