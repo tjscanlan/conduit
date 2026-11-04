@@ -27,7 +27,7 @@ func (c *Client) metric(ctx context.Context, name string, value float64, labels 
 	m := &pb.Metric{Name: name, Value: value, Labels: labels, Type: typ, Timestamp: timestamppb.New(time.Now())}
 	resp, err := c.ingest.IngestBatch(ctx, &pb.IngestBatchRequest{Metrics: []*pb.Metric{m}})
 	if err != nil {
-		return fmt.Errorf("ingest metric: %w", err)
+		return c.diagnose("ingest metric", err)
 	}
 	if resp.GetMetricsAccepted() != 1 {
 		if errs := resp.GetErrors(); len(errs) > 0 {

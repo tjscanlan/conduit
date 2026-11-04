@@ -22,8 +22,8 @@ from __future__ import annotations
 
 import contextvars
 import logging
-import os
 import secrets
+import ssl
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -31,6 +31,7 @@ from typing import Iterator, Optional
 
 import grpc
 
+from . import _config
 from ._proto import ingestion_pb2, ingestion_pb2_grpc, log_pb2, metric_pb2, span_pb2
 
 log = logging.getLogger("conduit_observability")
@@ -45,6 +46,10 @@ _current: contextvars.ContextVar[Optional["Span"]] = contextvars.ContextVar("con
 
 class ConduitError(Exception):
     """A span could not be delivered or was rejected by the gateway."""
+
+
+class ConfigError(ConduitError):
+    """The client is misconfigured (missing or mismatched certificate files, no settings)."""
 
 
 @dataclass
@@ -118,18 +123,46 @@ class Client:
         # agent_name is accepted for compatibility but not sent: the gateway takes
         # the agent's identity from its client certificate's CommonName.
         del agent_name
+        if not gateway_addr:
+            raise ConfigError(f"gateway_addr is empty (the local quickstart's is {_config.DEFAULT_GATEWAY_ADDR})")
+        _check_files(tls_cert, tls_key, tls_ca)
+        self._addr, self._tls_cert, self._tls_ca = gateway_addr, tls_cert, tls_ca
         self._timeout = timeout
         self._channel = _secure_channel(gateway_addr, tls_cert, tls_key, tls_ca)
         self._stub = ingestion_pb2_grpc.IngestionServiceStub(self._channel)
 
     @classmethod
-    def from_env(cls) -> "Client":
-        """Build a client from CONDUIT_GATEWAY_ADDR, TLS_CERT, TLS_KEY, and TLS_CA.
+    def from_env(cls, timeout: float = 10.0) -> "Client":
+        """Build a client from the environment. The shortest setup is a
+        certificate directory, such as the one ``make quickstart`` writes::
 
-        OTEL_GATEWAY_ADDR is accepted as a fallback for CONDUIT_GATEWAY_ADDR.
+            CONDUIT_CERT_DIR=deployments/quickstart/.conduit/certs CONDUIT_AGENT=my-agent
+
+        It uses ``<dir>/ca.crt`` and ``<dir>/<agent>.crt``/``.key``;
+        CONDUIT_AGENT may be omitted when the directory holds one agent.
+        CONDUIT_TLS_CERT, CONDUIT_TLS_KEY and CONDUIT_TLS_CA set the files
+        directly (TLS_CERT, TLS_KEY and TLS_CA are accepted too), and
+        CONDUIT_GATEWAY_ADDR the gateway (default ``localhost:4317``).
+        Raises ConfigError, with what to set, if nothing is configured.
         """
-        addr = os.environ.get("CONDUIT_GATEWAY_ADDR") or os.environ["OTEL_GATEWAY_ADDR"]
-        return cls(addr, os.environ["TLS_CERT"], os.environ["TLS_KEY"], os.environ["TLS_CA"])
+        s = _config.from_env()
+        return cls(s.gateway_addr, s.tls_cert, s.tls_key, s.tls_ca, timeout=timeout)
+
+    def check(self) -> None:
+        """Verify the gateway is reachable and accepts this agent's certificate.
+
+        Sends an empty batch. Call it at startup to fail fast with an
+        actionable ConduitError instead of on the first span.
+        """
+        try:
+            self._stub.IngestBatch(ingestion_pb2.IngestBatchRequest(), timeout=self._timeout)
+        except grpc.RpcError as err:
+            raise self._rpc_error("check gateway", err) from err
+
+    def _rpc_error(self, op: str, err: grpc.RpcError) -> ConduitError:
+        detail = f"{err.code().name}: {err.details()}"
+        hint = _diagnose(detail, self._addr, self._tls_cert, self._tls_ca)
+        return ConduitError(f"{op}: {hint}: {detail}" if hint else f"{op}: {detail}")
 
     def start_span(self, name: str) -> Span:
         """Start a span that is a child of the current span (if any). Call ``end()`` yourself."""
@@ -186,7 +219,7 @@ class Client:
         try:
             resp = self._stub.IngestBatch(ingestion_pb2.IngestBatchRequest(logs=[rec]), timeout=self._timeout)
         except grpc.RpcError as err:
-            raise ConduitError(f"ingest log: {err.code().name}: {err.details()}") from err
+            raise self._rpc_error("ingest log", err) from err
         if resp.logs_accepted != 1:
             reason = resp.errors[0] if resp.errors else "unknown reason"
             raise ConduitError(f"gateway rejected log: {reason}")
@@ -206,7 +239,7 @@ class Client:
         try:
             resp = self._stub.IngestBatch(ingestion_pb2.IngestBatchRequest(metrics=[m]), timeout=self._timeout)
         except grpc.RpcError as err:
-            raise ConduitError(f"ingest metric: {err.code().name}: {err.details()}") from err
+            raise self._rpc_error("ingest metric", err) from err
         if resp.metrics_accepted != 1:
             reason = resp.errors[0] if resp.errors else "unknown reason"
             raise ConduitError(f"gateway rejected metric: {reason}")
@@ -216,7 +249,7 @@ class Client:
         try:
             resp = self._stub.IngestSpan(req, timeout=self._timeout)
         except grpc.RpcError as err:
-            raise ConduitError(f"ingest span: {err.code().name}: {err.details()}") from err
+            raise self._rpc_error("ingest span", err) from err
         if not resp.accepted:
             raise ConduitError(f"gateway rejected span: {resp.rejection_reason}")
 
@@ -248,6 +281,52 @@ def _to_proto(s: Span, end_ns: int) -> span_pb2.Span:
             input_tokens=c.input_tokens, output_tokens=c.output_tokens, cost_usd=c.cost_usd,
         ))
     return out
+
+
+def _check_files(cert: str, key: str, ca: str) -> None:
+    """Catch file mistakes now, rather than as a TLS failure on the first span."""
+    for label, path in (("client certificate", cert), ("client key", key), ("CA certificate", ca)):
+        try:
+            with open(path, "rb"):
+                pass
+        except OSError as err:
+            raise ConfigError(f"{label} {path}: {err.strerror}; create agent certificates with "
+                              "`make quickstart` or `scripts/gen-certs.sh agent NAME`") from err
+    try:
+        ssl.create_default_context().load_cert_chain(cert, key)
+    except ssl.SSLError as err:
+        if "KEY_VALUES_MISMATCH" in str(err) or "key values mismatch" in str(err):
+            raise ConfigError(f"{key} is not the key for {cert} (the key belongs to a different certificate)") from err
+        raise ConfigError(f"can't load {cert} with {key}: {err}") from err
+    try:
+        ssl.create_default_context(cafile=ca)
+    except ssl.SSLError as err:
+        raise ConfigError(f"CA certificate {ca} is not a PEM certificate: {err}") from err
+
+
+def _diagnose(detail: str, addr: str, cert: str, ca: str) -> str:
+    """A hint for a failed RPC, from gRPC's error text."""
+    d = detail.lower()
+    if "connection refused" in d or "dns resolution failed" in d or "name resolution" in d:
+        return f"can't reach the gateway at {addr}; is it running? (for a local stack: make quickstart)"
+    if "not in peer certificate" in d or "hostname mismatch" in d:
+        return (f"the gateway's certificate does not cover the host in {addr!r}; "
+                "connect using a name in its certificate (e.g. localhost)")
+    if "certificate_verify_failed" in d or "certificate verify failed" in d:
+        return (f"the gateway's certificate is not signed by the CA in {ca}, or the gateway rejected this "
+                f"agent's certificate {cert}; both must come from the CA set the gateway uses")
+    if "handshake" in d or "ssl" in d or "socket closed" in d or "tls" in d:
+        return (f"the TLS handshake with {addr} failed; check that {cert} is signed by the CA the gateway "
+                f"trusts and that {ca} signed the gateway's certificate")
+    if d.startswith("resource_exhausted"):
+        return "the gateway is rate limiting this agent (RATE_LIMIT_RPS items/s per agent); send less often or batch"
+    if d.startswith(("unauthenticated", "permission_denied")):
+        return "the gateway did not accept this agent's identity; check the client certificate"
+    if d.startswith("deadline_exceeded"):
+        return f"the gateway at {addr} did not answer in time"
+    if d.startswith("unavailable"):
+        return f"the gateway at {addr} is unavailable; is it running and is the address right?"
+    return ""
 
 
 def _secure_channel(addr: str, cert: str, key: str, ca: str) -> grpc.Channel:

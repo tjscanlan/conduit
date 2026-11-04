@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -21,9 +22,14 @@ import (
 
 // Client is the agent-side SDK. Create one per process.
 type Client struct {
-	conn      *grpc.ClientConn
-	ingest    pb.IngestionServiceClient
-	agentName string
+	cfg Config
+	// certFromOtherCA: the agent certificate doesn't chain to TLSCACert. That's
+	// allowed (the gateway may trust another CA) but is the usual cause when
+	// the gateway drops the connection, so diagnose() says so.
+	certFromOtherCA bool
+	conn            *grpc.ClientConn
+	ingest          pb.IngestionServiceClient
+	agentName       string
 }
 
 // Config holds connection settings for the SDK.
@@ -40,9 +46,28 @@ type Config struct {
 // The gateway's certificate is verified against TLSCACert only, not the system
 // roots, so only the Conduit CA can vouch for the gateway.
 func New(cfg Config) (*Client, error) {
+	if cfg.GatewayAddr == "" {
+		return nil, errors.New("conduit: GatewayAddr is empty (the local quickstart's is " + DefaultGatewayAddr + ")")
+	}
 	cert, err := tls.LoadX509KeyPair(cfg.TLSCert, cfg.TLSKey)
 	if err != nil {
-		return nil, fmt.Errorf("load client certificate: %w", err)
+		hint := ""
+		switch {
+		case errors.Is(err, os.ErrNotExist):
+			hint = " (create agent certificates with `make quickstart` or `scripts/gen-certs.sh agent NAME`)"
+		case strings.Contains(err.Error(), "does not match"):
+			hint = " (the key belongs to a different certificate)"
+		}
+		return nil, fmt.Errorf("load client certificate: %w%s", err, hint)
+	}
+	leaf := cert.Leaf
+	if leaf == nil {
+		if leaf, err = x509.ParseCertificate(cert.Certificate[0]); err != nil {
+			return nil, fmt.Errorf("parse client certificate %s: %w", cfg.TLSCert, err)
+		}
+	}
+	if err := checkClientCert(cfg.TLSCert, leaf); err != nil {
+		return nil, err
 	}
 	caPEM, err := os.ReadFile(cfg.TLSCACert)
 	if err != nil {
@@ -64,7 +89,11 @@ func New(cfg Config) (*Client, error) {
 		return nil, err
 	}
 
-	return &Client{conn: conn, ingest: pb.NewIngestionServiceClient(conn), agentName: cfg.AgentName}, nil
+	_, verifyErr := leaf.Verify(x509.VerifyOptions{Roots: caPool, KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}})
+	return &Client{
+		cfg: cfg, certFromOtherCA: verifyErr != nil,
+		conn: conn, ingest: pb.NewIngestionServiceClient(conn), agentName: cfg.AgentName,
+	}, nil
 }
 
 // Span represents a unit of work in the agent execution
@@ -167,7 +196,7 @@ type LLMCall struct {
 func (c *Client) flush(ctx context.Context, s *Span, endTime time.Time) error {
 	resp, err := c.ingest.IngestSpan(ctx, &pb.IngestSpanRequest{Span: spanToProto(s, endTime)})
 	if err != nil {
-		return fmt.Errorf("ingest span: %w", err)
+		return c.diagnose("ingest span", err)
 	}
 	if !resp.GetAccepted() {
 		return fmt.Errorf("gateway rejected span: %s", resp.GetRejectionReason())

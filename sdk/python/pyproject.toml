@@ -33,6 +33,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Optional: the provider SDKs used with llm_call_from_anthropic / llm_call_from_openai
+# (those helpers work with any response object and don't import these).
+anthropic = ["anthropic>=0.125.0"]
+openai = ["openai>=2.48.0"]
 dev = [
     "pytest>=8",
     "cryptography>=46",  # test-only: mints throwaway mTLS certificates

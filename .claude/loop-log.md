@@ -2,6 +2,24 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — Activation cycle 3: SDK quick start (`loop/sdk-quickstart`)
+- **Go SDK:**
+  - `NewFromEnv`/`ConfigFromEnv` read CONDUIT_CERT_DIR plus CONDUIT_AGENT (auto-picked when the dir holds exactly one clientAuth cert; otherwise the error lists them), CONDUIT_TLS_CERT/KEY/CA overrides, and CONDUIT_GATEWAY_ADDR (default localhost:4317; OTEL_GATEWAY_ADDR accepted).
+  - `Client.Check(ctx)` sends an empty IngestBatch.
+  - `diagnose()` wraps every RPC error with a hint: unknown CA, host not in SANs, client cert rejected, expired, connection refused, not TLS, rate limited, deadline, unavailable. The gRPC error stays wrapped.
+  - `New` catches at construction: missing file, key mismatch, server.crt used as an agent (no clientAuth EKU), expired / not-yet-valid / no CN.
+  - Flaky case found and fixed: under TLS 1.3, a gateway rejecting the client cert often surfaces as a bare broken pipe. New now records whether the agent cert chains to TLSCACert and uses that for the hint. 15/15 repeated runs pass.
+- **Python SDK:**
+  - `Client.from_env` uses the same variables (0.1.0's TLS_CERT/KEY/CA still accepted); `client.check()`; `ConfigError` raised at construction for a missing file, key mismatch (via `ssl.load_cert_chain`) or non-PEM CA; diagnosed RPC errors.
+  - New `tracing` module: `configure()`, `span()`, `@traced` (sync and async; OK/error status; attrs), `current_span()`, `get_client()`, `shutdown()`. Unconfigured use is a no-op with one warning.
+  - New `providers` module: `llm_call_from_anthropic` and `llm_call_from_openai` (Chat Completions and Responses), duck-typed, plus `[anthropic]` and `[openai]` extras.
+  - 11 new tests, 21 total, passing on 3.12 and 3.14.
+- **Examples:** the Go helper is now just "fill CONDUIT_CERT_DIR for the quickstart, then NewFromEnv plus Check". Python examples use `configure()`, `@traced` tools and the provider helpers. examples-check passes all 10 again.
+- **Pre-release install:** the examples need the in-repo SDK (newer than PyPI 0.1.0), so the docs, banner and CI use `pip install -e "sdk/python[...]"`. The requirements.txt was dropped (its relative `-e` path only resolved from one directory). Go docs say `go get ...sdk/go@main` until v0.2.0. **Next release:** switch back to `pip install conduit-observability`.
+- **Docs:** sdk-go.md and sdk-python.md now open with "Quick start (2 minutes)", Configuration (env table) and "When it doesn't connect". API tables updated; the PyPI README quick start uses the module API.
+- **Diagnostics checked against the real quickstart gateway:** gateway down, server.crt as agent, several agents, unroutable host.
+- **Deps:** golang.org/x/net v0.61.0 → v0.62.0 in all three modules (GO-2026-6866/6860). govulncheck: sdk/go and examples/go are clean; root has only GO-2026-5932 (x/crypto/openpgp, unmaintained, not called, no fix).
+
 ## 2026-11-04 — Activation cycle 2: prebuilt agent examples (`loop/agent-examples`)
 - **`examples/go`:** a separate module, with replaces to the in-repo sdk/go and main module.
   - hello-trace, tool-agent (simulated model), claude-agent (anthropic-sdk-go v1.84.0) and openai-agent (openai-go/v3 v3.94.0, Chat Completions).
