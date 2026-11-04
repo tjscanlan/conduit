@@ -18,7 +18,7 @@ Newest entries first. Each iteration is driven by `.claude/loop.md`.
   - The stale quick start (gen-proto, missing CLICKHOUSE_PASSWORD and users file).
   - "Configurable TTL": it's hard-coded.
 - Verified: a script checked every relative link and anchor in the README and docs (0 broken), and the doc claims were checked against the code (gateway publish-error path, exporter writes of prompts and completions, IngestBatch rejecting metrics and logs).
-- Next: open PR #6 (branding plus docs plus roadmap). The theme is done.
+- **Stopping point:** opened PR https://github.com/tjscanlan/conduit/pull/6 (branding plus docs plus roadmap); no new work until it is merged.
 
 ## 2026-11-03 — Cycle 6 (`loop/docs-roadmap-branding`, after PR #5 merged as cf4ccd1): branding, iteration 1
 - Did: SVG logo mark (five concentric arcs in the palette, red outside to yellow inside, forming a "C" open toward the flow) and favicon; full app.css rewrite around design tokens. Light white UI, warm near-black ink text, ink nav bar with a 3px palette-gradient rule, sans UI with mono for IDs, the logo plus wordmark in the nav, and a login card with the logo, tagline, and gradient top. metrics.js canvas colors updated.
