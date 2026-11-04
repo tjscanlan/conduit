@@ -12,11 +12,11 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/your-org/agent-observability/internal/auth"
-	"github.com/your-org/agent-observability/internal/schema"
-	"github.com/your-org/agent-observability/internal/storage"
-	"github.com/your-org/agent-observability/internal/telemetry"
-	pb "github.com/your-org/agent-observability/proto"
+	"github.com/tjscanlan/conduit/internal/auth"
+	"github.com/tjscanlan/conduit/internal/schema"
+	"github.com/tjscanlan/conduit/internal/storage"
+	"github.com/tjscanlan/conduit/internal/telemetry"
+	pb "github.com/tjscanlan/conduit/proto"
 )
 
 // IngestionHandler implements pb.IngestionServiceServer for inbound spans from agent SDKs.

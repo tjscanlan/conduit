@@ -5,4 +5,5 @@
 bin/
 certs/
 deployments/docker/ui-users
-sdk/python/.venv/
+sdk/python/.venv*/
+sdk/python/dist/

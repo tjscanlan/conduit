@@ -144,15 +144,6 @@
       "url": "https://github.com/tjscanlan/conduit/pull/3"
     },
     {
-      "title": "Publishing the SDKs",
-      "options": [
-        "Keep them repo-local",
-        "Publish to PyPI and as a tagged Go module (needs real module paths instead of `github.com/your-org/...`)"
-      ],
-      "raised": "PR #2",
-      "url": "https://github.com/tjscanlan/conduit/pull/2"
-    },
-    {
       "title": "`nats-server` as a test dependency",
       "options": [
         "Add an in-process NATS for integration tests",

@@ -1,11 +1,32 @@
+[build-system]
+requires = ["hatchling >= 1.27"]
+build-backend = "hatchling.build"
+
 [project]
-name = "conduit-sdk"
-version = "0.2.0"
-description = "Agent observability SDK: emit spans to the Conduit gateway over mTLS/gRPC"
+name = "conduit-observability"
+version = "0.1.0"
+description = "Python SDK for Conduit: send traces, logs and metrics from AI agents to a Conduit gateway over mTLS/gRPC"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "Apache-2.0" }
-# Floors match the generated stubs in src/conduit_sdk/_proto (grpcio-tools 1.85.1).
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "TJ Scanlan" }]
+keywords = ["observability", "tracing", "ai-agents", "llm", "telemetry", "grpc", "mtls"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: System :: Logging",
+    "Topic :: System :: Monitoring",
+]
+# Floors match the generated stubs in src/conduit_observability/_proto (grpcio-tools 1.85.1).
 dependencies = [
     "grpcio>=1.85.1",
     "protobuf>=7.35.1,<8",
@@ -17,12 +38,20 @@ dev = [
     "cryptography>=46",  # test-only: mints throwaway mTLS certificates
 ]
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+[project.urls]
+Homepage = "https://tjscanlan.github.io/conduit/"
+Documentation = "https://tjscanlan.github.io/conduit/sdk-python.html"
+Repository = "https://github.com/tjscanlan/conduit"
+Issues = "https://github.com/tjscanlan/conduit/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/conduit_sdk"]
+packages = ["src/conduit_observability"]
+
+[tool.hatch.build.targets.sdist]
+# Anchored with "/" so patterns can't match inside virtualenvs (e.g. a
+# dependency's LICENSE or tests/ under .venv-build/).
+include = ["/src", "/tests", "/examples", "/README.md", "/LICENSE", "/pyproject.toml"]
+exclude = [".venv*", "__pycache__", "*.pyc"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

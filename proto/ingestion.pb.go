@@ -268,7 +268,7 @@ const file_ingestion_proto_rawDesc = "" +
 	"\x10IngestionService\x12W\n" +
 	"\n" +
 	"IngestSpan\x12#.observability.v1.IngestSpanRequest\x1a$.observability.v1.IngestSpanResponse\x12Z\n" +
-	"\vIngestBatch\x12$.observability.v1.IngestBatchRequest\x1a%.observability.v1.IngestBatchResponseB/Z-github.com/your-org/agent-observability/protob\x06proto3"
+	"\vIngestBatch\x12$.observability.v1.IngestBatchRequest\x1a%.observability.v1.IngestBatchResponseB$Z\"github.com/tjscanlan/conduit/protob\x06proto3"
 
 var (
 	file_ingestion_proto_rawDescOnce sync.Once

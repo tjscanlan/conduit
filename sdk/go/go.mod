@@ -1,11 +1,12 @@
-module github.com/your-org/conduit-sdk-go
+module github.com/tjscanlan/conduit/sdk/go
 
 go 1.26.0
 
 toolchain go1.26.10
 
-// The main module provides the generated proto types.
-require github.com/your-org/agent-observability v0.0.0
+// The main module provides the generated proto types. The replace below is
+// for development in this repo; consumers resolve the tagged v0.1.0 instead.
+require github.com/tjscanlan/conduit v0.1.0
 
 require (
 	google.golang.org/grpc v1.83.2
@@ -20,4 +21,4 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 )
 
-replace github.com/your-org/agent-observability => ../..
+replace github.com/tjscanlan/conduit => ../..

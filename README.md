@@ -86,6 +86,8 @@ To instrument your own agent, see the [Go SDK](docs/sdk-go.md) and [Python SDK](
 | [Deployment](docs/deployment.md) | Docker Compose, Kubernetes, health checks, upgrades and configuration reference |
 | [Go SDK](docs/sdk-go.md) · [Python SDK](docs/sdk-python.md) | Instrumenting agents |
 | [Roadmap](docs/roadmap.md) | What's shipped, what's next and the open decisions |
+| [Releasing](docs/releasing.md) | Versioning policy, verifying signed images, upgrading and cutting a release |
+| [Changelog](CHANGELOG.md) | What changed in each release |
 | [Contributing](docs/contributing.md) | Development setup, tests, code generation and pull requests |
 | [Brand](docs/brand.md) | Logo, palette and accessibility rules for the UI |
 

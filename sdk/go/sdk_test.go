@@ -24,7 +24,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	pb "github.com/your-org/agent-observability/proto"
+	pb "github.com/tjscanlan/conduit/proto"
 )
 
 // testPKI is a throwaway CA with server and client certificates on disk.

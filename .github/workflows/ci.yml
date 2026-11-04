@@ -32,6 +32,8 @@ jobs:
           if [ -n "$unformatted" ]; then
             echo "::error::Run gofmt -w on:"; echo "$unformatted"; exit 1
           fi
+      - name: release metadata is consistent
+        run: scripts/release-check.sh "$(sed -n 's|^require github.com/tjscanlan/conduit \(v.*\)$|\1|p' sdk/go/go.mod)"
       - run: go build ./...
       - run: go vet ./...
       - run: go test -race -cover ./...
@@ -63,7 +65,7 @@ jobs:
         run: python3 scripts/build-agent-docs.py --check
       - name: check for drift
         run: |
-          gen="proto/ sdk/python/src/conduit_sdk/_proto/ docs/roadmap.md docs/api.md"
+          gen="proto/ sdk/python/src/conduit_observability/_proto/ docs/roadmap.md docs/api.md"
           if ! git diff --exit-code -- $gen; then
             echo "::error::Generated code is stale. Run 'make proto' and commit the result."
             exit 1

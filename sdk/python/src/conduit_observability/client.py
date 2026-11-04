@@ -2,7 +2,7 @@
 
 Usage::
 
-    from conduit_sdk import Client, LLMCall
+    from conduit_observability import Client, LLMCall
 
     with Client.from_env() as client:
         with client.span("agent.run") as run:
@@ -33,7 +33,7 @@ import grpc
 
 from ._proto import ingestion_pb2, ingestion_pb2_grpc, log_pb2, metric_pb2, span_pb2
 
-log = logging.getLogger("conduit_sdk")
+log = logging.getLogger("conduit_observability")
 
 # Mirrors the gateway's schema.MaxAttributeValLen; longer values get the
 # whole span rejected.

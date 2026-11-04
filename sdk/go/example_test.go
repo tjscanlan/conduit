@@ -5,7 +5,7 @@ import (
 	"errors"
 	"log"
 
-	sdk "github.com/your-org/conduit-sdk-go"
+	sdk "github.com/tjscanlan/conduit/sdk/go"
 )
 
 // Mirrors the snippet in docs/sdk-go.md so the docs keep compiling.

@@ -5,7 +5,7 @@ scripts/smoke-test.sh uses this to check the Python SDK end to end.
 
 import argparse
 
-from conduit_sdk import SEVERITY_WARN, Client, LLMCall
+from conduit_observability import SEVERITY_WARN, Client, LLMCall
 
 
 def main() -> None:

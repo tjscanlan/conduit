@@ -16,7 +16,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	pb "github.com/your-org/agent-observability/proto"
+	pb "github.com/tjscanlan/conduit/proto"
 )
 
 // Client is the agent-side SDK. Create one per process.

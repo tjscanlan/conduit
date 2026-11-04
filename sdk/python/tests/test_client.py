@@ -10,10 +10,10 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
-from conduit_sdk import (SEVERITY_ERROR, SEVERITY_INFO, SEVERITY_WARN, STATUS_ERROR, STATUS_OK,
+from conduit_observability import (SEVERITY_ERROR, SEVERITY_INFO, SEVERITY_WARN, STATUS_ERROR, STATUS_OK,
                          STATUS_UNSET, Client, ConduitError, LLMCall)
-from conduit_sdk._proto import ingestion_pb2, ingestion_pb2_grpc
-from conduit_sdk.client import MAX_ATTR_VALUE_BYTES, _truncate_utf8
+from conduit_observability._proto import ingestion_pb2, ingestion_pb2_grpc
+from conduit_observability.client import MAX_ATTR_VALUE_BYTES, _truncate_utf8
 
 
 def _pem(cert):
@@ -149,7 +149,7 @@ def test_exception_marks_span_error_and_reraises(gateway):
 
 
 def test_set_error_none_is_noop_and_truncation():
-    from conduit_sdk.client import Span
+    from conduit_observability.client import Span
     s = Span("t", "s", "", "n", 0)
     assert s.set_error(None).status == STATUS_UNSET
     s.set_error("é" * 3000)  # 6000 bytes

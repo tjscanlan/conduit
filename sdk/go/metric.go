@@ -8,7 +8,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	pb "github.com/your-org/agent-observability/proto"
+	pb "github.com/tjscanlan/conduit/proto"
 )
 
 // Gauge records the current value of name (e.g. a queue depth).

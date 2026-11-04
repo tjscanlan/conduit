@@ -27,14 +27,14 @@ from . import metric_pb2 as metric__pb2
 from . import log_pb2 as log__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0fingestion.proto\x12\x10observability.v1\x1a\nspan.proto\x1a\x0cmetric.proto\x1a\tlog.proto\"9\n\x11IngestSpanRequest\x12$\n\x04span\x18\x01 \x01(\x0b\x32\x16.observability.v1.Span\"@\n\x12IngestSpanResponse\x12\x10\n\x08\x61\x63\x63\x65pted\x18\x01 \x01(\x08\x12\x18\n\x10rejection_reason\x18\x02 \x01(\t\"\x91\x01\n\x12IngestBatchRequest\x12%\n\x05spans\x18\x01 \x03(\x0b\x32\x16.observability.v1.Span\x12)\n\x07metrics\x18\x02 \x03(\x0b\x32\x18.observability.v1.Metric\x12)\n\x04logs\x18\x03 \x03(\x0b\x32\x1b.observability.v1.LogRecord\"n\n\x13IngestBatchResponse\x12\x16\n\x0espans_accepted\x18\x01 \x01(\x05\x12\x18\n\x10metrics_accepted\x18\x02 \x01(\x05\x12\x15\n\rlogs_accepted\x18\x03 \x01(\x05\x12\x0e\n\x06\x65rrors\x18\x04 \x03(\t2\xc7\x01\n\x10IngestionService\x12W\n\nIngestSpan\x12#.observability.v1.IngestSpanRequest\x1a$.observability.v1.IngestSpanResponse\x12Z\n\x0bIngestBatch\x12$.observability.v1.IngestBatchRequest\x1a%.observability.v1.IngestBatchResponseB/Z-github.com/your-org/agent-observability/protob\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0fingestion.proto\x12\x10observability.v1\x1a\nspan.proto\x1a\x0cmetric.proto\x1a\tlog.proto\"9\n\x11IngestSpanRequest\x12$\n\x04span\x18\x01 \x01(\x0b\x32\x16.observability.v1.Span\"@\n\x12IngestSpanResponse\x12\x10\n\x08\x61\x63\x63\x65pted\x18\x01 \x01(\x08\x12\x18\n\x10rejection_reason\x18\x02 \x01(\t\"\x91\x01\n\x12IngestBatchRequest\x12%\n\x05spans\x18\x01 \x03(\x0b\x32\x16.observability.v1.Span\x12)\n\x07metrics\x18\x02 \x03(\x0b\x32\x18.observability.v1.Metric\x12)\n\x04logs\x18\x03 \x03(\x0b\x32\x1b.observability.v1.LogRecord\"n\n\x13IngestBatchResponse\x12\x16\n\x0espans_accepted\x18\x01 \x01(\x05\x12\x18\n\x10metrics_accepted\x18\x02 \x01(\x05\x12\x15\n\rlogs_accepted\x18\x03 \x01(\x05\x12\x0e\n\x06\x65rrors\x18\x04 \x03(\t2\xc7\x01\n\x10IngestionService\x12W\n\nIngestSpan\x12#.observability.v1.IngestSpanRequest\x1a$.observability.v1.IngestSpanResponse\x12Z\n\x0bIngestBatch\x12$.observability.v1.IngestBatchRequest\x1a%.observability.v1.IngestBatchResponseB$Z\"github.com/tjscanlan/conduit/protob\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'ingestion_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
-  _globals['DESCRIPTOR']._serialized_options = b'Z-github.com/your-org/agent-observability/proto'
+  _globals['DESCRIPTOR']._serialized_options = b'Z\"github.com/tjscanlan/conduit/proto'
   _globals['_INGESTSPANREQUEST']._serialized_start=74
   _globals['_INGESTSPANREQUEST']._serialized_end=131
   _globals['_INGESTSPANRESPONSE']._serialized_start=133

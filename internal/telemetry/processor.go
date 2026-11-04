@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/your-org/agent-observability/internal/schema"
+	"github.com/tjscanlan/conduit/internal/schema"
 )
 
 // SpanInput holds the raw field values extracted from an incoming proto Span

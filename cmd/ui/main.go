@@ -10,9 +10,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/your-org/agent-observability/internal/health"
-	"github.com/your-org/agent-observability/internal/storage"
-	conduitui "github.com/your-org/agent-observability/ui"
+	"github.com/tjscanlan/conduit/internal/health"
+	"github.com/tjscanlan/conduit/internal/storage"
+	conduitui "github.com/tjscanlan/conduit/ui"
 )
 
 func main() {

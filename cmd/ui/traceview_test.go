@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/your-org/agent-observability/internal/storage"
+	"github.com/tjscanlan/conduit/internal/storage"
 )
 
 var t0 = time.Date(2026, 11, 3, 12, 0, 0, 0, time.UTC)

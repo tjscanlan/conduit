@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/your-org/agent-observability/internal/storage"
+	"github.com/tjscanlan/conduit/internal/storage"
 )
 
 func TestRetentionConfig(t *testing.T) {

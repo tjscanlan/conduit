@@ -1,6 +1,6 @@
 # Python SDK
 
-`sdk/python` (the `conduit-sdk` distribution, imported as `conduit_sdk`)
+`sdk/python` (the `conduit-observability` distribution, imported as `conduit_observability`)
 sends spans from a Python agent to the Conduit gateway over mTLS and gRPC.
 It requires Python 3.10 or newer.
 
@@ -16,16 +16,16 @@ span as `agent_name`. See [sdk-go.md](sdk-go.md#1-get-an-agent-certificate).
 
 ## 2. Install
 
-The SDK isn't on PyPI yet. Install it from a checkout:
-
 ```bash
-pip install -e path/to/conduit/sdk/python
+pip install conduit-observability
 ```
+
+Import it as `conduit_observability`.
 
 ## 3. Instrument
 
 ```python
-from conduit_sdk import Client, LLMCall
+from conduit_observability import Client, LLMCall
 
 client = Client(
     "localhost:4317",                 # host must match a SAN on the gateway cert
@@ -74,7 +74,7 @@ asyncio task, and a single `Client` can be shared by the whole process.
 - **`span.end()`** raises `ConduitError` when a span isn't accepted, for
   example if the gateway is unreachable, the agent is over its rate limit,
   or validation fails.
-- **`with client.span(...)`** logs delivery failures to the `conduit_sdk`
+- **`with client.span(...)`** logs delivery failures to the `conduit_observability`
   logger by default, so instrumentation can never crash your agent. Pass
   `raise_errors=True` to get `ConduitError` instead. Even then, an exception
   raised by your own code inside the block always wins and is never masked.
@@ -101,5 +101,5 @@ uv venv && uv pip install -e '.[dev]'    # or python -m venv / pip
 
 The tests run against an in-process gRPC server that requires client
 certificates, using certificates generated on the fly. The generated stubs
-in `src/conduit_sdk/_proto` are committed. After editing `proto/*.proto`,
+in `src/conduit_observability/_proto` are committed. After editing `proto/*.proto`,
 regenerate them with `make proto`, which also regenerates the Go code.

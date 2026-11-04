@@ -8,8 +8,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/your-org/agent-observability/internal/storage"
-	conduitui "github.com/your-org/agent-observability/ui"
+	"github.com/tjscanlan/conduit/internal/storage"
+	conduitui "github.com/tjscanlan/conduit/ui"
 )
 
 const (

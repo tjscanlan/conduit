@@ -8,8 +8,8 @@ import (
 
 	"github.com/nats-io/nats.go"
 
-	"github.com/your-org/agent-observability/internal/schema"
-	"github.com/your-org/agent-observability/internal/storage"
+	"github.com/tjscanlan/conduit/internal/schema"
+	"github.com/tjscanlan/conduit/internal/storage"
 )
 
 const (

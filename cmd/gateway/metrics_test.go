@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/your-org/agent-observability/internal/auth"
-	"github.com/your-org/agent-observability/internal/telemetry"
-	pb "github.com/your-org/agent-observability/proto"
+	"github.com/tjscanlan/conduit/internal/auth"
+	"github.com/tjscanlan/conduit/internal/telemetry"
+	pb "github.com/tjscanlan/conduit/proto"
 )
 
 func TestIngestBatchMetrics(t *testing.T) {

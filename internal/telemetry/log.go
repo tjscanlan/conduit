@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/your-org/agent-observability/internal/schema"
+	"github.com/tjscanlan/conduit/internal/schema"
 )
 
 // LogInput is a log record as published to NATS by the gateway.

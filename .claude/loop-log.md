@@ -2,6 +2,33 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — Release PR opened
+- PR #11 merged. Opened https://github.com/tjscanlan/conduit/pull/12; no new work until it merges.
+- The user added the PyPI trusted publisher, so 0.1.0 goes to PyPI through `release.yml` rather than a manual twine upload, with no tokens and no TestPyPI dry run. `~/.pypirc` holds placeholders only.
+- **User authorized pushing the tags** (overriding "the loop never pushes tags" for this release): after the merge, tag the merge commit `v0.1.0` and `sdk/go/v0.1.0` and push atomically.
+- Blockers / needs human: merge the PR.
+
+## 2026-11-04 — Release tooling: module paths, release.yml, CHANGELOG, release docs
+- User: "do what needs to be done". `~/.pypirc` was still missing (checked twice), so the uploads stayed blocked and I did the independent release work.
+- Did:
+  - **Module paths:** `github.com/tjscanlan/conduit` and `github.com/tjscanlan/conduit/sdk/go`; regenerated proto code. The SDK requires the root at v0.1.0; the `replace` stays for in-repo development and consumers ignore it. Removed the "Publishing the SDKs" open decision from the roadmap.
+  - **`.github/workflows/release.yml`** (tag `v*`): verify, multi-arch GHCR images with SBOM, provenance and keyless cosign, PyPI via trusted publishing with `skip-existing` (0.1.0 is uploaded by hand first), consumer-style Go module check, GitHub Release from the CHANGELOG. All actions pinned by SHA. New `docker/setup-qemu-action` for arm64.
+  - **`scripts/release-check.sh`** checks that the tag, Python version, SDK require, k8s image tags and CHANGELOG agree; CI runs it. `CHANGELOG.md`; `docs/releasing.md` (versioning policy, verifying, upgrading, cutting a release). K8s manifests pin `:v0.1.0` instead of `:latest`.
+  - **Rejected:** `FROM --platform=$BUILDPLATFORM` to avoid QEMU. The legacy Docker builder, which is what this machine has (no buildx), fails on it, which would break local builds. QEMU is slower but only affects the release job.
+- Verified: go build, vet, test -race in both modules; python 10/10; release-check happy path and failures (mismatch exit 1, bad tag exit 2); workflow YAML parses; plain `docker build` works locally. **Not verified:** actionlint (running it was denied as external code), buildx multi-arch, signing, PyPI publishing, and Go consumer resolution, all of which only run on a real tag.
+- **`sdk/python/dist` was rebuilt** after the go_package change, so the earlier hashes are obsolete. Upload the rebuilt files.
+- Next: TestPyPI then PyPI upload once `~/.pypirc` exists; open the release PR after #11 merges.
+- Blockers / needs human: (1) create `~/.pypirc`; (2) add the trusted publisher on PyPI (see docs/releasing.md); (3) merge #11, then the release PR; (4) push the tags.
+
+## 2026-11-04 — Cycle 12 (`loop/release-v0-1`, stacked on PR #11 by user request): Python SDK packaged for PyPI
+- User: "I have my PyPI account set up. Use [packaging.python.org's packaging tutorial] to publish the Python SDK, then continue with this loop." PR #11 was still open, so I started the release branch **stacked on `loop/agent-readable-docs`** (it avoids conflicts in the regenerated stubs). Its PR goes to main after #11 merges.
+- Did:
+  - **Renamed** the dist `conduit-sdk` (taken on PyPI) to `conduit-observability`, and the import `conduit_sdk` to `conduit_observability` (git mv; all references in code, tests, codegen script, CI, docs, AGENTS.md, smoke). `conduit-sdk-go` was deliberately left alone; it's renamed later in this cycle.
+  - pyproject per the guide: version **0.1.0**, SPDX `license = "Apache-2.0"` plus `license-files` (hatchling ≥1.27), classifiers (3.10–3.14, Alpha), keywords, project URLs (docs site, repo, issues), author name only (no email). LICENSE copied into sdk/python. A PyPI-ready README with absolute links.
+  - **sdist bug caught by inspection:** unanchored `include` patterns (`LICENSE`, `tests/`) matched about 25 files inside `.venv-build/`. They're now anchored (`/src`, `/LICENSE`, …) and `.venv*` is excluded. Verified 0 venv files in the sdist.
+- Verified: `python -m build` produced the sdist and a py3-none-any wheel; `twine check --strict` passed both; the wheel contains only the package, stubs, and license; the METADATA is complete. **Installed the built wheel in clean venvs on Python 3.10 and 3.14 and ran the suite against the installed package: 10/10 on each.** `make proto` regenerates byte-identical stubs at the new path.
+- Next: upload to TestPyPI and verify an install, then PyPI (needs the user's token in `~/.pypirc`, never in chat). Then the rest of the release cycle: Go module paths, release.yml (GHCR multi-arch signed images, SBOM, provenance, PyPI trusted publishing for future releases), CHANGELOG, versioning policy, release docs.
+
 ## 2026-11-04 — **User directive for the NEXT cycle:** release v0.1.0 (`loop/release-v0-1`)
 - The user asked: make the cycle right after the agent-docs PR merges a dedicated release cycle, and don't wait for more features (prompt access control, batched SDK delivery, OTel, and Helm go to v0.2+).
 - **SDK publishing decision (user): publish both**, a tagged Go module and PyPI.

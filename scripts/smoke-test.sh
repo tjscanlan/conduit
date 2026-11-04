@@ -98,7 +98,7 @@ if [[ "${SMOKE_SKIP_PYTHON:-}" == 1 ]]; then
   echo "skip Python SDK (SMOKE_SKIP_PYTHON=1)"
 else
   PY="${SMOKE_PYTHON:-python3}"
-  "$PY" -c 'import conduit_sdk' 2>/dev/null || fail "conduit_sdk not importable with $PY (pip install -e sdk/python, set SMOKE_PYTHON, or SMOKE_SKIP_PYTHON=1)"
+  "$PY" -c 'import conduit_observability' 2>/dev/null || fail "conduit_observability not importable with $PY (pip install -e sdk/python, set SMOKE_PYTHON, or SMOKE_SKIP_PYTHON=1)"
   PYTRACE=$("$PY" "$ROOT/sdk/python/examples/smoke_agent.py" \
     --cert "$ROOT/certs/agent-example.crt" --key "$ROOT/certs/agent-example.key" --ca "$ROOT/certs/ca.crt")
   [[ "$PYTRACE" =~ ^[0-9a-f]{32}$ ]] || fail "unexpected Python trace id: $PYTRACE"

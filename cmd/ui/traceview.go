@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/your-org/agent-observability/internal/storage"
+	"github.com/tjscanlan/conduit/internal/storage"
 )
 
 // maxTraceSpans bounds how many spans of one trace the detail page loads, so a

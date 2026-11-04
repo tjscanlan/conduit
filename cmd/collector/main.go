@@ -8,9 +8,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/your-org/agent-observability/internal/health"
-	"github.com/your-org/agent-observability/internal/storage"
-	"github.com/your-org/agent-observability/internal/telemetry"
+	"github.com/tjscanlan/conduit/internal/health"
+	"github.com/tjscanlan/conduit/internal/storage"
+	"github.com/tjscanlan/conduit/internal/telemetry"
 )
 
 func main() {

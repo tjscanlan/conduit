@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/your-org/agent-observability/internal/schema"
-	"github.com/your-org/agent-observability/internal/storage"
+	"github.com/tjscanlan/conduit/internal/schema"
+	"github.com/tjscanlan/conduit/internal/storage"
 )
 
 // Backends the exporter writes to; satisfied by the storage package clients.
