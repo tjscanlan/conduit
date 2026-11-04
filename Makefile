@@ -1,9 +1,10 @@
-.PHONY: build test lint proto roadmap api-docs certs docker quickstart quickstart-down clean
+.PHONY: build test lint proto roadmap api-docs certs docker quickstart quickstart-down conduitctl clean
 
 build:
 	CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/gateway ./cmd/gateway
 	CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/collector ./cmd/collector
 	CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/ui ./cmd/ui
+	CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/conduitctl ./cmd/conduitctl
 
 test:
 	go test -race -cover ./...
@@ -35,6 +36,11 @@ quickstart:
 
 quickstart-down:
 	./deployments/quickstart/quickstart.sh down
+
+# The CLI (released as binaries). A dev build needs -images, e.g. from
+# scripts/build-quickstart-images.sh.
+conduitctl:
+	CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/conduitctl ./cmd/conduitctl
 
 clean:
 	rm -rf bin/

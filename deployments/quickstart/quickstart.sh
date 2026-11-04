@@ -28,11 +28,12 @@ fi
 say()  { printf '%s==>%s %s\n' "$B" "$X" "$*"; }
 die()  { printf '%serror:%s %s\n' "$R" "$X" "$*" >&2; exit 1; }
 
+# compose.local.yml builds conduit-init and demo-agent from this checkout.
 compose() {
   if [ "${CONDUIT_FROM_SOURCE:-0}" = 1 ]; then
-    docker compose --project-directory "$DIR" -f "$DIR/compose.yml" -f "$DIR/compose.source.yml" "$@"
+    docker compose --project-directory "$DIR" -f "$DIR/compose.yml" -f "$DIR/compose.local.yml" -f "$DIR/compose.source.yml" "$@"
   else
-    docker compose --project-directory "$DIR" -f "$DIR/compose.yml" "$@"
+    docker compose --project-directory "$DIR" -f "$DIR/compose.yml" -f "$DIR/compose.local.yml" "$@"
   fi
 }
 

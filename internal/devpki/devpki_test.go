@@ -1,4 +1,4 @@
-package main
+package devpki
 
 import (
 	"crypto/tls"
@@ -13,18 +13,9 @@ import (
 	"github.com/tjscanlan/conduit/internal/auth"
 )
 
-func quiet(t *testing.T) {
-	t.Helper()
-	old := os.Stdout
-	devnull, _ := os.Open(os.DevNull)
-	os.Stdout = devnull
-	t.Cleanup(func() { os.Stdout = old; devnull.Close() })
-}
-
 func TestInitIssuesAChainThatWorksForMTLS(t *testing.T) {
-	quiet(t)
 	dir := t.TempDir()
-	if err := run(dir, []string{"demo-agent", "my-agent"}, []string{"gateway", "localhost", "127.0.0.1"}, "admin"); err != nil {
+	if err := Init(dir, []string{"demo-agent", "my-agent"}, []string{"gateway", "localhost", "127.0.0.1"}, "admin", io.Discard); err != nil {
 		t.Fatal(err)
 	}
 	c := func(n string) string { return filepath.Join(dir, "certs", n) }
@@ -79,9 +70,8 @@ func TestInitIssuesAChainThatWorksForMTLS(t *testing.T) {
 }
 
 func TestInitUILoginIsUsableAndIdempotent(t *testing.T) {
-	quiet(t)
 	dir := t.TempDir()
-	if err := run(dir, []string{"demo-agent"}, []string{"gateway"}, "admin"); err != nil {
+	if err := Init(dir, []string{"demo-agent"}, []string{"gateway"}, "admin", io.Discard); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := auth.LoadUsersFile(filepath.Join(dir, "ui-users")); err != nil {
@@ -91,7 +81,7 @@ func TestInitUILoginIsUsableAndIdempotent(t *testing.T) {
 	beforeUsers, _ := os.ReadFile(filepath.Join(dir, "ui-users"))
 
 	// Second run: everything kept (restarts reuse credentials).
-	if err := run(dir, []string{"demo-agent"}, []string{"gateway"}, "admin"); err != nil {
+	if err := Init(dir, []string{"demo-agent"}, []string{"gateway"}, "admin", io.Discard); err != nil {
 		t.Fatal(err)
 	}
 	after, _ := os.ReadFile(filepath.Join(dir, "certs", "demo-agent.crt"))
@@ -101,7 +91,7 @@ func TestInitUILoginIsUsableAndIdempotent(t *testing.T) {
 	}
 
 	// Adding an agent later issues only that one.
-	if err := run(dir, []string{"demo-agent", "new-bot"}, []string{"gateway"}, "admin"); err != nil {
+	if err := Init(dir, []string{"demo-agent", "new-bot"}, []string{"gateway"}, "admin", io.Discard); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "certs", "new-bot.crt")); err != nil {
@@ -113,18 +103,16 @@ func TestInitUILoginIsUsableAndIdempotent(t *testing.T) {
 }
 
 func TestInitRejectsBadAgentNames(t *testing.T) {
-	quiet(t)
 	for _, bad := range []string{"../etc", "a b", strings.Repeat("x", 65)} {
-		if err := run(t.TempDir(), []string{bad}, []string{"gateway"}, "admin"); err == nil {
+		if err := Init(t.TempDir(), []string{bad}, []string{"gateway"}, "admin", io.Discard); err == nil {
 			t.Errorf("agent name %q accepted", bad)
 		}
 	}
 }
 
 func TestInitSecretsAreOwnerOnlyAndLoginMatches(t *testing.T) {
-	quiet(t)
 	dir := t.TempDir()
-	if err := run(dir, []string{"my-agent"}, []string{"gateway"}, "admin"); err != nil {
+	if err := Init(dir, []string{"my-agent"}, []string{"gateway"}, "admin", io.Discard); err != nil {
 		t.Fatal(err)
 	}
 	for _, f := range []string{"certs/ca.key", "certs/server.key", "certs/my-agent.key", "ui-login.txt"} {
@@ -147,5 +135,39 @@ func TestInitSecretsAreOwnerOnlyAndLoginMatches(t *testing.T) {
 	}
 	if !users.Authenticate(user, pass) || users.Authenticate(user, pass+"x") {
 		t.Error("ui-login.txt password must (only) match the ui-users hash")
+	}
+}
+
+func TestIssueAgentUsesTheQuickstartCA(t *testing.T) {
+	dir := t.TempDir()
+	if _, _, _, err := IssueAgent(dir, "bot"); err == nil {
+		t.Fatal("IssueAgent without a CA must fail")
+	}
+	if err := Init(dir, []string{"my-agent"}, []string{"gateway"}, "admin", io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	crt, key, created, err := IssueAgent(dir, "research-bot")
+	if err != nil || !created {
+		t.Fatalf("IssueAgent: created=%v err=%v", created, err)
+	}
+	pair, err := tls.LoadX509KeyPair(crt, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ca, _ := os.ReadFile(filepath.Join(dir, "certs", "ca.crt"))
+	pool := x509.NewCertPool()
+	pool.AppendCertsFromPEM(ca)
+	leaf, _ := x509.ParseCertificate(pair.Certificate[0])
+	if _, err := leaf.Verify(x509.VerifyOptions{Roots: pool, KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}}); err != nil {
+		t.Fatalf("issued cert doesn't chain to the quickstart CA for client auth: %v", err)
+	}
+	if leaf.Subject.CommonName != "research-bot" {
+		t.Errorf("CN = %q", leaf.Subject.CommonName)
+	}
+	if _, _, again, _ := IssueAgent(dir, "research-bot"); again {
+		t.Error("reissued an existing valid certificate")
+	}
+	if _, _, _, err := IssueAgent(dir, "../evil"); err == nil {
+		t.Error("accepted a path-like agent name")
 	}
 }

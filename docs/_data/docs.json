@@ -27,6 +27,12 @@
           "description": "Docker Compose and Kubernetes setup, health checks, upgrades, and the configuration reference (every environment variable)."
         },
         {
+          "file": "cli.md",
+          "url": "/cli.html",
+          "title": "conduitctl",
+          "description": "The conduitctl CLI: one-command local quickstart, agent certificates, and a doctor that diagnoses a stack that isn't working."
+        },
+        {
           "file": "security.md",
           "url": "/security.html",
           "title": "Security",

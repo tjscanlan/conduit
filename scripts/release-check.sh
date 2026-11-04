@@ -36,6 +36,12 @@ for image in $(grep -o 'ghcr.io/tjscanlan/conduit-[a-z]*:[^ ]*' "$root/deploymen
   [ "${image##*:}" = "$tag" ] || { echo "deployments/k8s/deployment.yaml uses $image, want :$tag"; fail=1; }
 done
 
+# conduitctl's embedded compose file defaults to the release's images.
+for image in $(grep -o 'ghcr.io/tjscanlan/conduit-[a-z-]*:\${CONDUIT_VERSION:-[^}]*}' "$root/deployments/quickstart/compose.yml"); do
+  want="\${CONDUIT_VERSION:-$tag}"
+  [ "${image#*:}" = "$want" ] || { echo "deployments/quickstart/compose.yml uses $image, want :$want"; fail=1; }
+done
+
 [ "$fail" -eq 0 ] || exit 1
 
 if [ "${2:-}" = "--notes" ]; then

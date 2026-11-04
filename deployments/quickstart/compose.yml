@@ -1,7 +1,9 @@
 # Conduit quickstart: the whole platform on one machine, from released images.
 #
-# Start it with `make quickstart` (or deployments/quickstart/quickstart.sh),
-# which writes the .env this file needs and prints your login. Local
+# Start it with `conduitctl quickstart`, or from a checkout with `make
+# quickstart` (deployments/quickstart/quickstart.sh). Both write the .env
+# this file needs and print your login. This file only pulls images;
+# compose.local.yml and compose.source.yml build them from a checkout. Local
 # development only: credentials are generated into ./.conduit, and only the
 # UI and gateway listen, on 127.0.0.1. For production see docs/deployment.md.
 name: conduit-quickstart
@@ -20,10 +22,7 @@ services:
   # Generates the dev CA, the gateway certificate, client certificates for
   # demo-agent and my-agent, and a UI login. Reruns keep existing files.
   conduit-init:
-    build:
-      context: ../..
-      dockerfile: deployments/quickstart/init.Dockerfile
-    image: conduit-quickstart-init:local
+    image: ghcr.io/tjscanlan/conduit-init:${CONDUIT_VERSION:-v0.1.0}
     command: ["-dir", "/conduit", "-agents", "demo-agent,my-agent"]
     # Run as the host user so you can use ./.conduit/certs from your own agents.
     user: "${CONDUIT_UID:-0}:${CONDUIT_GID:-0}"
@@ -61,7 +60,7 @@ services:
     image: grafana/tempo:2.4.1
     command: ["-config.file=/etc/tempo.yaml"]
     volumes:
-      - ../docker/tempo.yaml:/etc/tempo.yaml:ro
+      - ./tempo.yaml:/etc/tempo.yaml:ro
       - tempo_data:/var/tempo
     restart: unless-stopped
 
@@ -134,10 +133,7 @@ services:
   # right away. Disable with CONDUIT_DEMO_AGENT=0 in quickstart.sh, or
   # `docker compose stop demo-agent`.
   demo-agent:
-    build:
-      context: ../..
-      dockerfile: deployments/quickstart/demo-agent.Dockerfile
-    image: conduit-quickstart-demo-agent:local
+    image: ghcr.io/tjscanlan/conduit-demo-agent:${CONDUIT_VERSION:-v0.1.0}
     environment:
       CONDUIT_GATEWAY_ADDR: gateway:4317
       CONDUIT_CERT_DIR: /conduit/certs

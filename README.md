@@ -62,6 +62,10 @@ the release after v0.1.0; until then, use `CONDUIT_FROM_SOURCE=1`.) The banner a
 to send a trace from your own code as `my-agent`; CI checks that a cold start
 reaches the first trace in under five minutes.
 
+Releases after v0.1.0 also ship [`conduitctl`](docs/cli.md), the same
+quickstart as a single binary with no checkout needed: `conduitctl
+quickstart`, plus `agent-cert` and `doctor`.
+
 `quickstart.sh status` shows the login again, `down` stops the stack (keeping
 data), and `reset` deletes everything. Next, run one of the
 [examples](docs/examples.md) (hello-trace, tool calling, asyncio, Claude,

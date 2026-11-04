@@ -51,7 +51,7 @@ released images with nothing but Docker:
 - **Demo data:** a simulated `demo-agent` (no model calls; every span has
   `demo=true`) sends a run every 8 seconds. Start without it using
   `CONDUIT_DEMO_AGENT=0`, or stop it with
-  `docker compose -f deployments/quickstart/compose.yml stop demo-agent`.
+  `docker compose -p conduit-quickstart stop demo-agent`.
 - **Version:** images default to `v0.1.0`; set `CONDUIT_VERSION` to pick
   another release.
 
