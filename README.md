@@ -46,29 +46,25 @@ The gateway accepts spans only from agents holding a certificate signed by your 
 
 ## Quick start
 
-You need Docker with Compose, plus Go 1.26 or newer for the helper commands.
+You need Docker (Compose v2, 2 GiB of memory). One command runs the whole
+platform from the signed release images:
 
 ```bash
-# 1. Certificates: a dev CA, the gateway's server cert, and an example agent cert
-./scripts/gen-certs.sh
-
-# 2. A UI login
-printf '%s' 'choose-a-long-password' | go run ./cmd/ui hash-password \
-  | sed 's/^/admin:/' > deployments/docker/ui-users
-
-# 3. Start the stack
-export CLICKHOUSE_PASSWORD=$(openssl rand -hex 16)
-docker compose -f deployments/docker/docker-compose.yml up --build --wait
+git clone https://github.com/tjscanlan/conduit && cd conduit
+make quickstart          # or: ./deployments/quickstart/quickstart.sh
 ```
 
-Open <http://localhost:8080> and sign in as `admin`. To send your first trace:
+It generates a dev CA, agent certificates, and a UI login, waits until
+everything is healthy, and prints your login. Open <http://localhost:8080>:
+a simulated `demo-agent` is already sending traces. The banner also shows how
+to send a trace from your own code as `my-agent`; CI checks that a cold start
+reaches the first trace in under five minutes.
 
-```bash
-cd sdk/go && go run ./examples/smoke-agent \
-  -cert ../../certs/agent-example.crt -key ../../certs/agent-example.key -ca ../../certs/ca.crt
-```
-
-To instrument your own agent, see the [Go SDK](docs/sdk-go.md) and [Python SDK](docs/sdk-python.md) guides.
+`quickstart.sh status` shows the login again, `down` stops the stack (keeping
+data), and `reset` deletes everything. To instrument your own agent, see the
+[Go SDK](docs/sdk-go.md) and [Python SDK](docs/sdk-python.md) guides. To work
+on Conduit itself (building images from source), see
+[Deployment](docs/deployment.md#local-docker-compose-from-source).
 
 ## Documentation
 

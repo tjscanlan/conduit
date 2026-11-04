@@ -156,3 +156,25 @@ jobs:
       - name: tear down
         if: always()
         run: docker compose down -v
+
+  quickstart:
+    name: time to first trace (quickstart)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Go is only for the "send your own trace" step; the quickstart itself needs just Docker.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: cold quickstart within the 5-minute budget
+        run: ./scripts/quickstart-check.sh
+      - name: logs on failure
+        if: failure()
+        run: docker compose -f deployments/quickstart/compose.yml logs --no-color --tail 200
+      - name: tear down
+        if: always()
+        run: ./deployments/quickstart/quickstart.sh reset

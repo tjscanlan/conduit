@@ -1,4 +1,4 @@
-.PHONY: build test lint proto roadmap api-docs certs docker clean
+.PHONY: build test lint proto roadmap api-docs certs docker quickstart quickstart-down clean
 
 build:
 	CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/gateway ./cmd/gateway
@@ -28,6 +28,13 @@ certs:
 
 docker:
 	docker compose -f deployments/docker/docker-compose.yml up --build
+
+# Run the whole platform locally from released images (needs only Docker).
+quickstart:
+	./deployments/quickstart/quickstart.sh
+
+quickstart-down:
+	./deployments/quickstart/quickstart.sh down
 
 clean:
 	rm -rf bin/

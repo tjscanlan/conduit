@@ -2,6 +2,32 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — Activation cycle 1: one-command quickstart (`loop/one-command-quickstart`)
+- **`cmd/conduit-init`:** stdlib + x/crypto/bcrypt. Issues an ECDSA P-256 dev CA, a gateway cert (SANs gateway, localhost, 127.0.0.1), and client certs for demo-agent and my-agent. Also writes a random bcrypt UI login (ui-users, plus an owner-only ui-login.txt so the banner can reprint it). Idempotent: keeps valid files, reissues leaves if the CA is new, issues only newly added agents. Keys are 0600; runs as the host UID so `my-agent.key` is usable from the host. Tests: a real TLS 1.3 mTLS handshake with the generated files (both SANs); the UI's own LoadUsersFile/Authenticate; idempotency; perms; agent-name validation.
+- **`deployments/quickstart/`:**
+  - compose.yml pulls `ghcr.io/tjscanlan/conduit-*:v0.1.0` (`CONDUIT_VERSION`) and builds only init and demo-agent, from small Dockerfiles with no BuildKit-only features. Colima without buildx uses the classic builder, which rejected `RUN --mount`; caught locally.
+  - Only UI and gateway are exposed, on 127.0.0.1, with overridable ports.
+  - ClickHouse runs a low-memory profile with system logs off (~375 MiB idle); 7-day retention.
+  - quickstart.sh (POSIX sh) does preflight, writes a 0600 .env of random secrets, then `up --wait`, waits for the first demo-agent span, and prints the banner. It also has `status`, `down` and `reset`. `make quickstart` / `make quickstart-down`.
+- **`sdk/go/examples/demo-agent`:** simulated plan → tools → answer runs every 8s, with LLM tokens/cost, a ~1-in-12 tool failure after a logged retry, and gauge + counter. Every span has demo=true.
+- **CI:** `quickstart` job runs scripts/quickstart-check.sh. It does a cold quickstart within a 300s budget (written to the step summary), a UI login with the generated credentials, demo-agent on /traces, then a my-agent trace sent with the generated certs, visible at /traces/{id}.
+- **Verified locally** (Colima 2 CPU/2 GiB, alongside the user's untouched conduit-demo stack): healthy plus first trace in 38s (images cached, builds cold), 12s after `reset`, and 1–2s on rerun. The check script passes. Stack stopped afterward.
+- **Docs:** README quick start is now `make quickstart`; docs/deployment.md has a "Local: quickstart" section; AGENTS.md mentions the check.
+- **Follow-ups:**
+  - Publish conduit-init and demo-agent images in release.yml (cycle 5, with conduitctl), so the quickstart builds nothing.
+  - The banner's SDK snippet gets simpler once cycle 3 adds from_env / CONDUIT_CERT_DIR.
+
+## 2026-11-04 — **Activation program (user-approved plan):** first trace in under 5 minutes
+- Goal: from a clean machine with only Docker, a first trace is visible in the UI in under 5 minutes, measured in CI. Remove deployment and instrumentation friction.
+- Baseline friction: clone; gen-certs (OpenSSL); UI password (needs Go); export CLICKHOUSE_PASSWORD; `compose up --build` builds 3 images from source (slow, OOMs a 2 GiB VM); wire 3 cert paths into SDK code. About 6 steps and 3 prerequisites.
+- **User decisions:** quickstart via compose + init container **and** a `conduitctl` CLI (cycle 5); a **demo agent on by default** in the quickstart (labeled `demo-agent`, stoppable in one command, never in production manifests); examples with **simulated responses plus Claude and OpenAI** (key-gated; provider SDKs are optional extras); the walkthrough gives agent certs via a **CLI command only** (the UI never serves keys).
+- **Cycles (each ends in a PR; stop after each):**
+  1. `loop/one-command-quickstart`: deployments/quickstart compose pulling the signed GHCR v0.1.0 images; a `conduit-init` container generating CA, gateway, agent and UI credentials into a volume; `make quickstart`; ClickHouse tuned for 2 GiB; the demo agent; a printed next-steps banner; a CI time-to-first-trace job with a budget.
+  2. `loop/agent-examples`: examples/ in Go and Python (hello-trace, tool-calling, async; Claude and OpenAI agents gated on API keys); CI runs the simulated modes.
+  3. `loop/sdk-quickstart`: from_env/NewFromEnv with CONDUIT_CERT_DIR; Python `@traced` and module-level configure/span; Anthropic and OpenAI usage helpers as optional extras; actionable first-run error diagnostics; SDK docs rewritten around a 2-minute path.
+  4. `loop/onboarding-walkthrough`: an in-UI "Get started" page (status checklist, snippets, live "waiting for your first trace", celebration link, next steps), shown only while there's no data and dismissible.
+  5. `loop/conduitctl`: a release-shipped CLI (`quickstart`, `doctor`, `agent-cert`) wrapping the compose flow.
+
 ## 2026-11-04 — Release PR opened
 - PR #11 merged. Opened https://github.com/tjscanlan/conduit/pull/12; no new work until it merges.
 - The user added the PyPI trusted publisher, so 0.1.0 goes to PyPI through `release.yml` rather than a manual twine upload, with no tokens and no TestPyPI dry run. `~/.pypirc` holds placeholders only.

@@ -1,0 +1,22 @@
+<!-- Quickstart tuning: keep ClickHouse comfortable in a 2 GiB Docker VM.
+     Smaller caches, and no system log tables (their background flushes
+     are most of an idle server's memory and disk churn). -->
+<clickhouse>
+    <logger><level>warning</level></logger>
+    <max_server_memory_usage_to_ram_ratio>0.5</max_server_memory_usage_to_ram_ratio>
+    <mark_cache_size>134217728</mark_cache_size>
+    <index_mark_cache_size>33554432</index_mark_cache_size>
+    <uncompressed_cache_size>16777216</uncompressed_cache_size>
+    <mmap_cache_size>256</mmap_cache_size>
+    <asynchronous_metric_log remove="1"/>
+    <metric_log remove="1"/>
+    <part_log remove="1"/>
+    <query_log remove="1"/>
+    <query_thread_log remove="1"/>
+    <query_views_log remove="1"/>
+    <session_log remove="1"/>
+    <text_log remove="1"/>
+    <trace_log remove="1"/>
+    <opentelemetry_span_log remove="1"/>
+    <processors_profile_log remove="1"/>
+</clickhouse>

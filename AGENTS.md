@@ -30,6 +30,8 @@ python3 scripts/build-agent-docs.py --check              # docs manifest is comp
 
 End-to-end check (needs Docker): start the stack as in [docs/deployment.md](docs/deployment.md), then run `scripts/smoke-test.sh`. CI runs it on every push.
 
+Quickstart check (needs Docker): `scripts/quickstart-check.sh` runs `make quickstart` (released images plus the `conduit-init` and `demo-agent` builds in `deployments/quickstart/`) and fails if the first trace isn't in the UI within 300 seconds. Stop it with `deployments/quickstart/quickstart.sh reset`.
+
 ## Invariants: never break these
 
 - **Agent identity comes only from the mTLS certificate.** The gateway sets `agent_name` (spans and logs) and the `agent` metric label from the certificate's CommonName and overwrites any client-supplied value. Never trust an identity from the payload.
