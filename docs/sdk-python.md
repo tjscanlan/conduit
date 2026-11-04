@@ -16,11 +16,11 @@ span as `agent_name`. See [sdk-go.md](sdk-go.md#1-get-an-agent-certificate).
 
 ## 2. Install
 
-The SDK isn't on PyPI yet. Install it from a checkout:
-
 ```bash
-pip install -e path/to/conduit/sdk/python
+pip install conduit-observability
 ```
+
+Import it as `conduit_observability`.
 
 ## 3. Instrument
 

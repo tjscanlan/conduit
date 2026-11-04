@@ -2,6 +2,18 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — Release tooling: module paths, release.yml, CHANGELOG, release docs
+- User: "do what needs to be done". `~/.pypirc` was still missing (checked twice), so the uploads stayed blocked and I did the independent release work.
+- Did:
+  - **Module paths:** `github.com/tjscanlan/conduit` and `github.com/tjscanlan/conduit/sdk/go`; regenerated proto code. The SDK requires the root at v0.1.0; the `replace` stays for in-repo development and consumers ignore it. Removed the "Publishing the SDKs" open decision from the roadmap.
+  - **`.github/workflows/release.yml`** (tag `v*`): verify, multi-arch GHCR images with SBOM, provenance and keyless cosign, PyPI via trusted publishing with `skip-existing` (0.1.0 is uploaded by hand first), consumer-style Go module check, GitHub Release from the CHANGELOG. All actions pinned by SHA. New `docker/setup-qemu-action` for arm64.
+  - **`scripts/release-check.sh`** checks that the tag, Python version, SDK require, k8s image tags and CHANGELOG agree; CI runs it. `CHANGELOG.md`; `docs/releasing.md` (versioning policy, verifying, upgrading, cutting a release). K8s manifests pin `:v0.1.0` instead of `:latest`.
+  - **Rejected:** `FROM --platform=$BUILDPLATFORM` to avoid QEMU. The legacy Docker builder, which is what this machine has (no buildx), fails on it, which would break local builds. QEMU is slower but only affects the release job.
+- Verified: go build, vet, test -race in both modules; python 10/10; release-check happy path and failures (mismatch exit 1, bad tag exit 2); workflow YAML parses; plain `docker build` works locally. **Not verified:** actionlint (running it was denied as external code), buildx multi-arch, signing, PyPI publishing, and Go consumer resolution, all of which only run on a real tag.
+- **`sdk/python/dist` was rebuilt** after the go_package change, so the earlier hashes are obsolete. Upload the rebuilt files.
+- Next: TestPyPI then PyPI upload once `~/.pypirc` exists; open the release PR after #11 merges.
+- Blockers / needs human: (1) create `~/.pypirc`; (2) add the trusted publisher on PyPI (see docs/releasing.md); (3) merge #11, then the release PR; (4) push the tags.
+
 ## 2026-11-04 — Cycle 12 (`loop/release-v0-1`, stacked on PR #11 by user request): Python SDK packaged for PyPI
 - User: "I have my PyPI account set up. Use [packaging.python.org's packaging tutorial] to publish the Python SDK, then continue with this loop." PR #11 was still open, so I started the release branch **stacked on `loop/agent-readable-docs`** (it avoids conflicts in the regenerated stubs). Its PR goes to main after #11 merges.
 - Did:

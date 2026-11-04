@@ -63,4 +63,5 @@ End-to-end check (needs Docker): start the stack as in [docs/deployment.md](docs
 | UI handlers and templates | `cmd/ui/`, `ui/templates/`, `ui/static/` |
 | Auth (mTLS, UI login, GCP IAP) | `internal/auth/`, `cmd/ui/auth.go` |
 | Environment variables | [docs/deployment.md](docs/deployment.md), section "Configuration reference" |
+| Releases, versioning policy | [docs/releasing.md](docs/releasing.md), `.github/workflows/release.yml`, `CHANGELOG.md` |
 | Automated work loop | `.claude/loop.md` (process), `.claude/loop-log.md` (history) |

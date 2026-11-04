@@ -72,6 +72,12 @@
           "description": "What has shipped, what is Now / Next / Later, and open decisions awaiting a maintainer."
         },
         {
+          "file": "releasing.md",
+          "url": "/releasing.html",
+          "title": "Releasing",
+          "description": "Versioning policy, verifying signed images (cosign, SBOM, provenance), upgrading, and how to cut a release."
+        },
+        {
           "file": "contributing.md",
           "url": "/contributing.html",
           "title": "Contributing",

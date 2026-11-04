@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: gateway
-          image: ghcr.io/tjscanlan/conduit-gateway:latest
+          image: ghcr.io/tjscanlan/conduit-gateway:v0.1.0
           ports:
             - containerPort: 4317
             - { name: health, containerPort: 8081 }
@@ -57,7 +57,7 @@ spec:
     spec:
       containers:
         - name: collector
-          image: ghcr.io/tjscanlan/conduit-collector:latest
+          image: ghcr.io/tjscanlan/conduit-collector:v0.1.0
           ports:
             - { name: health, containerPort: 8081 }
           readinessProbe:
@@ -91,7 +91,7 @@ spec:
     spec:
       containers:
         - name: ui
-          image: ghcr.io/tjscanlan/conduit-ui:latest
+          image: ghcr.io/tjscanlan/conduit-ui:v0.1.0
           ports:
             - containerPort: 8080
           envFrom:
