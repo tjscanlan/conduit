@@ -48,6 +48,12 @@ for svc in gateway collector ui; do
 done
 pass "gateway, collector, and ui report ready (healthcheck subcommand -> /readyz)"
 
+echo "==> Schema migrations"
+versions=$(ch "SELECT arrayStringConcat(groupArray(toString(version)), ',') FROM (SELECT version FROM schema_migrations FINAL ORDER BY version)")
+expected=$(ls "$ROOT"/internal/storage/migrations/*.sql | wc -l | tr -d ' ')
+[[ "$versions" == "$(seq 1 "$expected" | paste -sd, -)" ]] || fail "schema_migrations = '$versions', want versions 1..$expected"
+pass "schema_migrations has versions $versions"
+
 echo "==> Retention"
 want_days="${SPAN_RETENTION_DAYS:-90}"
 ttl_ok() { ch "SELECT engine_full FROM system.tables WHERE database = currentDatabase() AND name = 'spans'" | grep -q "toIntervalDay($want_days)"; }

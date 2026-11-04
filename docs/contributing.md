@@ -67,6 +67,17 @@ and commit the regenerated files in the same commit. Both generators pin
 their tool versions, and CI fails if the committed code differs from what
 they produce.
 
+## Schema changes
+
+Add a new file to `internal/storage/migrations/` named
+`NNNN_description.sql`, using the next number.
+- **One statement per file,** and it must be idempotent: `CREATE … IF NOT
+  EXISTS`, `ALTER TABLE … ADD COLUMN IF NOT EXISTS`, and so on.
+  `TestMigrationsAreIdempotent` enforces this.
+- **Never edit or renumber a migration that has shipped.** Applied
+  migrations are checksummed, and the collector refuses to start if one
+  changes.
+
 ## Conventions
 
 - **Go:** use the standard library where you can. A new module needs a

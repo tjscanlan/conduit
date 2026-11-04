@@ -39,6 +39,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Read-only: the collector owns the schema (migrations and retention).
 	ch, err := storage.NewClickHouseStore(cfg.ClickHouseDSN, storage.StoreOptions{})
 	if err != nil {
 		logger.Error("clickhouse connect", "err", err)

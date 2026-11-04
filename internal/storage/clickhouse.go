@@ -12,61 +12,6 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 )
 
-// DDL for the spans table — run once on startup or via migration
-const createSpansTable = `
-CREATE TABLE IF NOT EXISTS spans (
-    trace_id        String,
-    span_id         String,
-    parent_id       String,
-    agent_name      String,        -- from mTLS CommonName
-    span_name       String,
-    start_time      DateTime64(9, 'UTC'),
-    end_time        DateTime64(9, 'UTC'),
-    duration_ms     UInt64,
-    status          Enum8('ok'=0, 'error'=1, 'unset'=2),
-    attributes      Map(String, String),
-    -- LLM-specific fields (nullable — not all spans are LLM calls)
-    llm_model       Nullable(String),
-    llm_prompt      Nullable(String),
-    llm_completion  Nullable(String),
-    llm_input_tokens  Nullable(UInt32),
-    llm_output_tokens Nullable(UInt32),
-    llm_cost_usd    Nullable(Float64),
-    -- Metadata
-    ingested_at     DateTime DEFAULT now()
-) ENGINE = MergeTree()
-PARTITION BY toYYYYMMDD(start_time)
-ORDER BY (agent_name, trace_id, start_time)
-TTL toDateTime(start_time) + INTERVAL %d DAY;
-`
-
-// createTracesView keeps per-trace rollups. Columns are SimpleAggregateFunction
-// (via -SimpleState) so AggregatingMergeTree merges rows from separate inserts
-// correctly; plain min/max/sum columns would keep an arbitrary row on merge.
-// Query with the matching aggregate and GROUP BY, since unmerged parts may
-// coexist, and compute duration there:
-//
-//	SELECT trace_id, min(started_at), max(ended_at),
-//	       dateDiff('millisecond', min(started_at), max(ended_at)) AS duration_ms,
-//	       sum(span_count), sum(error_count), sum(total_cost_usd)
-//	FROM trace_summary GROUP BY trace_id
-const createTracesView = `
-CREATE MATERIALIZED VIEW IF NOT EXISTS trace_summary
-ENGINE = AggregatingMergeTree()
-ORDER BY (trace_id)
-AS SELECT
-    trace_id,
-    minSimpleState(start_time)                              AS started_at,
-    maxSimpleState(end_time)                                AS ended_at,
-    sumSimpleState(toUInt64(1))                             AS span_count,
-    sumSimpleState(toUInt64(status = 'error'))              AS error_count,
-    sumSimpleState(toUInt64(ifNull(llm_input_tokens, 0)))   AS total_input_tokens,
-    sumSimpleState(toUInt64(ifNull(llm_output_tokens, 0)))  AS total_output_tokens,
-    sumSimpleState(ifNull(llm_cost_usd, 0))                 AS total_cost_usd
-FROM spans
-GROUP BY trace_id;
-`
-
 type ClickHouseStore struct {
 	conn driver.Conn
 }
@@ -86,9 +31,10 @@ const (
 type StoreOptions struct {
 	// RetentionDays is the spans TTL (1..MaxRetentionDays; 0 means the default).
 	RetentionDays int
-	// ManageRetention makes this process reconcile an existing table's TTL to
-	// RetentionDays. Exactly one service (the collector) should set it.
-	ManageRetention bool
+	// ManageSchema makes this process apply schema migrations and then
+	// reconcile the spans TTL to RetentionDays. Exactly one service (the
+	// collector) should set it; others only read.
+	ManageSchema bool
 }
 
 func NewClickHouseStore(dsn string, so StoreOptions) (*ClickHouseStore, error) {
@@ -108,15 +54,12 @@ func NewClickHouseStore(dsn string, so StoreOptions) (*ClickHouseStore, error) {
 		return nil, err
 	}
 
-	ctx := context.Background()
-	if err := conn.Exec(ctx, spansTableDDL(days)); err != nil {
-		return nil, err
-	}
-	if err := conn.Exec(ctx, createTracesView); err != nil {
-		return nil, err
-	}
 	s := &ClickHouseStore{conn: conn}
-	if so.ManageRetention {
+	if so.ManageSchema {
+		ctx := context.Background()
+		if _, err := s.Migrate(ctx); err != nil {
+			return nil, fmt.Errorf("migrate: %w", err)
+		}
 		if err := s.reconcileRetention(ctx, days); err != nil {
 			return nil, fmt.Errorf("reconcile retention: %w", err)
 		}
@@ -128,10 +71,6 @@ func NewClickHouseStore(dsn string, so StoreOptions) (*ClickHouseStore, error) {
 // previously forced off, silently downgrading "secure" DSNs to plaintext.
 func clickhouseOptions(dsn string) (*clickhouse.Options, error) {
 	return clickhouse.ParseDSN(dsn)
-}
-
-func spansTableDDL(days int) string {
-	return fmt.Sprintf(createSpansTable, days) // days is a validated int, never user text
 }
 
 var ttlDaysRe = regexp.MustCompile(`TTL toDateTime\(start_time\) \+ toIntervalDay\((\d+)\)`)

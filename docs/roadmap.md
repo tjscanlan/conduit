@@ -36,6 +36,7 @@ This roadmap is ordered by priority, not by date. Items move as we learn. To sug
 **Data governance**
 - `STORE_LLM_PAYLOADS=false` drops prompts and completions at the gateway
 - `SPAN_RETENTION_DAYS`, with the TTL reconciled on existing tables
+- Versioned, checksummed ClickHouse schema migrations (`collector migrate`)
 
 **Operations**
 - `/livez` and `/readyz` on every service, and a `healthcheck` subcommand for scratch images
@@ -50,7 +51,6 @@ This roadmap is ordered by priority, not by date. Items move as we learn. To sug
 | Item | Area | Why |
 |------|------|-----|
 | **Prompt and completion access control** | UI | Payloads are stored but never shown. Showing them needs a decision on who may see them (see [open decisions](#open-decisions)). |
-| **Schema migrations** | Storage | Today `CREATE TABLE IF NOT EXISTS` runs at startup. Versioned migrations are needed before the schema changes again. |
 | **Metrics and logs ingestion** | Pipeline | `IngestBatch` accepts metrics and logs in the API but rejects them, because there's no pipeline yet. |
 
 ## Next: scale and integration

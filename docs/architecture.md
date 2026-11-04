@@ -91,6 +91,23 @@ what to do.
 
 ## Storage schema
 
+### Schema management
+
+The schema is defined by numbered migrations in
+`internal/storage/migrations/`, which are embedded in the binaries.
+- **Who applies them:** the collector, at startup, before it reconciles
+  retention. `collector migrate` does the same and exits, for running as a
+  Job before a rollout. The UI never changes the schema.
+- **Bookkeeping:** applied versions are recorded in `schema_migrations` with
+  a SHA-256 checksum. If a migration is edited after it was applied, or the
+  database has a version the binary doesn't know, the collector refuses to
+  start.
+- **Idempotency:** ClickHouse has no DDL transactions or locks, so every
+  migration must be idempotent (`IF NOT EXISTS` / `IF EXISTS`), and a test
+  enforces it. That makes it safe for two collectors to start at once.
+- **Existing installs:** these adopt migrations automatically. Migration
+  0001 is the original DDL, so it applies as a no-op and is recorded.
+
 ### ClickHouse `spans`
 
 | Column | Type | Notes |
@@ -110,7 +127,7 @@ what to do.
 The table is a `MergeTree`, partitioned by day and ordered by
 `(agent_name, trace_id, start_time)`. Rows expire after
 **`SPAN_RETENTION_DAYS`** (default 90, range 1–3650).
-- **Who sets it:** the collector owns retention. On startup it compares the
+- **Who sets it:** the collector owns retention, as part of owning the schema. On startup it compares the
   table's TTL with the setting and runs `ALTER TABLE spans MODIFY TTL …`
   only if they differ. Shortening retention lets ClickHouse delete rows
   that are now past it.

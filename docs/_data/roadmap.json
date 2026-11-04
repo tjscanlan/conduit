@@ -2,61 +2,168 @@
   "intro": "Conduit's goal is to be the observability layer a security-conscious team can run next to its AI agents. It should be self-hosted, small enough to audit, and focused on what matters for agents: steps, tools, models, errors and cost.",
   "note": "This roadmap is ordered by priority, not by date. Items move as we learn. To suggest a change, open an issue or a PR against `docs/_data/roadmap.json`.",
   "shipped": [
-    {"group": "Foundation", "items": [
-      "mTLS agent identity, with the certificate CommonName as `agent_name`",
-      "Span validation at ingestion",
-      "Per-agent rate limiting, charged per telemetry item",
-      "NATS JetStream work queue with at-least-once delivery into ClickHouse",
-      "Best-effort export to VictoriaMetrics and Tempo",
-      "Span status (ok, error, unset) from end to end, and nanosecond timestamps"
-    ]},
-    {"group": "SDKs", "items": [
-      "Go and Python SDKs: mTLS that trusts only your CA, W3C-sized IDs, status and error recording",
-      "Python context that is safe across threads and asyncio tasks"
-    ]},
-    {"group": "UI", "items": [
-      "Sign-in: a login form with signed session cookies, or Google Cloud IAP",
-      "Strict CSP and browser hardening",
-      "Trace list: one row per trace, filters by time, agent and errors, keyset paging, agent suggestions",
-      "Trace detail: span tree, waterfall timeline, error and LLM details, deep links"
-    ]},
-    {"group": "Data governance", "items": [
-      "`STORE_LLM_PAYLOADS=false` drops prompts and completions at the gateway",
-      "`SPAN_RETENTION_DAYS`, with the TTL reconciled on existing tables"
-    ]},
-    {"group": "Operations", "items": [
-      "`/livez` and `/readyz` on every service, and a `healthcheck` subcommand for scratch images",
-      "Compose restart policies and Kubernetes probes, plus GKE IAP manifests"
-    ]},
-    {"group": "Quality", "items": [
-      "CI: race tests, a generated-code drift check, govulncheck, Docker builds, and a full-stack smoke test with both SDKs",
-      "Brand identity, documentation set, and this docs site"
-    ]}
+    {
+      "group": "Foundation",
+      "items": [
+        "mTLS agent identity, with the certificate CommonName as `agent_name`",
+        "Span validation at ingestion",
+        "Per-agent rate limiting, charged per telemetry item",
+        "NATS JetStream work queue with at-least-once delivery into ClickHouse",
+        "Best-effort export to VictoriaMetrics and Tempo",
+        "Span status (ok, error, unset) from end to end, and nanosecond timestamps"
+      ]
+    },
+    {
+      "group": "SDKs",
+      "items": [
+        "Go and Python SDKs: mTLS that trusts only your CA, W3C-sized IDs, status and error recording",
+        "Python context that is safe across threads and asyncio tasks"
+      ]
+    },
+    {
+      "group": "UI",
+      "items": [
+        "Sign-in: a login form with signed session cookies, or Google Cloud IAP",
+        "Strict CSP and browser hardening",
+        "Trace list: one row per trace, filters by time, agent and errors, keyset paging, agent suggestions",
+        "Trace detail: span tree, waterfall timeline, error and LLM details, deep links"
+      ]
+    },
+    {
+      "group": "Data governance",
+      "items": [
+        "`STORE_LLM_PAYLOADS=false` drops prompts and completions at the gateway",
+        "`SPAN_RETENTION_DAYS`, with the TTL reconciled on existing tables",
+        "Versioned, checksummed ClickHouse schema migrations (`collector migrate`)"
+      ]
+    },
+    {
+      "group": "Operations",
+      "items": [
+        "`/livez` and `/readyz` on every service, and a `healthcheck` subcommand for scratch images",
+        "Compose restart policies and Kubernetes probes, plus GKE IAP manifests"
+      ]
+    },
+    {
+      "group": "Quality",
+      "items": [
+        "CI: race tests, a generated-code drift check, govulncheck, Docker builds, and a full-stack smoke test with both SDKs",
+        "Brand identity, documentation set, and this docs site"
+      ]
+    }
   ],
   "stages": [
-    {"id": "now", "title": "Now", "theme": "Hardening for first production users", "items": [
-      {"title": "Prompt and completion access control", "area": "UI", "why": "Payloads are stored but never shown. Showing them needs a decision on who may see them (see [open decisions](#open-decisions))."},
-      {"title": "Schema migrations", "area": "Storage", "why": "Today `CREATE TABLE IF NOT EXISTS` runs at startup. Versioned migrations are needed before the schema changes again."},
-      {"title": "Metrics and logs ingestion", "area": "Pipeline", "why": "`IngestBatch` accepts metrics and logs in the API but rejects them, because there's no pipeline yet."}
-    ]},
-    {"id": "next", "title": "Next", "theme": "Scale and integration", "items": [
-      {"title": "Batched, asynchronous SDK delivery", "area": "SDKs", "why": "One blocking RPC per span is simple but slow for chatty agents. Add a buffered exporter with backpressure."},
-      {"title": "Read the trace list from `trace_summary`", "area": "Storage", "why": "Avoid aggregating raw spans for every list query at high volume. Needs root names and agents in the view."},
-      {"title": "OpenTelemetry interoperability", "area": "Pipeline", "why": "Accept OTLP from existing OpenTelemetry agents, and use OTel semantic conventions for LLM attributes."},
-      {"title": "Search", "area": "UI", "why": "Search attributes, error messages and span names across traces."},
-      {"title": "Published SDKs", "area": "SDKs", "why": "A PyPI package and a tagged Go module with stable import paths (see open decisions)."},
-      {"title": "Helm chart", "area": "Operations", "why": "Package the Kubernetes manifests with sensible defaults."}
-    ]},
-    {"id": "later", "title": "Later", "theme": "Insight", "items": [
-      {"title": "Cost and token dashboards", "area": "UI", "why": "Spend by agent, model and time, built on the existing rollups."},
-      {"title": "Alerts", "area": "Operations", "why": "Error-rate and latency thresholds per agent, with webhook delivery."},
-      {"title": "Trace comparison", "area": "UI", "why": "Compare two runs of the same task side by side."},
-      {"title": "Multi-tenancy", "area": "Security", "why": "Separate projects or teams with scoped UI access."}
-    ]}
+    {
+      "id": "now",
+      "title": "Now",
+      "theme": "Hardening for first production users",
+      "items": [
+        {
+          "title": "Prompt and completion access control",
+          "area": "UI",
+          "why": "Payloads are stored but never shown. Showing them needs a decision on who may see them (see [open decisions](#open-decisions))."
+        },
+        {
+          "title": "Metrics and logs ingestion",
+          "area": "Pipeline",
+          "why": "`IngestBatch` accepts metrics and logs in the API but rejects them, because there's no pipeline yet."
+        }
+      ]
+    },
+    {
+      "id": "next",
+      "title": "Next",
+      "theme": "Scale and integration",
+      "items": [
+        {
+          "title": "Batched, asynchronous SDK delivery",
+          "area": "SDKs",
+          "why": "One blocking RPC per span is simple but slow for chatty agents. Add a buffered exporter with backpressure."
+        },
+        {
+          "title": "Read the trace list from `trace_summary`",
+          "area": "Storage",
+          "why": "Avoid aggregating raw spans for every list query at high volume. Needs root names and agents in the view."
+        },
+        {
+          "title": "OpenTelemetry interoperability",
+          "area": "Pipeline",
+          "why": "Accept OTLP from existing OpenTelemetry agents, and use OTel semantic conventions for LLM attributes."
+        },
+        {
+          "title": "Search",
+          "area": "UI",
+          "why": "Search attributes, error messages and span names across traces."
+        },
+        {
+          "title": "Published SDKs",
+          "area": "SDKs",
+          "why": "A PyPI package and a tagged Go module with stable import paths (see open decisions)."
+        },
+        {
+          "title": "Helm chart",
+          "area": "Operations",
+          "why": "Package the Kubernetes manifests with sensible defaults."
+        }
+      ]
+    },
+    {
+      "id": "later",
+      "title": "Later",
+      "theme": "Insight",
+      "items": [
+        {
+          "title": "Cost and token dashboards",
+          "area": "UI",
+          "why": "Spend by agent, model and time, built on the existing rollups."
+        },
+        {
+          "title": "Alerts",
+          "area": "Operations",
+          "why": "Error-rate and latency thresholds per agent, with webhook delivery."
+        },
+        {
+          "title": "Trace comparison",
+          "area": "UI",
+          "why": "Compare two runs of the same task side by side."
+        },
+        {
+          "title": "Multi-tenancy",
+          "area": "Security",
+          "why": "Separate projects or teams with scoped UI access."
+        }
+      ]
+    }
   ],
   "decisions": [
-    {"title": "Who can see prompts and completions", "options": ["Every signed-in user", "A separate role or permission", "Reveal-on-click with an audit log"], "raised": "PR #3", "url": "https://github.com/tjscanlan/conduit/pull/3"},
-    {"title": "Publishing the SDKs", "options": ["Keep them repo-local", "Publish to PyPI and as a tagged Go module (needs real module paths instead of `github.com/your-org/...`)"], "raised": "PR #2", "url": "https://github.com/tjscanlan/conduit/pull/2"},
-    {"title": "`nats-server` as a test dependency", "options": ["Add an in-process NATS for integration tests", "Rely on the compose smoke test, which already covers the path"], "lean": "Leaning toward the smoke test.", "raised": "PR #2", "url": "https://github.com/tjscanlan/conduit/pull/2"}
+    {
+      "title": "Who can see prompts and completions",
+      "options": [
+        "Every signed-in user",
+        "A separate role or permission",
+        "Reveal-on-click with an audit log"
+      ],
+      "raised": "PR #3",
+      "url": "https://github.com/tjscanlan/conduit/pull/3"
+    },
+    {
+      "title": "Publishing the SDKs",
+      "options": [
+        "Keep them repo-local",
+        "Publish to PyPI and as a tagged Go module (needs real module paths instead of `github.com/your-org/...`)"
+      ],
+      "raised": "PR #2",
+      "url": "https://github.com/tjscanlan/conduit/pull/2"
+    },
+    {
+      "title": "`nats-server` as a test dependency",
+      "options": [
+        "Add an in-process NATS for integration tests",
+        "Rely on the compose smoke test, which already covers the path"
+      ],
+      "lean": "Leaning toward the smoke test.",
+      "raised": "PR #2",
+      "url": "https://github.com/tjscanlan/conduit/pull/2"
+    }
   ]
 }

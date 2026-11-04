@@ -20,13 +20,6 @@ func TestTTLDaysParsesClickHouseEngineFull(t *testing.T) {
 	}
 }
 
-func TestSpansTableDDLUsesRetention(t *testing.T) {
-	ddl := spansTableDDL(30)
-	if !strings.Contains(ddl, "TTL toDateTime(start_time) + INTERVAL 30 DAY") || strings.Contains(ddl, "%d") {
-		t.Fatalf("DDL TTL not rendered: %s", ddl[strings.Index(ddl, "TTL"):])
-	}
-}
-
 func TestNewClickHouseStoreRejectsBadRetention(t *testing.T) {
 	for _, d := range []int{-1, MaxRetentionDays + 1} {
 		if _, err := NewClickHouseStore("clickhouse://localhost:1/db", StoreOptions{RetentionDays: d}); err == nil || !strings.Contains(err.Error(), "retention") {
