@@ -55,6 +55,19 @@ released images with nothing but Docker:
 - **Version:** images default to `v0.1.0`; set `CONDUIT_VERSION` to pick
   another release.
 
+**Get started:** until your own agent sends a trace, opening the UI lands
+on a Get started page (`/start`). It checks that the stack and the sample
+data are working, and shows the commands that make an agent certificate
+(on the command line: the UI never serves keys). It then gives SDK
+snippets and waits, live, for the first trace from an agent other than
+`demo-agent`, linking to it when it arrives. You can hide it from the page.
+It ships in the release after v0.1.0; until then, start the quickstart with
+`CONDUIT_FROM_SOURCE=1` to try it.
+
+`CONDUIT_FROM_SOURCE=1 quickstart.sh` builds the gateway, collector and UI
+from your checkout instead of pulling the release, one image at a time so
+it fits a 2 GiB Docker VM.
+
 `quickstart.sh status` reprints the login, `down` stops the stack, and
 `reset` deletes its data and credentials. `scripts/quickstart-check.sh` is
 the CI check: from a cold start, the first trace must be visible in the UI
@@ -179,3 +192,5 @@ put the UI behind Identity-Aware Proxy (see [security.md](security.md#iap-mode-g
 | `TEMPO_ENDPOINT` | collector | `http://localhost:4318` |
 | `LISTEN_ADDR` | ui | `:8080` |
 | `UI_AUTH_MODE` and related | ui | see [security.md](security.md#ui-authentication) |
+| `UI_GATEWAY_ADDR` | ui | `localhost:4317`. The gateway address shown in the Get started page's snippets (display only). |
+| `UI_DEMO_AGENT` | ui | `demo-agent`. The sample agent whose traces don't count as a user's first trace on Get started. |

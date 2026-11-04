@@ -27,6 +27,10 @@ type Config struct {
 
 	// iap mode
 	IAPAudience string // e.g. /projects/123/global/backendServices/456
+
+	// Get started page
+	GatewayAddr string // the gateway address agents should use (display only)
+	DemoAgent   string // the sample agent whose traces don't count as "yours"
 }
 
 func loadConfig() (*Config, error) {
@@ -38,6 +42,8 @@ func loadConfig() (*Config, error) {
 		SessionKey:     os.Getenv("UI_SESSION_KEY"),
 		CookieInsecure: os.Getenv("UI_COOKIE_INSECURE") == "true",
 		IAPAudience:    os.Getenv("UI_IAP_AUDIENCE"),
+		GatewayAddr:    getEnv("UI_GATEWAY_ADDR", "localhost:4317"),
+		DemoAgent:      getEnv("UI_DEMO_AGENT", "demo-agent"),
 	}
 	ttl, err := time.ParseDuration(getEnv("UI_SESSION_TTL", "8h"))
 	if err != nil || ttl <= 0 {

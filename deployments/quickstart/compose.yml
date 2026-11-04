@@ -119,6 +119,8 @@ services:
       UI_SESSION_KEY: ${UI_SESSION_KEY:-}
       # Plain HTTP on localhost; never set this in production.
       UI_COOKIE_INSECURE: "true"
+      # Shown in the Get started page's snippets.
+      UI_GATEWAY_ADDR: localhost:${CONDUIT_GATEWAY_PORT:-4317}
     volumes:
       - ./.conduit:/conduit:ro
     depends_on:

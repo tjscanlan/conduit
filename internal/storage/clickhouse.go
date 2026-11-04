@@ -378,3 +378,44 @@ func (s *ClickHouseStore) QueryTrace(ctx context.Context, traceID string, limit 
 	}
 	return result, rows.Err()
 }
+
+// Onboarding is what the UI's Get started page needs to know.
+type Onboarding struct {
+	RecentSpans int64 // spans from any agent in the recent window
+	RecentDemo  int64 // of those, from the demo agent
+	// The newest span from an agent other than the demo agent, if any.
+	LatestTraceID string
+	LatestAgent   string
+	LatestAt      time.Time
+}
+
+// QueryOnboarding reports recent activity and the newest trace from a real
+// (non-demo) agent within lookback.
+func (s *ClickHouseStore) QueryOnboarding(ctx context.Context, demoAgent string, recent, lookback time.Duration) (Onboarding, error) {
+	var o Onboarding
+	recentSecs, lookbackSecs := int64(recent/time.Second), int64(lookback/time.Second)
+	if recentSecs <= 0 || lookbackSecs <= 0 {
+		return o, fmt.Errorf("query onboarding: windows must be positive")
+	}
+	var total, demo uint64
+	if err := s.conn.QueryRow(ctx, `
+		SELECT count(), countIf(agent_name = ?) FROM spans
+		WHERE start_time >= now64(9) - toIntervalSecond(?)`, demoAgent, recentSecs).Scan(&total, &demo); err != nil {
+		return o, fmt.Errorf("query onboarding: %w", err)
+	}
+	o.RecentSpans, o.RecentDemo = int64(total), int64(demo)
+	rows, err := s.conn.Query(ctx, `
+		SELECT trace_id, agent_name, start_time FROM spans
+		WHERE start_time >= now64(9) - toIntervalSecond(?) AND agent_name != '' AND agent_name != ?
+		ORDER BY start_time DESC LIMIT 1`, lookbackSecs, demoAgent)
+	if err != nil {
+		return o, fmt.Errorf("query onboarding: %w", err)
+	}
+	defer rows.Close()
+	if rows.Next() {
+		if err := rows.Scan(&o.LatestTraceID, &o.LatestAgent, &o.LatestAt); err != nil {
+			return o, fmt.Errorf("query onboarding: %w", err)
+		}
+	}
+	return o, rows.Err()
+}

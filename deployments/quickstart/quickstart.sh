@@ -11,6 +11,7 @@
 #   CONDUIT_GATEWAY_PORT   gateway port on 127.0.0.1 (default 4317)
 #   CONDUIT_VERSION        image tag (default v0.1.0)
 #   CONDUIT_DEMO_AGENT=0   don't start the simulated demo-agent
+#   CONDUIT_FROM_SOURCE=1  build gateway, collector and UI from this checkout
 set -eu
 
 DIR=$(cd "$(dirname "$0")" && pwd)
@@ -27,7 +28,13 @@ fi
 say()  { printf '%s==>%s %s\n' "$B" "$X" "$*"; }
 die()  { printf '%serror:%s %s\n' "$R" "$X" "$*" >&2; exit 1; }
 
-compose() { docker compose --project-directory "$DIR" -f "$DIR/compose.yml" "$@"; }
+compose() {
+  if [ "${CONDUIT_FROM_SOURCE:-0}" = 1 ]; then
+    docker compose --project-directory "$DIR" -f "$DIR/compose.yml" -f "$DIR/compose.source.yml" "$@"
+  else
+    docker compose --project-directory "$DIR" -f "$DIR/compose.yml" "$@"
+  fi
+}
 
 preflight() {
   command -v docker >/dev/null 2>&1 || die "Docker is not installed. Get it from https://docs.docker.com/get-docker/"
@@ -87,7 +94,12 @@ up() {
 
   scale=
   [ "${CONDUIT_DEMO_AGENT:-1}" = 0 ] && scale="--scale demo-agent=0"
-  say "Starting Conduit ${CONDUIT_VERSION:-v0.1.0} (first run pulls images and builds two small ones; later runs are fast)"
+  if [ "${CONDUIT_FROM_SOURCE:-0}" = 1 ]; then
+    say "Building gateway, collector and UI from source (one at a time, to fit small Docker VMs)"
+    for svc in gateway collector ui; do compose build "$svc" || die "building $svc failed"; done
+  fi
+  [ "${CONDUIT_FROM_SOURCE:-0}" = 1 ] && label="from source" || label=${CONDUIT_VERSION:-v0.1.0}
+  say "Starting Conduit $label (first run pulls images and builds two small ones; later runs are fast)"
   # shellcheck disable=SC2086 # $scale is intentionally split
   if ! compose up -d --wait --wait-timeout 300 $scale; then
     printf '\n' >&2

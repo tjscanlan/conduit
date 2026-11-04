@@ -1,0 +1,139 @@
+{{define "start"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Conduit — Get started</title>
+  <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#1c1917">
+  <link rel="stylesheet" href="/static/css/app.css">
+  <meta name="htmx-config" content='{"includeIndicatorStyles":false}'>
+  <script src="/static/js/htmx.min.js" defer></script>
+  <script src="/static/js/start.js" defer></script>
+</head>
+<body>
+{{template "nav" .}}
+<main class="start">
+  <h1>Get started</h1>
+  <p class="lead">From a running stack to your own agent's first trace in a few minutes.</p>
+
+  <ol class="steps">
+    <li class="step {{if .Ready}}step-done{{else}}step-todo{{end}}">
+      <h2>Conduit is running</h2>
+      {{if .Ready}}
+      <p>The UI is connected to ClickHouse.</p>
+      {{else}}
+      <p>The UI can't reach ClickHouse yet. Check the collector and ClickHouse logs, e.g.
+         <code>docker compose -f deployments/quickstart/compose.yml logs clickhouse collector</code>.</p>
+      {{end}}
+    </li>
+
+    <li class="step {{with .Status}}{{if .RecentSpans}}step-done{{else}}step-todo{{end}}{{else}}step-todo{{end}}">
+      <h2>Telemetry is flowing</h2>
+      {{with .Status}}
+        {{if .RecentDemo}}
+        <p>The simulated <strong>{{$.DemoAgent}}</strong> is sending runs.
+           <a href="/traces?agent={{$.DemoAgent}}">Explore its traces</a> to see what Conduit records.</p>
+        {{else if .RecentSpans}}
+        <p>{{.RecentSpans}} spans arrived in the last 15 minutes. <a href="/traces">See the trace list</a>.</p>
+        {{else}}
+        <p>Nothing in the last 15 minutes. The quickstart's <strong>{{$.DemoAgent}}</strong> sends a run every few seconds;
+           if it's stopped, start it with <code>docker compose -f deployments/quickstart/compose.yml start demo-agent</code>.</p>
+        {{end}}
+      {{else}}
+      <p>Couldn't query telemetry right now.</p>
+      {{end}}
+    </li>
+
+    <li class="step {{if .Connected}}step-done{{else}}step-action{{end}}">
+      <h2>Get a certificate for your agent</h2>
+      <p>Each agent proves who it is with its own client certificate. Its name (the certificate's CommonName)
+         is how Conduit labels everything the agent sends. For security, certificates and keys are made on the
+         command line and never shown or served by this UI.</p>
+      <dl class="cmds">
+        <dt>Using the quickstart</dt>
+        <dd>It already made one for <strong>my-agent</strong>, in <code>deployments/quickstart/.conduit/certs</code>.</dd>
+        <dt>Another agent name, or your own stack</dt>
+        <dd><pre class="cmd"><code>./scripts/gen-certs.sh agent research-bot</code></pre>
+            <span class="muted">Writes <code>certs/research-bot.crt</code> and <code>.key</code>, signed by <code>certs/ca.crt</code>. In production, issue it from your own PKI.</span></dd>
+      </dl>
+    </li>
+
+    <li class="step {{if .Connected}}step-done{{else}}step-action{{end}}">
+      <h2>Send your first trace</h2>
+      <p>Point the SDK at the certificates, then run an example or your own code:</p>
+      <pre class="cmd"><code>export CONDUIT_GATEWAY_ADDR={{.GatewayAddr}}
+export CONDUIT_CERT_DIR=$PWD/deployments/quickstart/.conduit/certs
+export CONDUIT_AGENT=my-agent</code></pre>
+      <div class="tabs">
+        <details open>
+          <summary>Python</summary>
+          <pre class="cmd"><code>pip install -e sdk/python
+python examples/python/hello_trace.py</code></pre>
+          <p class="muted">In your own code:</p>
+          <pre class="cmd"><code>import conduit_observability as conduit
+
+conduit.configure()                 # reads the CONDUIT_* variables
+
+@conduit.traced()
+def run_agent(task): ...</code></pre>
+        </details>
+        <details>
+          <summary>Go</summary>
+          <pre class="cmd"><code>cd examples/go &amp;&amp; go run ./hello-trace</code></pre>
+          <p class="muted">In your own code:</p>
+          <pre class="cmd"><code>client, err := sdk.NewFromEnv()     // reads the CONDUIT_* variables
+span, ctx := client.StartSpan(ctx, "agent.run")
+defer span.End(ctx)</code></pre>
+        </details>
+        <details>
+          <summary>More examples</summary>
+          <p>Tool calling, asyncio, Claude and OpenAI agents, in <code>examples/</code>. See the
+             <a href="https://tjscanlan.github.io/conduit/examples.html">examples guide</a>.</p>
+        </details>
+      </div>
+      {{template "start-status" .}}
+    </li>
+
+    <li class="step step-next">
+      <h2>Next steps</h2>
+      <ul class="next">
+        <li><a href="/traces">Trace list</a>: filter by agent, find errors, open a waterfall.</li>
+        <li><a href="/logs">Logs</a> linked to the span that wrote them.</li>
+        <li><a href="https://tjscanlan.github.io/conduit/sdk-python.html">Python SDK</a> and
+            <a href="https://tjscanlan.github.io/conduit/sdk-go.html">Go SDK</a> guides: record LLM calls, tools, logs and metrics.</li>
+        <li><a href="https://tjscanlan.github.io/conduit/deployment.html">Deploy for real</a>: Kubernetes, your own PKI, retention.</li>
+        <li>Done with the sample data? <code>docker compose -f deployments/quickstart/compose.yml stop {{.DemoAgent}}</code></li>
+      </ul>
+    </li>
+  </ol>
+
+  <form class="dismiss" method="post" action="/start/dismiss">
+    <button type="submit">Hide Get started</button>
+    <span class="muted">You can always come back at <code>/start</code>.</span>
+  </form>
+</main>
+</body>
+</html>
+{{end}}
+
+{{define "start-status"}}
+{{with .Status}}{{if .LatestTraceID}}
+<div id="first-trace" class="first-trace first-trace-done" role="status">
+  <strong>Your agent is connected.</strong>
+  A trace from <strong>{{.LatestAgent}}</strong> arrived at {{.LatestAt.UTC.Format "15:04:05"}} UTC.
+  <a class="button" href="/traces/{{.LatestTraceID}}">View the trace</a>
+</div>
+{{else}}
+<div id="first-trace" class="first-trace" role="status" aria-live="polite"
+     hx-get="/start/status" hx-trigger="every 3s" hx-swap="outerHTML">
+  <span class="pulse" aria-hidden="true"></span>
+  Waiting for a trace from your agent… this updates on its own.
+</div>
+{{end}}{{else}}
+<div id="first-trace" class="first-trace" role="status"
+     hx-get="/start/status" hx-trigger="every 5s" hx-swap="outerHTML">
+  Can't check for traces right now; retrying.
+</div>
+{{end}}
+{{end}}

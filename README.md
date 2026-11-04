@@ -56,7 +56,9 @@ make quickstart          # or: ./deployments/quickstart/quickstart.sh
 
 It generates a dev CA, agent certificates, and a UI login, waits until
 everything is healthy, and prints your login. Open <http://localhost:8080>:
-a simulated `demo-agent` is already sending traces. The banner also shows how
+a simulated `demo-agent` is already sending traces, and a Get started page
+walks you through sending your own agent's first trace. (That page ships in
+the release after v0.1.0; until then, use `CONDUIT_FROM_SOURCE=1`.) The banner also shows how
 to send a trace from your own code as `my-agent`; CI checks that a cold start
 reaches the first trace in under five minutes.
 
