@@ -2,7 +2,7 @@
 
 ## Logo
 
-<img src="../ui/static/img/logo.svg" alt="Conduit logo" width="96" height="96">
+<img src="assets/img/logo.svg" alt="Conduit logo" width="96" height="96">
 
 The mark is five concentric arcs forming a "C" that opens toward the
 direction of flow. The colors run from red on the outside to yellow at the

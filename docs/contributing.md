@@ -1,3 +1,7 @@
+---
+title: Contributing
+---
+
 # Contributing
 
 Thanks for helping improve Conduit. This guide covers local setup, the

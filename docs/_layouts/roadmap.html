@@ -1,0 +1,64 @@
+---
+layout: default
+---
+{%- comment -%}
+Visual roadmap, rendered from docs/_data/roadmap.json. The page's Markdown
+(docs/roadmap.md, generated from the same data) is for readers on GitHub.
+{%- endcomment -%}
+{%- assign r = site.data.roadmap -%}
+<header class="rm-header">
+  <h1>Roadmap</h1>
+  <p class="rm-lead">{{ r.intro | markdownify | remove: '<p>' | remove: '</p>' }}</p>
+  <p class="rm-note">{{ r.note | markdownify | remove: '<p>' | remove: '</p>' }}</p>
+</header>
+
+<ol class="rm-timeline" aria-label="Roadmap stages">
+  <li class="rm-milestone rm-shipped"><a href="#shipped"><span class="rm-dot" aria-hidden="true">✓</span><strong>Shipped</strong><span>{% assign n = 0 %}{% for g in r.shipped %}{% assign n = n | plus: g.items.size %}{% endfor %}{{ n }} items</span></a></li>
+  {%- for s in r.stages %}
+  <li class="rm-milestone rm-{{ s.id }}"><a href="#{{ s.id }}"><span class="rm-dot" aria-hidden="true"></span><strong>{{ s.title }}</strong><span>{{ s.theme }}</span></a></li>
+  {%- endfor %}
+</ol>
+
+<div class="rm-lanes">
+  {%- for s in r.stages %}
+  <section class="rm-lane rm-{{ s.id }}" id="{{ s.id }}" aria-labelledby="{{ s.id }}-title">
+    <header>
+      <span class="rm-pill">{{ s.title }}</span>
+      <h2 id="{{ s.id }}-title">{{ s.theme }}</h2>
+    </header>
+    {%- for i in s.items %}
+    <article class="rm-card">
+      <span class="rm-area">{{ i.area }}</span>
+      <h3>{{ i.title | markdownify | remove: '<p>' | remove: '</p>' }}</h3>
+      <p>{{ i.why | markdownify | remove: '<p>' | remove: '</p>' }}</p>
+    </article>
+    {%- endfor %}
+  </section>
+  {%- endfor %}
+</div>
+
+<section class="rm-shipped-panel" id="shipped" aria-labelledby="shipped-title">
+  <header><span class="rm-pill">Shipped</span><h2 id="shipped-title">What's already in Conduit</h2></header>
+  <div class="rm-shipped-grid">
+    {%- for g in r.shipped %}
+    <div class="rm-shipped-group">
+      <h3>{{ g.group }}</h3>
+      <ul>{% for item in g.items %}<li>{{ item | markdownify | remove: '<p>' | remove: '</p>' }}</li>{% endfor %}</ul>
+    </div>
+    {%- endfor %}
+  </div>
+</section>
+
+<section class="rm-decisions" id="open-decisions" aria-labelledby="decisions-title">
+  <header><span class="rm-pill">Open decisions</span><h2 id="decisions-title">Waiting on a maintainer's call</h2></header>
+  <div class="rm-decision-grid">
+    {%- for d in r.decisions %}
+    <article class="rm-decision">
+      <h3>{{ d.title | markdownify | remove: '<p>' | remove: '</p>' }}</h3>
+      <ul class="rm-options">{% for o in d.options %}<li>{{ o | markdownify | remove: '<p>' | remove: '</p>' }}</li>{% endfor %}</ul>
+      {% if d.lean %}<p class="rm-lean">{{ d.lean }}</p>{% endif %}
+      <p class="rm-raised">Raised in <a href="{{ d.url }}">{{ d.raised }}</a></p>
+    </article>
+    {%- endfor %}
+  </div>
+</section>

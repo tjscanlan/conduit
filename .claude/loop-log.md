@@ -2,6 +2,27 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — Visual roadmap (single source) + Pages enabled
+- Did:
+  - `docs/_data/roadmap.json` is now the roadmap's single source of truth (18 shipped in 6 groups; Now 3, Next 6, Later 4; 3 open decisions).
+  - Site: `_layouts/roadmap.html` renders a visual page: a stage timeline on a palette-gradient rail (Shipped check, Now red with a glow, Next and Later rings), color-coded Now/Next/Later lanes of cards with area tags, a Shipped panel with check bullets, and open-decision cards with option chips, the lean, and the raised-in PR link. Pills follow the contrast rules: white only on #ec0000 or ink; #ec5300, #ec9b00, and #ecca00 carry ink.
+  - `scripts/gen-roadmap.py` (stdlib) generates the GitHub-readable `docs/roadmap.md` from the JSON; `make roadmap`. CI's `generated` job and the Pages build both fail if they drift.
+  - `optional_front_matter.remove_originals` so raw `.md` sources aren't published. `contributing.md` got front matter, since jekyll-optional-front-matter skips CONTRIBUTING (and README/LICENSE) without it (caught by the build check).
+  - **Enabled GitHub Pages** (build_type=workflow) at https://tjscanlan.github.io/conduit/; it first deploys when this branch merges to main. README has a docs badge and link.
+- Verified: both workflows are green; I downloaded the built Pages artifact and screenshotted the home, deployment, and roadmap pages (the brand renders correctly and links are rewritten to `/conduit/*.html` including anchors). **The live deploy can't be verified until merge.**
+- **Stopping point:** opened PR https://github.com/tjscanlan/conduit/pull/8; no new work until it is merged. After merge: verify the first live Pages deploy.
+
+## 2026-11-04 — Cycle 8 (`loop/docs-site-roadmap`, after PR #7 merged as fa8a13f): GitHub Pages site scaffold
+- Theme (user directive): a GitHub Pages documentation site plus a visual product roadmap, using the Conduit brand.
+- Did:
+  - Jekyll site with `docs/` as the source, built by GitHub's own `jekyll-build-pages` action, so the repo gains no Ruby or npm dependencies. Only plugins Pages supports natively: relative-links (`.md` links work on GitHub and on the site), optional-front-matter, titles-from-headings, seo-tag.
+  - Branded layout: an ink header with a gradient rule, the logo and "Conduit Docs", a sticky sidebar nav, an edit-on-GitHub link, and a footer. site.css reuses the app's tokens and contrast rules.
+  - Home page (docs/index.md): a hero with the logo and CTAs, six feature cards with palette accents, and a docs grid.
+  - Mermaid renders client-side from jsDelivr, **pinned to 11.17.2 with an SRI sha384**, loaded only on pages that have diagrams, with a brand-themed config and securityLevel strict.
+  - `.github/workflows/pages.yml`: every push builds; the deploy job is gated to main (pages:write and id-token:write only there). Checks: the logo and favicon copies match the app's (`cmp`), every page exists, and no unconverted `.md` links remain. Actions are pinned by SHA.
+  - The brand.md logo now uses a path that works on both GitHub and the site.
+- Next: the visual roadmap page (data-driven, branded), inspect the built artifact, enable Pages (Source: GitHub Actions), then the PR.
+
 ## 2026-11-04 — **User directive for the NEXT cycle:** GitHub Pages docs site + visual roadmap
 - The user asked (during cycle 7): "in the next loop, create a github-pages site for the documentation and a visual product roadmap using the brand identity created in the earlier loop".
 - Brand to apply: the logo mark (ui/static/img/logo.svg) and favicon; the palette `#ec0000` `#ec2400` `#ec5300` `#ec9b00` `#ecca00` plus white, with ink `#1c1917`; the contrast rules in docs/brand.md (only #ec0000 as text on white; #ec9b00 and #ecca00 take ink, never white text).

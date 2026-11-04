@@ -1,0 +1,46 @@
+# GitHub Pages (Jekyll) site for the Conduit docs. Built and deployed by
+# .github/workflows/pages.yml. Only plugins GitHub Pages supports natively.
+title: Conduit
+description: Secure, self-hosted observability for AI agents.
+url: https://tjscanlan.github.io
+baseurl: /conduit
+repository: tjscanlan/conduit
+
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+  hard_wrap: false
+
+plugins:
+  - jekyll-relative-links          # foo.md links work on GitHub and on the site
+  - jekyll-optional-front-matter   # plain Markdown files become pages
+  - jekyll-titles-from-headings    # page title = first heading
+  - jekyll-seo-tag
+
+relative_links:
+  enabled: true
+optional_front_matter:
+  remove_originals: true           # don't also publish the raw .md sources
+titles_from_headings:
+  enabled: true
+  strip_title: true                # the layout renders the title
+
+defaults:
+  - scope: { path: "" }
+    values: { layout: default }
+
+# Sidebar, in reading order.
+nav:
+  - { title: Overview, url: / }
+  - { title: Architecture, url: /architecture.html }
+  - { title: Deployment, url: /deployment.html }
+  - { title: Security, url: /security.html }
+  - { title: Go SDK, url: /sdk-go.html }
+  - { title: Python SDK, url: /sdk-python.html }
+  - { title: Roadmap, url: /roadmap.html }
+  - { title: Contributing, url: /contributing.html }
+  - { title: Brand, url: /brand.html }
+
+exclude:
+  - README.md
