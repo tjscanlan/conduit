@@ -2,6 +2,16 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — Visual roadmap (single source) + Pages enabled
+- Did:
+  - `docs/_data/roadmap.json` is now the roadmap's single source of truth (18 shipped in 6 groups; Now 3, Next 6, Later 4; 3 open decisions).
+  - Site: `_layouts/roadmap.html` renders a visual page: a stage timeline on a palette-gradient rail (Shipped check, Now red with a glow, Next and Later rings), color-coded Now/Next/Later lanes of cards with area tags, a Shipped panel with check bullets, and open-decision cards with option chips, the lean, and the raised-in PR link. Pills follow the contrast rules: white only on #ec0000 or ink; #ec5300, #ec9b00, and #ecca00 carry ink.
+  - `scripts/gen-roadmap.py` (stdlib) generates the GitHub-readable `docs/roadmap.md` from the JSON; `make roadmap`. CI's `generated` job and the Pages build both fail if they drift.
+  - `optional_front_matter.remove_originals` so raw `.md` sources aren't published. `contributing.md` got front matter, since jekyll-optional-front-matter skips CONTRIBUTING (and README/LICENSE) without it (caught by the build check).
+  - **Enabled GitHub Pages** (build_type=workflow) at https://tjscanlan.github.io/conduit/; it first deploys when this branch merges to main. README has a docs badge and link.
+- Verified: both workflows are green; I downloaded the built Pages artifact and screenshotted the home, deployment, and roadmap pages (the brand renders correctly and links are rewritten to `/conduit/*.html` including anchors). **The live deploy can't be verified until merge.**
+- **Stopping point:** opening PR #8.
+
 ## 2026-11-04 — Cycle 8 (`loop/docs-site-roadmap`, after PR #7 merged as fa8a13f): GitHub Pages site scaffold
 - Theme (user directive): a GitHub Pages documentation site plus a visual product roadmap, using the Conduit brand.
 - Did:

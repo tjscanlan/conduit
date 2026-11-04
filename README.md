@@ -11,6 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/tjscanlan/conduit/actions/workflows/ci.yml"><img src="https://github.com/tjscanlan/conduit/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://tjscanlan.github.io/conduit/"><img src="https://img.shields.io/badge/docs-tjscanlan.github.io%2Fconduit-ec0000" alt="Docs site"></a>
   <img src="https://img.shields.io/badge/go-1.26%2B-1c1917" alt="Go 1.26+">
   <img src="https://img.shields.io/badge/license-Apache--2.0-1c1917" alt="Apache-2.0">
 </p>
@@ -70,6 +71,8 @@ cd sdk/go && go run ./examples/smoke-agent \
 To instrument your own agent, see the [Go SDK](docs/sdk-go.md) and [Python SDK](docs/sdk-python.md) guides.
 
 ## Documentation
+
+**Read the docs at <https://tjscanlan.github.io/conduit/>**, including the [visual roadmap](https://tjscanlan.github.io/conduit/roadmap.html). The same pages are in [`docs/`](docs/).
 
 | Guide | What's in it |
 |-------|--------------|
