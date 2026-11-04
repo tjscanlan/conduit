@@ -2,6 +2,11 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — **User directive for the NEXT cycle:** GitHub Pages docs site + visual roadmap
+- The user asked (during cycle 7): "in the next loop, create a github-pages site for the documentation and a visual product roadmap using the brand identity created in the earlier loop".
+- Brand to apply: the logo mark (ui/static/img/logo.svg) and favicon; the palette `#ec0000` `#ec2400` `#ec5300` `#ec9b00` `#ecca00` plus white, with ink `#1c1917`; the contrast rules in docs/brand.md (only #ec0000 as text on white; #ec9b00 and #ecca00 take ink, never white text).
+- Plan: finish cycle 7 (configurable retention) → PR → after it merges, start a branch like `loop/docs-site-roadmap` that builds the GitHub Pages site from docs/ (and a deploy workflow) plus a visual roadmap page.
+
 ## 2026-11-04 — Cycle 7 (`loop/payload-retention-controls`, after PR #6 merged as c2ddcbf): STORE_LLM_PAYLOADS
 - Theme: data-governance controls from the roadmap's Now list that need no human decision: a switch to stop storing payloads, then configurable retention.
 - Did:
