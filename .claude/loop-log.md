@@ -2,6 +2,14 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — **Security fix:** Prometheus label injection into VictoriaMetrics
+- Found while starting the metrics work: `promLine` escaped only `"` in label values. The Prometheus text format requires escaping `\`, `"`, and newline. The `span` label is the agent-supplied span name (any characters), so:
+  - a newline in a span name ended the sample and **injected arbitrary samples**, e.g. a forged `conduit_span_duration_ms{agent="victim"}`;
+  - `\"` became `\\"`: the backslash was escaped, so the quote closed the value and broke out of it.
+  Any authenticated agent could forge metrics attributed to other agents.
+- Fix: escape all three with a `strings.Replacer`; sort label keys for stable output.
+- Verified: unit tests cover plain, quote, backslash, newline injection, and backslash-quote breakout (one line per sample). **Against a real VictoriaMetrics v1.102.1** (throwaway container, 256 MB, no ports), importing the escaped payloads produced exactly 2 series with the payload text literal in the `span` label and no forged `victim` series.
+
 ## 2026-11-04 — SDK log APIs (Go + Python), logs in the smoke test
 - Did:
   - Go: `client.Log(ctx, severity, body, attrs)` with `sdk.Severity*` consts. It reads the current `*Span` from ctx directly; `traceIDFromContext` would mint a new trace ID, which is wrong for a log outside a span. It sends via `IngestBatch` and returns the gateway's per-item reason on rejection.
