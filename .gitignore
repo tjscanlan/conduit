@@ -79,3 +79,7 @@ __pycache__/
 # Python SDK build artifacts
 sdk/python/dist/
 sdk/python/.venv-build/
+
+# Quickstart: generated secrets and credentials
+deployments/quickstart/.env
+deployments/quickstart/.conduit/

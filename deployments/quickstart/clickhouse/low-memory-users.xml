@@ -1,0 +1,9 @@
+<!-- Quickstart: cap per-query threads and memory for small machines. -->
+<clickhouse>
+    <profiles>
+        <default>
+            <max_threads>2</max_threads>
+            <max_memory_usage>536870912</max_memory_usage>
+        </default>
+    </profiles>
+</clickhouse>

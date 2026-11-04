@@ -30,7 +30,43 @@ Every service exposes unauthenticated health endpoints over plain HTTP:
   exits 0 or 1. Compose health checks use it.
 - **Keep `HEALTH_ADDR` internal:** don't expose it outside the cluster.
 
-## Local: docker compose
+## Local: quickstart
+
+`make quickstart` (or `deployments/quickstart/quickstart.sh`) runs the
+released images with nothing but Docker:
+
+- **Credentials:** the one-shot `conduit-init` container writes a dev CA, the
+  gateway certificate, client certificates for `demo-agent` and `my-agent`,
+  and a random UI login into `deployments/quickstart/.conduit/` (gitignored).
+  It runs as your user, so the agent keys are readable by your own code, and
+  it keeps existing files on later runs.
+- **Secrets:** the script writes a random ClickHouse password and session key
+  to `deployments/quickstart/.env` (gitignored, owner-only).
+- **Network:** only the UI (`127.0.0.1:8080`) and the gateway
+  (`127.0.0.1:4317`) listen, on loopback. Change the ports with
+  `CONDUIT_UI_PORT` and `CONDUIT_GATEWAY_PORT`.
+- **Small machines:** ClickHouse uses a low-memory profile and system log
+  tables are off, so the stack fits a 2 GiB Docker VM. Span retention is
+  7 days.
+- **Demo data:** a simulated `demo-agent` (no model calls; every span has
+  `demo=true`) sends a run every 8 seconds. Start without it using
+  `CONDUIT_DEMO_AGENT=0`, or stop it with
+  `docker compose -f deployments/quickstart/compose.yml stop demo-agent`.
+- **Version:** images default to `v0.1.0`; set `CONDUIT_VERSION` to pick
+  another release.
+
+`quickstart.sh status` reprints the login, `down` stops the stack, and
+`reset` deletes its data and credentials. `scripts/quickstart-check.sh` is
+the CI check: from a cold start, the first trace must be visible in the UI
+within 300 seconds.
+
+The quickstart is for local evaluation only. Its CA key sits next to the
+certificates it signs; use real PKI (below) for anything shared.
+
+## Local: docker compose (from source)
+
+For working on Conduit itself, this stack builds the images from your
+checkout.
 
 ```bash
 ./scripts/gen-certs.sh                         # dev CA, gateway cert, example agent cert

@@ -1,0 +1,153 @@
+# Conduit quickstart: the whole platform on one machine, from released images.
+#
+# Start it with `make quickstart` (or deployments/quickstart/quickstart.sh),
+# which writes the .env this file needs and prints your login. Local
+# development only: credentials are generated into ./.conduit, and only the
+# UI and gateway listen, on 127.0.0.1. For production see docs/deployment.md.
+name: conduit-quickstart
+
+x-service: &service
+  restart: unless-stopped
+  # Scratch images: each binary probes its own /readyz.
+  healthcheck:
+    test: ["CMD", "/app", "healthcheck"]
+    interval: 3s
+    timeout: 3s
+    retries: 40
+
+services:
+  # ── One-shot setup ───────────────────────────────────────────────────
+  # Generates the dev CA, the gateway certificate, client certificates for
+  # demo-agent and my-agent, and a UI login. Reruns keep existing files.
+  conduit-init:
+    build:
+      context: ../..
+      dockerfile: deployments/quickstart/init.Dockerfile
+    image: conduit-quickstart-init:local
+    command: ["-dir", "/conduit", "-agents", "demo-agent,my-agent"]
+    # Run as the host user so you can use ./.conduit/certs from your own agents.
+    user: "${CONDUIT_UID:-0}:${CONDUIT_GID:-0}"
+    volumes:
+      - ./.conduit:/conduit
+
+  # ── Storage ──────────────────────────────────────────────────────────
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.4-alpine
+    environment:
+      CLICKHOUSE_DB: observability
+      CLICKHOUSE_USER: obs
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?run deployments/quickstart/quickstart.sh}
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./clickhouse/low-memory.xml:/etc/clickhouse-server/config.d/low-memory.xml:ro
+      - ./clickhouse/low-memory-users.xml:/etc/clickhouse-server/users.d/low-memory-users.xml:ro
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8123/ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 60
+    restart: unless-stopped
+
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:v1.99.0
+    command: ["-storageDataPath=/storage", "-retentionPeriod=1", "-memory.allowedPercent=20"]
+    volumes:
+      - vm_data:/storage
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:2.4.1
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ../docker/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo_data:/var/tempo
+    restart: unless-stopped
+
+  nats:
+    image: nats:2.10-alpine
+    command: ["--jetstream", "--store_dir=/data"]
+    volumes:
+      - nats_data:/data
+    restart: unless-stopped
+
+  # ── Conduit ──────────────────────────────────────────────────────────
+  gateway:
+    <<: *service
+    image: ghcr.io/tjscanlan/conduit-gateway:${CONDUIT_VERSION:-v0.1.0}
+    ports:
+      - "127.0.0.1:${CONDUIT_GATEWAY_PORT:-4317}:4317"
+    environment:
+      GATEWAY_ADDR: ":4317"
+      NATS_URL: nats://nats:4222
+      TLS_CERT: /conduit/certs/server.crt
+      TLS_KEY: /conduit/certs/server.key
+      TLS_CA: /conduit/certs/ca.crt
+      STORE_LLM_PAYLOADS: ${STORE_LLM_PAYLOADS:-true}
+    volumes:
+      - ./.conduit:/conduit:ro
+    depends_on:
+      conduit-init: { condition: service_completed_successfully }
+      nats: { condition: service_started }
+
+  collector:
+    <<: *service
+    image: ghcr.io/tjscanlan/conduit-collector:${CONDUIT_VERSION:-v0.1.0}
+    environment:
+      NATS_URL: nats://nats:4222
+      CLICKHOUSE_DSN: clickhouse://obs:${CLICKHOUSE_PASSWORD:?run deployments/quickstart/quickstart.sh}@clickhouse:9000/observability
+      VICTORIAMETRICS_URL: http://victoriametrics:8428
+      TEMPO_ENDPOINT: http://tempo:4318
+      SPAN_RETENTION_DAYS: ${SPAN_RETENTION_DAYS:-7}
+    depends_on:
+      nats: { condition: service_started }
+      clickhouse: { condition: service_healthy }
+      victoriametrics: { condition: service_started }
+      tempo: { condition: service_started }
+
+  ui:
+    <<: *service
+    image: ghcr.io/tjscanlan/conduit-ui:${CONDUIT_VERSION:-v0.1.0}
+    ports:
+      - "127.0.0.1:${CONDUIT_UI_PORT:-8080}:8080"
+    environment:
+      LISTEN_ADDR: ":8080"
+      CLICKHOUSE_DSN: clickhouse://obs:${CLICKHOUSE_PASSWORD:?run deployments/quickstart/quickstart.sh}@clickhouse:9000/observability
+      UI_AUTH_MODE: login
+      UI_USERS_FILE: /conduit/ui-users
+      UI_SESSION_KEY: ${UI_SESSION_KEY:-}
+      # Plain HTTP on localhost; never set this in production.
+      UI_COOKIE_INSECURE: "true"
+    volumes:
+      - ./.conduit:/conduit:ro
+    depends_on:
+      conduit-init: { condition: service_completed_successfully }
+      clickhouse: { condition: service_healthy }
+      # The collector creates the schema the UI reads.
+      collector: { condition: service_healthy }
+
+  # ── Sample data ──────────────────────────────────────────────────────
+  # A simulated agent (no model calls) so there is something to look at
+  # right away. Disable with CONDUIT_DEMO_AGENT=0 in quickstart.sh, or
+  # `docker compose stop demo-agent`.
+  demo-agent:
+    build:
+      context: ../..
+      dockerfile: deployments/quickstart/demo-agent.Dockerfile
+    image: conduit-quickstart-demo-agent:local
+    environment:
+      CONDUIT_GATEWAY_ADDR: gateway:4317
+      CONDUIT_CERT_DIR: /conduit/certs
+    volumes:
+      - ./.conduit:/conduit:ro
+    depends_on:
+      gateway: { condition: service_healthy }
+      collector: { condition: service_healthy }
+    restart: unless-stopped
+
+volumes:
+  clickhouse_data:
+  vm_data:
+  tempo_data:
+  nats_data:
