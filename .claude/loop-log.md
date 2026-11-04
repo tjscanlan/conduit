@@ -12,7 +12,7 @@ Newest entries first. Each iteration is driven by `.claude/loop.md`.
   - The collector migrates and then reconciles retention (`StoreOptions.ManageSchema`); a new `collector migrate` subcommand does it and exits. The UI no longer runs DDL.
   - Existing installs adopt automatically (0001 is IF NOT EXISTS, so it's a no-op that gets recorded).
 - Verified: tests with a fake DB cover fresh-then-noop, resume after a mid-run failure, edited and unknown versions refused, loader validation, and idempotency enforced on the real files (one statement, IF [NOT] EXISTS). On the **real engine** (ClickHouse 24.4 `clickhouse local`, 512 MB cap, stdin because Colima doesn't share /private/tmp), both migrations applied twice without error, FINAL de-duplicated the double-recorded rows, and all objects exist with the expected engines. The smoke test now asserts `schema_migrations` = 1..N (CI). Caught a BSD/GNU `seq -s` difference in the smoke command (trailing comma) and switched to `paste -sd,`.
-- Next: open PR #9 (theme done).
+- **Stopping point:** opened PR https://github.com/tjscanlan/conduit/pull/9; no new work until it is merged.
 
 ## 2026-11-04 — Visual roadmap (single source) + Pages enabled
 - Did:
