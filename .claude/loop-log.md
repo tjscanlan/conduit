@@ -16,7 +16,7 @@ Newest entries first. Each iteration is driven by `.claude/loop.md`.
   - **Fixed a wrong proto comment found by documenting from source:** `IngestBatch` said "atomically", but it is per-item. Regenerated the Go and Python stubs.
   - Wired in: a "Reference" section in docs.json (nav, llms.txt, llms-full), `make api-docs` (also run by `make proto`), CI drift check on docs/api.md, the Pages page-exists list, and AGENTS.md and contributing.
 - Verified: generator output is stable (rerun leaves no diff); manifest check OK; llms.txt lists the API reference with its description; builds pass. CI pending.
-- **Stopping point:** the agent-docs theme is done. Opening the PR, then the v0.1.0 release cycle.
+- **Stopping point:** the agent-docs theme is done. Opened PR https://github.com/tjscanlan/conduit/pull/11; no new work until it is merged. Then the v0.1.0 release cycle (`loop/release-v0-1`).
 
 ## 2026-11-04 — Cycle 11 (`loop/agent-readable-docs`, after PR #10 merged as 6e4c0b6): agent-readable docs, part 1
 - Theme (user directive): make all docs first-class for agents to read.
