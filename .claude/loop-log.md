@@ -2,6 +2,15 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — **User directive for the NEXT cycle:** agent-first documentation
+- The user asked (during cycle 10): "in the next loop, update all docs so that agents have first-class support to read them".
+- Plan, for the cycle after `loop/metrics-logs-ingestion` merges (e.g. branch `loop/agent-readable-docs`):
+  - Publish `/llms.txt` (llmstxt.org-style index with one-line summaries and links) and `/llms-full.txt` (all docs concatenated) on the Pages site.
+  - Serve each page's raw Markdown next to its HTML (e.g. `/architecture.md`). That reverses `remove_originals`, or uses a generated copy without Liquid. Add `<link rel="alternate" type="text/markdown">`.
+  - Add `AGENTS.md` at the repo root: how to build, test, and change the repo, its conventions, and where things live, for coding agents.
+  - Consistent front matter on every doc (title, description, audience, last-reviewed), and self-contained sections (no "see above").
+  - A machine-readable API reference generated from `proto/*.proto` (and the SDK APIs), plus a docs drift check in CI.
+
 ## 2026-11-04 — Metrics pipeline + SDK Gauge/Counter
 - Did:
   - `schema.MetricRequest.Validate`: Prometheus name and label-key regexes; **`conduit_*` and `__*` names reserved** (agents can't forge Conduit's own series); `__*` label keys rejected; at most 32 labels; values at most 1 KiB; finite values; counters ≥0; at most 1h in the future.
