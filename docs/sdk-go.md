@@ -4,6 +4,9 @@
 gRPC. It's a separate Go module, `github.com/tjscanlan/conduit/sdk/go`, and
 it requires Go 1.26 or newer.
 
+For runnable Go agents (hello-trace, tool calling, Claude, OpenAI) that
+work against `make quickstart` with no setup, see [Examples](examples.md).
+
 ## 1. Get an agent certificate
 
 Every agent authenticates with its own client certificate. The

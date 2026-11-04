@@ -38,6 +38,12 @@
       "name": "SDKs",
       "pages": [
         {
+          "file": "examples.md",
+          "url": "/examples.html",
+          "title": "Examples",
+          "description": "Runnable Go and Python agents (hello-trace, tool calling, asyncio, Claude, OpenAI) that send traces to a local quickstart in one command."
+        },
+        {
           "file": "sdk-go.md",
           "url": "/sdk-go.html",
           "title": "Go SDK",
