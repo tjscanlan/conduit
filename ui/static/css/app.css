@@ -59,7 +59,7 @@ a:hover { text-decoration: underline; }
 .muted { color: var(--ink-2); font-size: 12px; }
 
 /* ── Nav ─────────────────────────────────────────────────────────────── */
-nav {
+.topnav {
   position: relative;
   display: flex;
   align-items: center;
@@ -69,14 +69,14 @@ nav {
   background: var(--ink);
   color: var(--white);
 }
-nav::after { /* brand rule */
+.topnav::after { /* brand rule */
   content: "";
   position: absolute;
   left: 0; right: 0; bottom: 0;
   height: 3px;
   background: var(--brand-gradient);
 }
-nav .logo {
+.topnav .logo {
   display: flex;
   align-items: center;
   gap: 0.55rem;
@@ -86,18 +86,18 @@ nav .logo {
   font-size: 17px;
   letter-spacing: -0.01em;
 }
-nav .logo:hover { text-decoration: none; }
-nav .logo img { width: 26px; height: 26px; }
-nav > a:not(.logo) {
+.topnav .logo:hover { text-decoration: none; }
+.topnav .logo img { width: 26px; height: 26px; }
+.topnav > a:not(.logo) {
   color: #d6d3d1;
   padding: 0.4rem 0.75rem;
   border-radius: var(--radius);
   font-weight: 500;
 }
-nav > a:not(.logo):hover { color: var(--white); background: rgba(255, 255, 255, 0.08); text-decoration: none; }
-nav > a.active { color: var(--white); background: rgba(255, 255, 255, 0.12); }
-nav .nav-user { color: #d6d3d1; font-size: 13px; margin-left: 1rem; }
-nav .nav-logout button {
+.topnav > a:not(.logo):hover { color: var(--white); background: rgba(255, 255, 255, 0.08); text-decoration: none; }
+.topnav > a.active { color: var(--white); background: rgba(255, 255, 255, 0.12); }
+.topnav .nav-user { color: #d6d3d1; font-size: 13px; margin-left: 1rem; }
+.topnav .nav-logout button {
   margin-left: 0.5rem;
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.28);
@@ -108,7 +108,7 @@ nav .nav-logout button {
   padding: 0.25rem 0.7rem;
   cursor: pointer;
 }
-nav .nav-logout button:hover { border-color: var(--white); }
+.topnav .nav-logout button:hover { border-color: var(--white); }
 
 /* ── Main ────────────────────────────────────────────────────────────── */
 main { padding: 1.75rem 1.5rem 3rem; max-width: 1280px; margin: 0 auto; }
@@ -229,7 +229,7 @@ button[type="submit"], .button {
   cursor: pointer;
 }
 button[type="submit"]:hover, .button:hover { background: #c80000; }
-nav .nav-logout button[type="submit"] { background: transparent; font-weight: 500; padding: 0.25rem 0.7rem; }
+.topnav .nav-logout button[type="submit"] { background: transparent; font-weight: 500; padding: 0.25rem 0.7rem; }
 
 .pager { display: flex; justify-content: space-between; margin-top: 0.9rem; font-weight: 600; }
 .pager a:only-child { margin-left: auto; }
@@ -261,7 +261,8 @@ nav .nav-logout button[type="submit"] { background: transparent; font-weight: 50
 .span-node:last-child { border-bottom: none; }
 .span-node summary {
   display: grid;
-  grid-template-columns: minmax(12rem, 2fr) auto auto 9rem minmax(8rem, 3fr);
+  /* name+link | status+tags | timing | waterfall: four fixed tracks, whatever the span has */
+  grid-template-columns: minmax(12rem, 2fr) 8.5rem 10rem minmax(8rem, 3fr);
   align-items: center;
   gap: 0.75rem;
   padding: 0.5rem 0.9rem;
@@ -271,7 +272,9 @@ nav .nav-logout button[type="submit"] { background: transparent; font-weight: 50
 .span-node summary::-webkit-details-marker { display: none; }
 .span-node summary:hover { background: var(--hover); }
 .span-node.status-error > details > summary { box-shadow: inset 3px 0 0 var(--error); }
-.span-node .span-name { font-weight: 600; }
+.span-title { display: flex; align-items: baseline; min-width: 0; }
+.span-node .span-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.span-badges { display: flex; align-items: center; gap: 0.35rem; }
 .span-node .span-name::before { content: "▸ "; color: var(--ink-2); }
 .span-node details[open] .span-name::before { content: "▾ "; }
 .span-timing { color: var(--ink-2); font-size: 12px; text-align: right; font-family: var(--mono); }
@@ -280,16 +283,16 @@ nav .nav-logout button[type="submit"] { background: transparent; font-weight: 50
 .span-node.linked > details > summary { background: var(--tint-amber); box-shadow: inset 3px 0 0 var(--brand-4); }
 
 /* Nesting: class-based so the strict CSP (no inline styles) holds. */
-.depth-1  .span-name { padding-left: 1.25rem; }
-.depth-2  .span-name { padding-left: 2.5rem; }
-.depth-3  .span-name { padding-left: 3.75rem; }
-.depth-4  .span-name { padding-left: 5rem; }
-.depth-5  .span-name { padding-left: 6.25rem; }
-.depth-6  .span-name { padding-left: 7.5rem; }
-.depth-7  .span-name { padding-left: 8.75rem; }
-.depth-8  .span-name { padding-left: 10rem; }
-.depth-9  .span-name { padding-left: 11.25rem; }
-.depth-10 .span-name { padding-left: 12.5rem; }
+.depth-1  .span-title { padding-left: 1.25rem; }
+.depth-2  .span-title { padding-left: 2.5rem; }
+.depth-3  .span-title { padding-left: 3.75rem; }
+.depth-4  .span-title { padding-left: 5rem; }
+.depth-5  .span-title { padding-left: 6.25rem; }
+.depth-6  .span-title { padding-left: 7.5rem; }
+.depth-7  .span-title { padding-left: 8.75rem; }
+.depth-8  .span-title { padding-left: 10rem; }
+.depth-9  .span-title { padding-left: 11.25rem; }
+.depth-10 .span-title { padding-left: 12.5rem; }
 
 .waterfall { width: 100%; height: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 3px; }
 .wf-bar   { fill: var(--brand-3); }

@@ -1,5 +1,5 @@
 {{define "nav"}}
-<nav>
+<nav class="topnav" aria-label="Main">
   <a class="logo" href="/traces"><img src="/static/img/logo.svg" alt="" width="26" height="26">Conduit</a>
   <a href="/traces" {{if eq .Page "traces"}}class="active"{{end}}>Traces</a>
   <a href="/logs"   {{if eq .Page "logs"}}class="active"{{end}}>Logs</a>

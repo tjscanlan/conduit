@@ -37,10 +37,14 @@
     <li class="span-node depth-{{.Depth}} status-{{.Status}}" id="span-{{.SpanID}}">
       <details>
         <summary>
-          <span class="span-name">{{.SpanName}}</span>
-          <a class="span-link" href="#span-{{.SpanID}}" title="Link to this span" aria-label="Link to span {{.SpanName}}">#</a>
-          <span class="badge badge-{{.Status}}">{{.Status}}</span>
-          {{if .HasLLM}}<span class="tag">LLM</span>{{end}}
+          <span class="span-title">
+            <span class="span-name">{{.SpanName}}</span>
+            <a class="span-link" href="#span-{{.SpanID}}" title="Link to this span" aria-label="Link to span {{.SpanName}}">#</a>
+          </span>
+          <span class="span-badges">
+            <span class="badge badge-{{.Status}}">{{.Status}}</span>
+            {{if .HasLLM}}<span class="tag">LLM</span>{{end}}
+          </span>
           <span class="span-timing mono">+{{.OffsetMs}} ms · {{.DurationMs}} ms</span>
           <svg class="waterfall" viewBox="0 0 1000 10" preserveAspectRatio="none" aria-hidden="true">
             <rect class="wf-bar wf-{{.Status}}" x="{{.X}}" y="0" width="{{.W}}" height="10"></rect>

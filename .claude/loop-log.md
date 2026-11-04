@@ -6,6 +6,10 @@ Newest entries first. Each iteration is driven by `.claude/loop.md`.
 - Did: SVG logo mark (five concentric arcs in the palette, red outside to yellow inside, forming a "C" open toward the flow) and favicon; full app.css rewrite around design tokens. Light white UI, warm near-black ink text, ink nav bar with a 3px palette-gradient rule, sans UI with mono for IDs, the logo plus wordmark in the nav, and a login card with the logo, tagline, and gradient top. metrics.js canvas colors updated.
 - Contrast rules (computed): only #ec0000 passes AA as text on white (4.6:1), so it's used for links, buttons, and errors. #ec9b00 and #ecca00 take ink, never white. Error text on the red tint uses #b80000 (6.3:1).
 - Verified: go test; CSP template test (no inline styles). **Not yet viewed in a browser.**
+- Visual check (follow-up): rendered the real templates with sample data through a throwaway test harness (kept in the scratchpad, never committed) and screenshotted them with WebKit (qlmanage). It found two layout bugs, both now fixed:
+  - Global `nav {}` rules styled the trace-list pager as a second dark nav bar, so they're now scoped to `.topnav`.
+  - The span row grid had 5 tracks but 6 children on LLM spans (the hidden `#` link and the LLM tag each took a cell), so the waterfall wrapped. The row now has 4 stable tracks: title+link | status+tags | timing | bar.
+  - The list, detail, and login pages now look right.
 - Remaining in this cycle: formal docs (README overhaul with logo, docs index, architecture refresh, contributing.md), docs/roadmap.md, a browser check of the new look, then PR #6.
 
 ## 2026-11-03 — **User directive for the NEXT cycle:** formal docs, product roadmap, professional branding
