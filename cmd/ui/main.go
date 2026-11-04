@@ -85,6 +85,7 @@ type spanQuerier interface {
 	QueryTraces(ctx context.Context, f storage.TraceFilter) ([]storage.TraceSummary, error)
 	QueryAgents(ctx context.Context, window time.Duration, limit int) ([]string, error)
 	Ready(ctx context.Context) error
+	QueryLogs(ctx context.Context, f storage.LogFilter) ([]storage.LogRow, error)
 	QueryTrace(ctx context.Context, traceID string, limit int) ([]storage.SpanRow, error)
 }
 
@@ -185,7 +186,20 @@ func (h *handlers) traceDetail(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handlers) logs(w http.ResponseWriter, r *http.Request) {
-	h.render(w, r, "logs", map[string]any{"Page": "logs"})
+	f := parseLogListFilter(r.URL.Query())
+	logs, err := h.ch.QueryLogs(r.Context(), f.storageFilter())
+	if err != nil {
+		h.logger.Error("query logs", "err", err)
+		http.Error(w, "query error", http.StatusInternalServerError)
+		return
+	}
+	data := map[string]any{"Page": "logs", "Logs": logs, "Filter": f, "Windows": traceWindows,
+		"Levels": severityLevels, "Limit": logListLimit, "Full": len(logs) == logListLimit}
+	if r.Header.Get("HX-Request") == "true" {
+		h.render(w, r, "logs-rows", data)
+		return
+	}
+	h.render(w, r, "logs", data)
 }
 
 func (h *handlers) metricsPage(w http.ResponseWriter, r *http.Request) {

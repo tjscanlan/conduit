@@ -97,8 +97,9 @@ func TestMigrateResumesAfterFailure(t *testing.T) {
 		t.Fatalf("partial migrate: ran %v, err %v", ran, err)
 	}
 	db.failOn = ""
-	if ran, err = migrate(context.Background(), db, all); err != nil || len(ran) != 1 || ran[0] != 2 {
-		t.Fatalf("resume: ran %v, err %v", ran, err)
+	ran, err = migrate(context.Background(), db, all)
+	if err != nil || len(ran) != len(all)-1 || ran[0] != 2 || ran[len(ran)-1] != len(all) {
+		t.Fatalf("resume: ran %v, err %v; want versions 2..%d", ran, err, len(all))
 	}
 }
 

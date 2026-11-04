@@ -82,10 +82,23 @@ func (s *SpanRequest) Validate() error {
 	if s.EndTime.Sub(s.StartTime) > MaxSpanDuration {
 		return errors.New("span duration exceeds maximum allowed")
 	}
-	if len(s.Attributes) > MaxAttributeCount {
+	if err := validateAttributes(s.Attributes); err != nil {
+		return err
+	}
+	if s.LLMCall != nil {
+		if err := s.LLMCall.validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateAttributes applies the shared attribute limits (spans and logs).
+func validateAttributes(attrs map[string]string) error {
+	if len(attrs) > MaxAttributeCount {
 		return errors.New("too many attributes")
 	}
-	for k, v := range s.Attributes {
+	for k, v := range attrs {
 		if k == "" {
 			return errors.New("attribute key is empty")
 		}
@@ -94,11 +107,6 @@ func (s *SpanRequest) Validate() error {
 		}
 		if len(v) > MaxAttributeValLen {
 			return errors.New("attribute value too long")
-		}
-	}
-	if s.LLMCall != nil {
-		if err := s.LLMCall.validate(); err != nil {
-			return err
 		}
 	}
 	return nil

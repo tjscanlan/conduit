@@ -22,6 +22,7 @@ This roadmap is ordered by priority, not by date. Items move as we learn. To sug
 - NATS JetStream work queue with at-least-once delivery into ClickHouse
 - Best-effort export to VictoriaMetrics and Tempo
 - Span status (ok, error, unset) from end to end, and nanosecond timestamps
+- Logs (ClickHouse) and metrics (VictoriaMetrics) ingestion, each with its own NATS stream, plus SDK `Log`, `Gauge` and `Counter` APIs
 
 **SDKs**
 - Go and Python SDKs: mTLS that trusts only your CA, W3C-sized IDs, status and error recording
@@ -32,6 +33,7 @@ This roadmap is ordered by priority, not by date. Items move as we learn. To sug
 - Strict CSP and browser hardening
 - Trace list: one row per trace, filters by time, agent and errors, keyset paging, agent suggestions
 - Trace detail: span tree, waterfall timeline, error and LLM details, deep links
+- Logs page: filters by time, severity, agent, text and trace, with deep links to spans
 
 **Data governance**
 - `STORE_LLM_PAYLOADS=false` drops prompts and completions at the gateway
@@ -51,7 +53,6 @@ This roadmap is ordered by priority, not by date. Items move as we learn. To sug
 | Item | Area | Why |
 |------|------|-----|
 | **Prompt and completion access control** | UI | Payloads are stored but never shown. Showing them needs a decision on who may see them (see [open decisions](#open-decisions)). |
-| **Metrics and logs ingestion** | Pipeline | `IngestBatch` accepts metrics and logs in the API but rejects them, because there's no pipeline yet. |
 
 ## Next: scale and integration
 

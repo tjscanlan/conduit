@@ -2,6 +2,66 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — **User directive for the NEXT cycle:** agent-first documentation
+- The user asked (during cycle 10): "in the next loop, update all docs so that agents have first-class support to read them".
+- Plan, for the cycle after `loop/metrics-logs-ingestion` merges (e.g. branch `loop/agent-readable-docs`):
+  - Publish `/llms.txt` (llmstxt.org-style index with one-line summaries and links) and `/llms-full.txt` (all docs concatenated) on the Pages site.
+  - Serve each page's raw Markdown next to its HTML (e.g. `/architecture.md`). That reverses `remove_originals`, or uses a generated copy without Liquid. Add `<link rel="alternate" type="text/markdown">`.
+  - Add `AGENTS.md` at the repo root: how to build, test, and change the repo, its conventions, and where things live, for coding agents.
+  - Consistent front matter on every doc (title, description, audience, last-reviewed), and self-contained sections (no "see above").
+  - A machine-readable API reference generated from `proto/*.proto` (and the SDK APIs), plus a docs drift check in CI.
+
+## 2026-11-04 — UI logs page
+- Did: replaced the "not yet wired" placeholder with a real logs page.
+  - `storage.QueryLogs(LogFilter)`: bounded by the window allowlist, at most 200 rows newest first, with bound parameters for agent, severities (from a fixed allowlist), case-insensitive search (`positionCaseInsensitiveUTF8`), and trace_id.
+  - Filters: window, minimum severity (`warn` → {warn, error}), agent (≤256 valid UTF-8), text (≤200), trace (ID charset, ≤64). Invalid values are dropped.
+  - Rows: time, severity badge (palette ramp, AA text), agent, the body in mono pre-wrap (escaped), and a trace link that deep-links `#span-<id>`.
+  - htmx polling keeps the filter (a complete `template.URL`); a "showing newest 200" notice; filter-aware empty state. The trace detail links "Logs for this trace".
+  - Added a `shortID` template func; a `{{slice .TraceID 0 8}}` draft would have panicked on short IDs (validID allows 1..64).
+- Verified: handler tests (defaults, the severity ramp, filtered rows, form state, the trace notice, the empty state, the partial, polling URL, the detail link, XSS escaping, short IDs, and rejection of bad params). On the **real engine**: `severity IN ['warn','error']` on Enum8 (array literal, as clickhouse-go binds []string), case-insensitive search, and the full query all returned the right rows. Smoke checks the trace, severity, and text filters through the real driver (CI).
+- **Stopping point:** the theme is done. Opened PR https://github.com/tjscanlan/conduit/pull/10; no new work until it is merged. Then the user's agent-first docs cycle.
+
+## 2026-11-04 — Metrics pipeline + SDK Gauge/Counter
+- Did:
+  - `schema.MetricRequest.Validate`: Prometheus name and label-key regexes; **`conduit_*` and `__*` names reserved** (agents can't forge Conduit's own series); `__*` label keys rejected; at most 32 labels; values at most 1 KiB; finite values; counters ≥0; at most 1h in the future.
+  - `telemetry.ProcessMetric` **always sets `agent` from the mTLS identity** (it overwrites any client label and clones the map rather than mutating it).
+  - The gateway maps `pb.Metric` (unknown type enums are rejected) and publishes to a separate `METRICS` work-queue stream.
+  - Collector: a third durable consumer (`collector-metrics`) writes VictoriaMetrics. **Failures retry**, because VM is the system of record for metrics (unlike the best-effort span-duration export).
+  - SDKs: Go `Gauge`/`Counter`, Python `gauge`/`counter`, with gateway rejection reasons surfaced.
+  - Smoke agents send gauges, and the smoke test asserts they're in VM with `agent=<cert CN>` (both SDKs).
+  - Docs (SDK rows, architecture) updated; on the roadmap, "Metrics and logs ingestion" moved Now → Shipped.
+- Verified: gateway test with 11 metrics (1 accepted; reserved, bad name, NaN, Inf, negative counter, bad and reserved label keys, too many labels, and unknown type rejected with matching reasons; a spoofed `agent` label overwritten); ProcessMetric (agent override, no mutation, defaults); collector metric dispositions; metric stream config; SDK tests against the mTLS fake (Go, and Python 10/10). Smoke runs in CI.
+- Next: the UI logs page (it's a placeholder today), then PR.
+
+## 2026-11-04 — **Security fix:** Prometheus label injection into VictoriaMetrics
+- Found while starting the metrics work: `promLine` escaped only `"` in label values. The Prometheus text format requires escaping `\`, `"`, and newline. The `span` label is the agent-supplied span name (any characters), so:
+  - a newline in a span name ended the sample and **injected arbitrary samples**, e.g. a forged `conduit_span_duration_ms{agent="victim"}`;
+  - `\"` became `\\"`: the backslash was escaped, so the quote closed the value and broke out of it.
+  Any authenticated agent could forge metrics attributed to other agents.
+- Fix: escape all three with a `strings.Replacer`; sort label keys for stable output.
+- Verified: unit tests cover plain, quote, backslash, newline injection, and backslash-quote breakout (one line per sample). **Against a real VictoriaMetrics v1.102.1** (throwaway container, 256 MB, no ports), importing the escaped payloads produced exactly 2 series with the payload text literal in the `span` label and no forged `victim` series.
+
+## 2026-11-04 — SDK log APIs (Go + Python), logs in the smoke test
+- Did:
+  - Go: `client.Log(ctx, severity, body, attrs)` with `sdk.Severity*` consts. It reads the current `*Span` from ctx directly; `traceIDFromContext` would mint a new trace ID, which is wrong for a log outside a span. It sends via `IngestBatch` and returns the gateway's per-item reason on rejection.
+  - Python: `client.log(severity, body, attributes=None)` with `SEVERITY_*` constants, links to the current span through contextvars, stringifies attribute values, and raises `ConduitError` with the gateway's reason.
+  - Both smoke agents send a WARN log inside a span. The smoke test asserts the Go log row (agent_name from the cert CN, severity, body, attribute, span_id equal to the smoke.llm.call span) and the Python log row.
+  - SDK docs gained API rows.
+- Verified: SDK tests against a real mTLS gRPC fake gateway (Go and Python): no trace link outside a span, correct trace and span inside, severity, attributes, timestamp, and the rejection reason surfaced. Go vet and tests pass; pytest is 9/9. The smoke runs in CI.
+- Next: metrics → VictoriaMetrics, then the UI logs page.
+
+## 2026-11-04 — Cycle 10 (`loop/metrics-logs-ingestion`, after PR #9 merged as 53e7ea1): logs pipeline (server side)
+- Theme: metrics and logs ingestion (roadmap Now). `IngestBatch` accepted both in the API and rejected them.
+- Did, for logs end to end on the server:
+  - `schema.LogRequest.Validate`: severity enum; body 1..32 KiB; no more than 1h in the future; optional trace and span IDs validated, with span_id requiring trace_id; attribute limits shared with spans via `validateAttributes`.
+  - `telemetry.LogInput` and `ProcessLog` (defaults: unspecified severity, receive time).
+  - The gateway maps `pb.LogRecord` (unknown severity enums pass through as invalid), stamps agent_name from the mTLS identity, and publishes per item, with errors reported per index. Rate limiting already charged logs per item.
+  - NATS: a separate `LOGS` work-queue stream (`logs.ingest`), so backlogs are isolated; `ensureStream` is shared.
+  - Collector: a second durable consumer (`collector-logs`) with the same ack/retry/term rules, writing ClickHouse via `InsertLog` (batch protocol, ns precision).
+  - Migration 0003 creates the `logs` table. Retention reconcile is generalized to {spans, logs}, and the TTL regex now accepts any time column.
+- Verified: tests cover gateway batch logs (1 accepted, 5 rejected with the right per-index reasons, published only to the log subject, identity not spoofable), ProcessLog defaults, collector log dispositions, the log stream config, the generalized TTL parse with the real engine string, and the migration resume test generalized to N migrations. On the real engine (clickhouse local 24.4), 0003 ran twice, MODIFY TTL on logs worked, and the normalized form matches the regex. Smoke now asserts the TTL on both tables and migrations 1..3 (CI).
+- Next: SDK `Log` APIs (Go and Python), a smoke assertion that logs land, metrics → VictoriaMetrics, and the UI logs page.
+
 ## 2026-11-04 — Cycle 9 (`loop/clickhouse-migrations`, after PR #8 merged as 8013ddc): versioned schema migrations
 - PR #8's first live deploy succeeded (pages run 41754108734, build and deploy green); https://tjscanlan.github.io/conduit/ serves every page, the CSS, and the logo with 200s.
 - Theme: schema migrations, from the roadmap's Now lane (prompt access control still needs a human decision).

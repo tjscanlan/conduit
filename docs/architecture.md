@@ -13,9 +13,9 @@ component guarantees, and how the data is stored.
 | **Gateway** | `cmd/gateway` | Authenticates agents, validates spans, rate-limits each agent and publishes to NATS |
 | **Collector** | `cmd/collector` | Consumes from NATS and writes to ClickHouse (required), VictoriaMetrics and Tempo (both best-effort) |
 | **UI** | `cmd/ui` | Server-rendered trace list and trace detail, read from ClickHouse, with sign-in |
-| NATS JetStream | | A durable buffer between ingestion and storage |
+| NATS JetStream | | A durable buffer between ingestion and storage. Spans, logs and metrics use separate work-queue streams (`SPANS`, `LOGS`, `METRICS`), so a backlog in one never blocks the others. |
 | ClickHouse | | The system of record for spans, LLM data and trace rollups |
-| VictoriaMetrics | | Span duration metrics |
+| VictoriaMetrics | | Agent metrics (the system of record for them) and span duration metrics |
 | Tempo | | A copy of each trace, in OTLP format, for Grafana |
 
 ## Data flow
@@ -134,6 +134,43 @@ The table is a `MergeTree`, partitioned by day and ordered by
 - **The UI** only creates the tables if they're missing, and never alters
   them.
 
+### ClickHouse `logs`
+
+Log records sent in `IngestBatch`. Each is validated at the gateway: the
+severity enum, a body of 1 byte to 32 KiB, a timestamp no more than an hour
+in the future, well-formed optional `trace_id` and `span_id` (a span needs
+a trace), and the shared attribute limits. Agent identity comes from the
+certificate, as for spans.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `timestamp` | `DateTime64(9, 'UTC')` | Defaults to the receive time if the client sends none |
+| `agent_name` | `String` | The mTLS CommonName |
+| `severity` | `Enum8('unspecified', 'debug', 'info', 'warn', 'error')` | |
+| `body` | `String` | |
+| `attributes` | `Map(String, String)` | |
+| `trace_id`, `span_id` | `String` | Empty unless the log belongs to a trace or span |
+
+The table is partitioned by day and ordered by `(agent_name, timestamp)`.
+`SPAN_RETENTION_DAYS` applies to it as well.
+
+### VictoriaMetrics: agent metrics
+
+Gauges and counters sent in `IngestBatch` are written to VictoriaMetrics.
+The gateway validates them:
+- **Names** must be valid Prometheus names. `conduit_*` is reserved for
+  Conduit's own series, so agents can't forge them, and `__*` is reserved
+  too.
+- **Labels:** at most 32, with Prometheus-style keys and values of at most
+  1 KiB.
+- **Values** must be finite, and counters must be ≥ 0.
+- **The `agent` label** is always set from the certificate.
+
+For metrics, VictoriaMetrics is the system of record, so a failed write is
+retried, unlike the best-effort span-duration export. Label values are
+escaped for the Prometheus text format (backslash, quote and newline), so a
+value can't inject extra samples.
+
 ### ClickHouse `trace_summary`
 
 A materialized view (`AggregatingMergeTree`) with per-trace rollups: start,
@@ -149,6 +186,7 @@ reads it yet.
 | Trace list | A time window (1h, 24h or 7d), up to 100 traces per page, keyset paging |
 | Trace detail | Up to 2000 spans, ordered by start time |
 | Agent suggestions | A time window, up to 200 names |
+| Logs page | A time window, up to 200 records, newest first. Filters by agent, minimum severity, case-insensitive text and trace. |
 
 The UI never reads prompts or completions. See [Roadmap: open decisions](roadmap.md#open-decisions).
 

@@ -83,6 +83,8 @@ _ = span.End(ctx)
 | `span.SetOK()` / `span.SetError(err)` | Sets the span status. `SetError` also stores `err.Error()` in `error.message`, cut to 4096 bytes. `SetError(nil)` does nothing. Spans you don't mark have status `unset`. |
 | `span.RecordLLMCall(call)` | Attaches model, prompt, completion, token counts and cost. Prompts and completions are capped at 128 KiB each. |
 | `span.End(ctx)` | Sends the span synchronously with one RPC. Returns an error if delivery fails or the gateway rejects the span, with the gateway's reason. |
+| `client.Log(ctx, severity, body, attrs)` | Sends one log record (`sdk.SeverityDebug`, `Info`, `Warn` or `Error`). If `ctx` carries a span from `StartSpan`, the record is linked to that span and its trace. Returns an error if the gateway rejects it. Bodies are limited to 32 KiB. |
+| `client.Gauge(ctx, name, value, labels)` / `client.Counter(...)` | Sends one metric sample to VictoriaMetrics. Names follow Prometheus rules, and names starting with `conduit_` or `__` are reserved. The `agent` label is always set from your certificate. Counters must be ≥ 0, and values must be finite. |
 | `client.Close()` | Closes the connection. |
 
 `sdk.EstimateCostUSD(model, in, out)` uses a small built-in price table

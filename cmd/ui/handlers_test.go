@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -17,14 +18,33 @@ import (
 )
 
 type fakeSpans struct {
-	rows       []storage.SpanRow
-	lastFilter storage.TraceFilter
-	agentsErr  error
-	agentCalls int
-	readyErr   error
+	rows          []storage.SpanRow
+	lastFilter    storage.TraceFilter
+	agentsErr     error
+	agentCalls    int
+	readyErr      error
+	logs          []storage.LogRow
+	lastLogFilter storage.LogFilter
 }
 
 func (f *fakeSpans) Ready(context.Context) error { return f.readyErr }
+
+// QueryLogs mirrors the SQL filters on f.logs, newest first as stored.
+func (f *fakeSpans) QueryLogs(_ context.Context, lf storage.LogFilter) ([]storage.LogRow, error) {
+	f.lastLogFilter = lf
+	var out []storage.LogRow
+	for _, l := range f.logs {
+		if (lf.Agent != "" && l.AgentName != lf.Agent) || (lf.TraceID != "" && l.TraceID != lf.TraceID) ||
+			(lf.Search != "" && !strings.Contains(strings.ToLower(l.Body), strings.ToLower(lf.Search))) {
+			continue
+		}
+		if len(lf.Severities) > 0 && !slices.Contains(lf.Severities, l.Severity) {
+			continue
+		}
+		out = append(out, l)
+	}
+	return out, nil
+}
 
 func (f *fakeSpans) QueryAgents(_ context.Context, _ time.Duration, limit int) ([]string, error) {
 	f.agentCalls++

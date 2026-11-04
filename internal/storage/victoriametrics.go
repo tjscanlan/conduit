@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 )
@@ -59,24 +60,34 @@ func (c *VictoriaMetricsClient) WriteMetrics(ctx context.Context, metrics []VMMe
 	return nil
 }
 
+// promLine renders one sample in the Prometheus text format. Label values
+// are agent-controlled (span names, attributes), so they are escaped exactly
+// as the format requires: backslash, double quote, and newline. Escaping only
+// the quote let a value end the line and inject arbitrary samples, such as
+// forged metrics for another agent. Labels are sorted for stable output.
 func promLine(m VMMetric) string {
 	var sb strings.Builder
 	sb.WriteString(m.Name)
 	if len(m.Labels) > 0 {
+		keys := make([]string, 0, len(m.Labels))
+		for k := range m.Labels {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
 		sb.WriteByte('{')
-		first := true
-		for k, v := range m.Labels {
-			if !first {
+		for i, k := range keys {
+			if i > 0 {
 				sb.WriteByte(',')
 			}
 			sb.WriteString(k)
 			sb.WriteString(`="`)
-			sb.WriteString(strings.ReplaceAll(v, `"`, `\"`))
+			sb.WriteString(labelValueEscaper.Replace(m.Labels[k]))
 			sb.WriteByte('"')
-			first = false
 		}
 		sb.WriteByte('}')
 	}
 	fmt.Fprintf(&sb, " %g %d\n", m.Value, m.Timestamp.UnixMilli())
 	return sb.String()
 }
+
+var labelValueEscaper = strings.NewReplacer(`\`, `\\`, `"`, `\"`, "\n", `\n`)

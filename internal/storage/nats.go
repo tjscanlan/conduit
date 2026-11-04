@@ -28,11 +28,9 @@ func NewNATSPublisher(url string) (*NATSPublisher, error) {
 		return nil, fmt.Errorf("jetstream context: %w", err)
 	}
 
-	// Ensure stream exists; ignore error if it already does.
-	_, err = js.AddStream(spanStreamConfig())
-	if err != nil {
-		if _, infoErr := js.StreamInfo(streamName); infoErr != nil {
-			return nil, fmt.Errorf("create stream: %w", err)
+	for _, cfg := range []*nats.StreamConfig{spanStreamConfig(), logStreamConfig(), metricStreamConfig()} {
+		if err := ensureStream(js, cfg); err != nil {
+			return nil, err
 		}
 	}
 
@@ -72,6 +70,53 @@ func NATSReady(nc *nats.Conn) error {
 		return fmt.Errorf("nats not connected (%s)", status)
 	}
 	return nil
+}
+
+// LogSubject and logStreamName carry log records, in their own work queue so a
+// backlog of one kind never blocks the other.
+const (
+	LogSubject    = "logs.ingest"
+	logStreamName = "LOGS"
+)
+
+func logStreamConfig() *nats.StreamConfig {
+	cfg := spanStreamConfig()
+	cfg.Name, cfg.Subjects = logStreamName, []string{LogSubject}
+	return cfg
+}
+
+// ensureStream creates cfg's stream unless it already exists.
+func ensureStream(js nats.JetStreamContext, cfg *nats.StreamConfig) error {
+	if _, err := js.AddStream(cfg); err != nil {
+		if _, infoErr := js.StreamInfo(cfg.Name); infoErr != nil {
+			return fmt.Errorf("create stream %s: %w", cfg.Name, err)
+		}
+	}
+	return nil
+}
+
+// MetricSubject and metricStreamName carry metric samples in their own work queue.
+const (
+	MetricSubject    = "metrics.ingest"
+	metricStreamName = "METRICS"
+)
+
+func metricStreamConfig() *nats.StreamConfig {
+	cfg := spanStreamConfig()
+	cfg.Name, cfg.Subjects = metricStreamName, []string{MetricSubject}
+	return cfg
+}
+
+// PublishMetric sends a serialized metric sample (JSON-encoded telemetry.MetricInput).
+func (p *NATSPublisher) PublishMetric(_ context.Context, data []byte) error {
+	_, err := p.js.Publish(MetricSubject, data)
+	return err
+}
+
+// PublishLog sends a serialized log record (JSON-encoded telemetry.LogInput).
+func (p *NATSPublisher) PublishLog(_ context.Context, data []byte) error {
+	_, err := p.js.Publish(LogSubject, data)
+	return err
 }
 
 // Publish sends a serialized span (JSON-encoded telemetry.SpanInput) to the ingest subject.

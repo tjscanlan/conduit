@@ -5,7 +5,7 @@ scripts/smoke-test.sh uses this to check the Python SDK end to end.
 
 import argparse
 
-from conduit_sdk import Client, LLMCall
+from conduit_sdk import SEVERITY_WARN, Client, LLMCall
 
 
 def main() -> None:
@@ -19,6 +19,7 @@ def main() -> None:
     with Client(a.addr, a.cert, a.key, a.ca) as client:
         with client.span("pysmoke.agent.run", raise_errors=True) as root:
             root.set_attr("sdk", "python")
+            client.log(SEVERITY_WARN, "pysmoke: retrying tool call", {"attempt": 2})
             try:
                 # An exception inside a span marks it as an error, then propagates.
                 with client.span("pysmoke.tool.call", raise_errors=True) as tool:
@@ -27,6 +28,7 @@ def main() -> None:
                     raise TimeoutError("tool call timed out")
             except TimeoutError:
                 pass
+            client.gauge("smoke_queue_depth", 9, {"sdk": "python"})
             root.set_ok()
         print(root.trace_id)
 

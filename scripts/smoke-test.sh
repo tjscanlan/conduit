@@ -56,9 +56,11 @@ pass "schema_migrations has versions $versions"
 
 echo "==> Retention"
 want_days="${SPAN_RETENTION_DAYS:-90}"
-ttl_ok() { ch "SELECT engine_full FROM system.tables WHERE database = currentDatabase() AND name = 'spans'" | grep -q "toIntervalDay($want_days)"; }
-retry 15 ttl_ok || fail "spans TTL is not $want_days days: $(ch "SELECT engine_full FROM system.tables WHERE name = 'spans'")"
-pass "spans TTL is $want_days days (SPAN_RETENTION_DAYS)"
+for table in spans logs; do
+  ttl_ok() { ch "SELECT engine_full FROM system.tables WHERE database = currentDatabase() AND name = '$table'" | grep -q "toIntervalDay($want_days)"; }
+  retry 15 ttl_ok || fail "$table TTL is not $want_days days: $(ch "SELECT engine_full FROM system.tables WHERE name = '$table'")"
+done
+pass "spans and logs TTL are $want_days days (SPAN_RETENTION_DAYS)"
 
 echo "==> Sending a trace through the gateway as $AGENT"
 TRACE=$(cd "$ROOT/sdk/go" && go run ./examples/smoke-agent \
@@ -80,6 +82,13 @@ llm_ms=$(ch "SELECT dateDiff('millisecond', start_time, end_time) FROM spans WHE
 (( llm_ms >= 15 )) || fail "smoke.llm.call stored start/end only $llm_ms ms apart; timestamps lost sub-second precision"
 pass "sub-second timestamps preserved ($llm_ms ms)"
 
+log_row() { [[ "$(ch "SELECT count() FROM logs WHERE trace_id = '$TRACE'")" == 1 ]]; }
+retry 30 log_row || fail "expected 1 log linked to trace $TRACE"
+logrow=$(ch "SELECT agent_name, severity, body, attributes['attempt'], span_id = (SELECT span_id FROM spans WHERE trace_id = '$TRACE' AND span_name = 'smoke.llm.call')
+             FROM logs WHERE trace_id = '$TRACE' FORMAT TSV")
+[[ "$logrow" == "$AGENT"$'\twarn\tsmoke: retrying tool call\t2\t1' ]] || fail "log row differs: $logrow"
+pass "Go SDK log stored, linked to its span, agent_name from the cert"
+
 summary=$(ch "SELECT sum(span_count), sum(error_count), sum(total_input_tokens) FROM trace_summary WHERE trace_id = '$TRACE' FORMAT TSV")
 [[ "$summary" == $'2\t1\t12' ]] || fail "trace_summary = '$summary', want 2 spans / 1 error / 12 tokens"
 pass "trace_summary rollup"
@@ -99,7 +108,9 @@ else
              FROM spans WHERE trace_id = '$PYTRACE' ORDER BY span_name FORMAT TSV")
   expected="pysmoke.agent.run"$'\t'"$AGENT"$'\tok\t\t\t16\t0\n'"pysmoke.tool.call"$'\t'"$AGENT"$'\terror\ttool call timed out\tpy-model\t16\t1'
   [[ "$rows" == "$expected" ]] || fail "Python span rows differ:"$'\n'"got:"$'\n'"$rows"$'\n'"want:"$'\n'"$expected"
-  pass "Python SDK trace $PYTRACE: context-manager spans, exception recorded as error, parent link"
+  pylog() { [[ "$(ch "SELECT severity, body FROM logs WHERE trace_id = '$PYTRACE' FORMAT TSV")" == $'warn\tpysmoke: retrying tool call' ]]; }
+  retry 30 pylog || fail "Python SDK log not stored for $PYTRACE"
+  pass "Python SDK trace $PYTRACE: context-manager spans, exception recorded as error, parent link, linked log"
   PYSTART_NS=$(ch "SELECT toUnixTimestamp64Nano(min(start_time)) FROM spans WHERE trace_id = '$PYTRACE'")
 fi
 
@@ -109,6 +120,15 @@ vm_has() {
 }
 retry 30 vm_has || fail "no conduit_span_duration_ms series in VictoriaMetrics"
 pass "span duration metrics"
+gauge_has() {
+  curl -fsS -G "$VM/api/v1/export" --data-urlencode 'match[]={__name__="smoke_queue_depth",sdk="go",agent="'"$AGENT"'"}' | grep -q '"values":\[7\]'
+}
+retry 30 gauge_has || fail "Go SDK gauge smoke_queue_depth{sdk=go,agent=$AGENT}=7 not in VictoriaMetrics"
+if [[ "${SMOKE_SKIP_PYTHON:-}" != 1 ]]; then
+  pygauge_has() { curl -fsS -G "$VM/api/v1/export" --data-urlencode 'match[]={__name__="smoke_queue_depth",sdk="python",agent="'"$AGENT"'"}' | grep -q '"values":\[9\]'; }
+  retry 30 pygauge_has || fail "Python SDK gauge not in VictoriaMetrics"
+fi
+pass "SDK gauges stored with the agent label from the cert"
 
 echo "==> Tempo"
 tempo_trace() {
@@ -150,6 +170,14 @@ fi
 page=$(curl -fsS -b "$jar" "$UI/traces/$TRACE")
 grep -q smoke.llm.call <<<"$page" && grep -q badge-error <<<"$page" || fail "trace detail page missing spans"
 curl -fsSI -b "$jar" "$UI/traces" | grep -qi '^content-security-policy:' || fail "missing CSP header"
+logs_page=$(curl -fsS -b "$jar" -G "$UI/logs" --data-urlencode "trace=$TRACE" --data-urlencode window=1h)
+grep -q "smoke: retrying tool call" <<<"$logs_page" || fail "logs page (trace filter) missing the Go SDK log"
+grep -q "#span-" <<<"$logs_page" || fail "log row should deep-link to its span"
+none=$(curl -fsS -b "$jar" -G "$UI/logs" --data-urlencode "trace=$TRACE" --data-urlencode min=error)
+grep -q "No logs match these filters" <<<"$none" || fail "min=error should exclude the WARN log"
+hit=$(curl -fsS -b "$jar" -G "$UI/logs" --data-urlencode q=RETRYING --data-urlencode min=warn)
+grep -q "smoke: retrying tool call" <<<"$hit" || fail "case-insensitive search + severity filter missed the log"
+pass "logs page: trace, severity, and text filters on real ClickHouse"
 pass "login flow, trace detail page, CSP"
 
 echo "PASS: smoke test for trace $TRACE"

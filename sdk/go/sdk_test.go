@@ -10,6 +10,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"math/big"
 	"net"
 	"os"
@@ -104,8 +105,34 @@ func newTestPKI(t *testing.T, dir, name string) *testPKI {
 // fakeGateway records spans and rejects any whose name is "reject-me".
 type fakeGateway struct {
 	pb.UnimplementedIngestionServiceServer
-	mu    sync.Mutex
-	spans []*pb.Span
+	mu      sync.Mutex
+	spans   []*pb.Span
+	logs    []*pb.LogRecord
+	metrics []*pb.Metric
+}
+
+// IngestBatch accepts log records, rejecting any with an empty body (like the gateway).
+func (g *fakeGateway) IngestBatch(_ context.Context, req *pb.IngestBatchRequest) (*pb.IngestBatchResponse, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	resp := &pb.IngestBatchResponse{}
+	for i, m := range req.GetMetrics() {
+		if strings.HasPrefix(m.GetName(), "conduit_") {
+			resp.Errors = append(resp.Errors, fmt.Sprintf("metric[%d]: validation: metric names starting with conduit_ or __ are reserved", i))
+			continue
+		}
+		g.metrics = append(g.metrics, m)
+		resp.MetricsAccepted++
+	}
+	for i, l := range req.GetLogs() {
+		if l.GetBody() == "" {
+			resp.Errors = append(resp.Errors, fmt.Sprintf("log[%d]: validation: log body is required", i))
+			continue
+		}
+		g.logs = append(g.logs, l)
+		resp.LogsAccepted++
+	}
+	return resp, nil
 }
 
 func (g *fakeGateway) IngestSpan(_ context.Context, req *pb.IngestSpanRequest) (*pb.IngestSpanResponse, error) {
@@ -243,6 +270,69 @@ func TestTruncateUTF8(t *testing.T) {
 	// Odd cut point lands mid-rune and must back up.
 	if got := truncateUTF8("aé", 2); got != "a" {
 		t.Errorf("truncateUTF8(\"aé\", 2) = %q, want \"a\"", got)
+	}
+}
+
+func TestLogLinksToCurrentSpan(t *testing.T) {
+	pki := newTestPKI(t, t.TempDir(), "conduit")
+	g, addr := startGateway(t, pki)
+	c := newTestClient(t, addr, pki)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := c.Log(ctx, SeverityInfo, "agent started", nil); err != nil {
+		t.Fatal(err)
+	}
+	span, sctx := c.StartSpan(ctx, "tool.call")
+	if err := c.Log(sctx, SeverityWarn, "retrying", map[string]string{"attempt": "2"}); err != nil {
+		t.Fatal(err)
+	}
+	err := c.Log(sctx, SeverityError, "", nil)
+	if err == nil || !strings.Contains(err.Error(), "log body is required") {
+		t.Fatalf("empty body: err = %v, want the gateway's reason", err)
+	}
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if len(g.logs) != 2 {
+		t.Fatalf("gateway got %d logs, want 2", len(g.logs))
+	}
+	if outside := g.logs[0]; outside.GetTraceId() != "" || outside.GetSpanId() != "" || outside.GetSeverity() != pb.LogSeverity_LOG_SEVERITY_INFO {
+		t.Errorf("log outside a span must not carry trace links: %v", outside)
+	}
+	inside := g.logs[1]
+	if inside.GetTraceId() != span.TraceID() || inside.GetSpanId() != span.SpanID() ||
+		inside.GetSeverity() != pb.LogSeverity_LOG_SEVERITY_WARN || inside.GetAttributes()["attempt"] != "2" || inside.GetTimestamp() == nil {
+		t.Errorf("log inside a span = %v", inside)
+	}
+}
+
+func TestGaugeAndCounter(t *testing.T) {
+	pki := newTestPKI(t, t.TempDir(), "conduit")
+	g, addr := startGateway(t, pki)
+	c := newTestClient(t, addr, pki)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := c.Gauge(ctx, "queue_depth", 7, map[string]string{"queue": "tasks"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Counter(ctx, "tool_calls_total", 12, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Gauge(ctx, "conduit_fake", 1, nil); err == nil || !strings.Contains(err.Error(), "reserved") {
+		t.Fatalf("reserved name: err = %v", err)
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if len(g.metrics) != 2 {
+		t.Fatalf("got %d metrics", len(g.metrics))
+	}
+	if m := g.metrics[0]; m.GetName() != "queue_depth" || m.GetValue() != 7 || m.GetType() != pb.MetricType_METRIC_TYPE_GAUGE || m.GetLabels()["queue"] != "tasks" || m.GetTimestamp() == nil {
+		t.Errorf("gauge = %v", m)
+	}
+	if m := g.metrics[1]; m.GetType() != pb.MetricType_METRIC_TYPE_COUNTER || m.GetValue() != 12 {
+		t.Errorf("counter = %v", m)
 	}
 }
 
