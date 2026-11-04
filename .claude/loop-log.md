@@ -2,6 +2,16 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — Cycle 7 (`loop/payload-retention-controls`, after PR #6 merged as c2ddcbf): STORE_LLM_PAYLOADS
+- Theme: data-governance controls from the roadmap's Now list that need no human decision: a switch to stop storing payloads, then configurable retention.
+- Did:
+  - Gateway `STORE_LLM_PAYLOADS` (default true, so behavior is unchanged). When false, prompts and completions are stripped in `ingestOne` **before validation and before publishing**, so they never reach NATS, logs, or ClickHouse; model, tokens, and cost are kept. Stripping first means an oversized prompt that will be discarded doesn't get the span rejected.
+  - Bool parsing accepts true/false, 1/0, yes/no, on/off. **An unrecognized value stops the gateway at startup** (`validateConfig`), so a typo like `flase` can't silently keep storing prompts.
+  - The handler takes a `spanPublisher` interface (testable without NATS).
+  - Exposed in compose (`${STORE_LLM_PAYLOADS:-true}`) and the k8s configmap. Docs: architecture "Sensitive data", deployment config, a security threat-model row, and the roadmap item moved to Shipped.
+- Verified: tests capture the exact bytes published to NATS. With the switch off, neither payload string appears and model, tokens, and cost are kept; an oversized prompt is rejected with storage on and accepted with it off; payloads are kept by default; config parsing covers all accepted spellings and typos. Gateway vet and tests pass.
+- Next: configurable retention (the 90-day TTL is hard-coded in the DDL; existing tables need `ALTER TABLE … MODIFY TTL`).
+
 ## 2026-11-03 — Formal docs and product roadmap (user directive, cycle 6 continued)
 - Did:
   - README rewritten: logo header, CI/Go/license badges, highlights, an accurate Mermaid architecture diagram, a quick start that works (cert generation, users file, CLICKHOUSE_PASSWORD, `up --wait`, first trace via the smoke agent), a documentation index, project status, and the license.

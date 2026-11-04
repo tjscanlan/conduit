@@ -62,6 +62,8 @@ services:
       TLS_CERT: /etc/certs/server.crt
       TLS_KEY: /etc/certs/server.key
       TLS_CA: /etc/certs/ca.crt
+      # Set to false to drop LLM prompts/completions at ingestion.
+      STORE_LLM_PAYLOADS: ${STORE_LLM_PAYLOADS:-true}
     volumes:
       - ../../certs:/etc/certs:ro
     depends_on: [nats]

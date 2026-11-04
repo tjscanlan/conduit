@@ -131,11 +131,20 @@ The UI never reads prompts or completions. See [Roadmap: open decisions](roadmap
 
 ## Sensitive data
 
-Prompts and completions are stored in ClickHouse whenever an SDK records
-them with `RecordLLMCall` / `record_llm_call`. **There's no setting to
-switch that off yet.** If you don't want prompts stored, leave `Prompt` and
-`Completion` empty when you record the call. Treat ClickHouse access as
-access to prompt data.
+By default, prompts and completions are stored in ClickHouse whenever an SDK
+records them with `RecordLLMCall` / `record_llm_call`.
+
+**To never store them, set `STORE_LLM_PAYLOADS=false` on the gateway.**
+- **What's dropped:** prompts and completions are removed at the gateway,
+  before anything is published to NATS, logged or stored.
+- **What's kept:** the model, token counts and cost are always kept.
+- **Validation:** a span whose prompt would have been too large is still
+  accepted, because the prompt is dropped before validation.
+- **Typos:** an unrecognized value stops the gateway at startup, rather
+  than silently storing payloads.
+
+With storage on, treat ClickHouse access as access to prompt data.
+Payloads already stored aren't removed when you turn the switch off.
 
 ## Operational endpoints
 
