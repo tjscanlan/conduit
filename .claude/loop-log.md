@@ -13,7 +13,7 @@ Newest entries first. Each iteration is driven by `.claude/loop.md`.
   - Provider examples exit with a hint when no key is set.
   - Defaults: claude-sonnet-5 and gpt-5-mini, overridable with ANTHROPIC_MODEL / OPENAI_MODEL.
 - **`scripts/fake-llm-server.py`:** stdlib fake of POST /v1/messages and /v1/chat/completions. Turn 1 requests get_weather for two cities; turn 2 must carry both tool results (else 400), then it answers. Both official SDKs honor ANTHROPIC_BASE_URL / OPENAI_BASE_URL, so the real request building and parsing run with no keys.
-- **`scripts/examples-check.sh`:** runs all 9 examples against the quickstart plus the fake server, and checks each trace in the UI (my-agent plus the expected span names). It also checks the missing-key hint. Fixed a bug where `exit` inside the `if` loop killed the script.
+- **`scripts/examples-check.sh`:** runs all 9 examples against the quickstart plus the fake server, and checks each trace in the UI (my-agent plus the expected span names). It also checks the missing-key hint. Fixed a bug where `exit` inside the `if` loop killed the script. First CI run: all checks passed, but the job exited 143, because the EXIT trap's `wait` on the killed fake server fails under `set -e` with Linux bash (macOS bash 3.2 hid it). Fixed with `|| true`.
 - **CI:**
   - The test job builds and vets examples/go.
   - The vuln job runs govulncheck on examples/go: passes; x/net v0.61.0 has GO-2026-6866/6860, but they aren't called.

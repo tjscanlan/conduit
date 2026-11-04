@@ -21,7 +21,7 @@ pass() { echo "ok   $*"; }
 "$PY" "$ROOT/scripts/fake-llm-server.py" "$PORT" 2>"${TMPDIR:-/tmp}/fake-llm.log" &
 fake=$!
 jar=$(mktemp)
-trap 'kill $fake 2>/dev/null; wait $fake 2>/dev/null; rm -f "$jar"' EXIT
+trap 'kill $fake 2>/dev/null; wait $fake 2>/dev/null || true; rm -f "$jar"' EXIT
 for _ in $(seq 20); do curl -s -o /dev/null "http://127.0.0.1:$PORT/" && break; sleep 0.25; done
 
 read -r user pass < "$ROOT/deployments/quickstart/.conduit/ui-login.txt"
