@@ -2,9 +2,11 @@ package sdk
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 	"time"
 
@@ -18,8 +20,43 @@ import (
 // certificate, by sending an empty batch. Call it at startup to fail fast
 // with an actionable error instead of on the first span.
 func (c *Client) Check(ctx context.Context) error {
-	if _, err := c.ingest.IngestBatch(ctx, &pb.IngestBatchRequest{}); err != nil {
-		return c.diagnose("check gateway", err)
+	_, err := c.ingest.IngestBatch(ctx, &pb.IngestBatchRequest{})
+	if err == nil {
+		return nil
+	}
+	if status.Code(err) == codes.Unavailable {
+		// gRPC reports one address's failure, which can be the wrong one (e.g.
+		// "connection refused" on ::1 when the gateway listens on 127.0.0.1 and
+		// the real problem is TLS there). A direct TLS dial finds the cause.
+		if perr := c.probe(ctx); perr != nil {
+			if hint := c.hint(perr); hint != "" {
+				return fmt.Errorf("check gateway: %s: %w (rpc: %v)", hint, perr, err)
+			}
+		}
+	}
+	return c.diagnose("check gateway", err)
+}
+
+// probe dials the gateway with the client's TLS settings and returns the
+// handshake error, including a rejection of the client certificate (which
+// TLS 1.3 reports only on the first read).
+func (c *Client) probe(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	cfg := c.tlsCfg.Clone()
+	cfg.NextProtos = []string{"h2"} // as gRPC does; the gateway requires it
+	conn, err := (&tls.Dialer{Config: cfg}).DialContext(ctx, "tcp", c.cfg.GatewayAddr)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	_ = conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+	if _, err := conn.Read(make([]byte, 1)); err != nil {
+		var ne net.Error
+		if errors.As(err, &ne) && ne.Timeout() {
+			return nil // connected and not rejected
+		}
+		return err
 	}
 	return nil
 }

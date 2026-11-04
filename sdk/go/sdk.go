@@ -27,6 +27,7 @@ type Client struct {
 	// allowed (the gateway may trust another CA) but is the usual cause when
 	// the gateway drops the connection, so diagnose() says so.
 	certFromOtherCA bool
+	tlsCfg          *tls.Config
 	conn            *grpc.ClientConn
 	ingest          pb.IngestionServiceClient
 	agentName       string
@@ -91,7 +92,7 @@ func New(cfg Config) (*Client, error) {
 
 	_, verifyErr := leaf.Verify(x509.VerifyOptions{Roots: caPool, KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}})
 	return &Client{
-		cfg: cfg, certFromOtherCA: verifyErr != nil,
+		cfg: cfg, certFromOtherCA: verifyErr != nil, tlsCfg: tlsCfg,
 		conn: conn, ingest: pb.NewIngestionServiceClient(conn), agentName: cfg.AgentName,
 	}, nil
 }

@@ -9,6 +9,7 @@ Newest entries first. Each iteration is driven by `.claude/loop.md`.
   - `diagnose()` wraps every RPC error with a hint: unknown CA, host not in SANs, client cert rejected, expired, connection refused, not TLS, rate limited, deadline, unavailable. The gRPC error stays wrapped.
   - `New` catches at construction: missing file, key mismatch, server.crt used as an agent (no clientAuth EKU), expired / not-yet-valid / no CN.
   - Flaky case found and fixed: under TLS 1.3, a gateway rejecting the client cert often surfaces as a bare broken pipe. New now records whether the agent cert chains to TLSCACert and uses that for the hint. 15/15 repeated runs pass.
+  - CI (Linux) then caught a real bug: `localhost` resolves to ::1 first, and gRPC reported "connection refused" on ::1, not the TLS failure on 127.0.0.1, so the diagnosis was misleading. `Check` now probes with a direct TLS dial (h2 ALPN, one read to catch TLS 1.3 client-cert rejection), since Go's dialer tries every address. Reproduced in a golang:alpine container: the old code fails 3/3, the fix passes 5/5.
 - **Python SDK:**
   - `Client.from_env` uses the same variables (0.1.0's TLS_CERT/KEY/CA still accepted); `client.check()`; `ConfigError` raised at construction for a missing file, key mismatch (via `ssl.load_cert_chain`) or non-PEM CA; diagnosed RPC errors.
   - New `tracing` module: `configure()`, `span()`, `@traced` (sync and async; OK/error status; attrs), `current_span()`, `get_client()`, `shutdown()`. Unconfigured use is a no-op with one warning.
