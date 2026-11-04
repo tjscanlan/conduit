@@ -1,114 +1,158 @@
 # Architecture
 
-## Overview
+Conduit is three Go services (gateway, collector and UI) and two SDKs (Go
+and Python), built on NATS JetStream, ClickHouse, VictoriaMetrics and Grafana
+Tempo. This document describes how data moves through the system, what each
+component guarantees, and how the data is stored.
 
-This system collects, stores, and surfaces observability data from AI agents.
-It is designed for **runtime safety** (single static binaries, no JVM) and **security**
-(mTLS everywhere, schema validation at the boundary, minimal attack surface).
+## Components
 
-## Data Flow
+| Component | Source | Role |
+|-----------|--------|------|
+| **SDKs** | `sdk/go`, `sdk/python` | Create spans in the agent process and send them to the gateway over gRPC with mTLS |
+| **Gateway** | `cmd/gateway` | Authenticates agents, validates spans, rate-limits each agent and publishes to NATS |
+| **Collector** | `cmd/collector` | Consumes from NATS and writes to ClickHouse (required), VictoriaMetrics and Tempo (both best-effort) |
+| **UI** | `cmd/ui` | Server-rendered trace list and trace detail, read from ClickHouse, with sign-in |
+| NATS JetStream | | A durable buffer between ingestion and storage |
+| ClickHouse | | The system of record for spans, LLM data and trace rollups |
+| VictoriaMetrics | | Span duration metrics |
+| Tempo | | A copy of each trace, in OTLP format, for Grafana |
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│  Agent Process                                                      │
-│  ┌────────────────────────────────────┐                             │
-│  │  SDK (Go or Python)                │                             │
-│  │  - wraps OTLP protobuf             │                             │
-│  │  - holds client mTLS cert          │                             │
-│  └────────────────┬───────────────────┘                             │
-└───────────────────┼─────────────────────────────────────────────────┘
-                    │ gRPC + mTLS (port 4317)
-                    ▼
-┌───────────────────────────────────────────────────────────────────┐
-│  Ingestion Gateway (cmd/gateway)                                  │
-│  - verifies client cert (mutual TLS)                              │
-│  - extracts agent identity from CN                                │
-│  - validates span schema (rejects malformed/oversized payloads)   │
-│  - rate limits per agent identity                                 │
-│  - publishes to NATS JetStream                                    │
-└──────────────────────────┬────────────────────────────────────────┘
-                           │ NATS JetStream (in-process or remote)
-                           ▼
-┌───────────────────────────────────────────────────────────────────┐
-│  Collector (cmd/collector)                                        │
-│  - subscribes to NATS subjects                                    │
-│  - fans out to storage backends                                   │
-│  - handles retries and backpressure                               │
-└──────────┬────────────────┬────────────────────────────────────────┘
-           │                │                          │
-           ▼                ▼                          ▼
-     ClickHouse      VictoriaMetrics              Grafana Tempo
-  (spans + LLM        (counters,                  (trace graph,
-   payloads)          histograms)                  waterfall)
-           │                │                          │
-           └────────────────┴──────────────────────────┘
-                            │
-                            ▼
-┌──────────────────────────────────────────────────────┐
-│  Query API + UI (cmd/ui)                             │
-│  - Go http.Server                                    │
-│  - html/template + HTMX (no npm, no bundler)         │
-│  - assets embedded via embed.FS                      │
-└──────────────────────────────────────────────────────┘
+## Data flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant SDK as Agent SDK
+    participant GW as Gateway
+    participant N as NATS (SPANS)
+    participant C as Collector
+    participant CH as ClickHouse
+    participant VM as VictoriaMetrics
+    participant T as Tempo
+    SDK->>GW: IngestSpan (gRPC, mTLS client cert)
+    Note over GW: auth → rate limit → validate
+    GW->>N: publish span (JSON)
+    GW-->>SDK: accepted / rejection reason
+    N->>C: deliver (durable consumer)
+    C->>CH: insert (batch API, nanosecond timestamps)
+    alt ClickHouse insert fails
+        C-->>N: Nak, redeliver in 5s
+    else stored
+        C->>VM: span duration (best effort)
+        C->>T: OTLP/HTTP span (best effort, OTLP-shaped IDs only)
+        C-->>N: Ack (deleted from the work queue)
+    end
 ```
 
-## Security Boundaries
+1. **SDK.** Spans are created in the agent process. Trace and span IDs are
+   sized to the W3C and OTLP standards: 16-byte trace IDs and 8-byte span IDs.
+   Context propagates through `context.Context` in Go and through
+   `contextvars` in Python, so nesting is correct across goroutines,
+   threads and asyncio tasks. Sending is synchronous, one RPC per span.
+2. **Gateway.** Handles each request in this order:
+   - **Authenticate** the TLS 1.3 client certificate against the configured
+     CA. The agent's identity is the certificate's CommonName.
+   - **Rate-limit** with a token bucket per identity, charged per telemetry
+     item.
+   - **Validate** the span, including ID charset and size, name, status,
+     timestamps, attribute limits and LLM field bounds.
+   - **Publish** to the `SPANS` stream.
 
-### mTLS
-Every agent→gateway connection uses mutual TLS (TLS 1.3 minimum).
-The agent presents a client certificate signed by the internal CA.
-The gateway verifies it before the gRPC handshake completes.
-Agent identity is extracted from `Subject.CommonName` of the verified cert.
+   The wire API is Conduit's own protobuf `IngestionService`
+   (`proto/ingestion.proto`), not OTLP.
+3. **NATS JetStream.** A work queue: each span is deleted once the
+   collector acknowledges it, and the stream has a 7-day maximum age as a
+   backstop.
+4. **Collector.** At-least-once delivery into ClickHouse. A failed insert is
+   retried after a 5-second delay, and a message that can't be decoded is
+   discarded for good. Writes to VictoriaMetrics and Tempo are best-effort:
+   their failures are logged, not retried, so they can never duplicate rows
+   in ClickHouse.
+5. **UI.** Reads only from ClickHouse:
+   - **Trace list:** the queries are always bounded by a time window, and
+     paging uses a keyset cursor.
+   - **Trace detail:** capped at 2000 spans per trace.
+   - **Sign-in:** a login form with signed session cookies, or Google Cloud
+     IAP.
 
-### Schema Validation
-All inbound spans are validated at the gateway before touching NATS or any storage.
-Oversized payloads, malformed trace IDs, and invalid timestamps are rejected with a
-gRPC error. This prevents garbage or hostile data from reaching ClickHouse.
+## Delivery and failure behavior
 
-### Network Separation
-- **Ingestion port (4317)**: gRPC, mTLS, accessible from agent networks only
-- **UI/query port (8080)**: HTTP, accessible from internal tooling networks only
-- Storage backends (ClickHouse, NATS) are not exposed outside the internal network
+| Failure | Effect |
+|---------|--------|
+| The gateway rejects a span (invalid, over the rate limit, unauthenticated) | The SDK gets an error. `Span.End` / `span.end()` raises or returns it, with the reason. |
+| NATS is unavailable | The gateway fails the publish and returns an error to the SDK. Its `/readyz` reports `nats: unavailable`. |
+| ClickHouse is unavailable | The collector naks, NATS keeps the span, and it's redelivered every 5 seconds until ClickHouse returns, for up to 7 days. |
+| VictoriaMetrics or Tempo is unavailable | Logged. The span is still stored in ClickHouse. |
+| A collector instance restarts | The durable consumer resumes, and unacknowledged spans are redelivered. |
 
-### Container
-Production images are built `FROM scratch` — no shell, no package manager, no OS utilities.
-The only file in the container is the static Go binary and the CA certificates bundle.
+The SDKs don't retry. A failed send is reported to the caller, who decides
+what to do.
 
-## Storage Schema
+## Storage schema
 
-### ClickHouse `spans` table
+### ClickHouse `spans`
 
 | Column | Type | Notes |
 |--------|------|-------|
-| trace_id | String | Groups spans into a trace |
-| span_id | String | Unique per span |
-| parent_id | String | Empty for root spans |
-| agent_name | String | From mTLS CN |
-| span_name | String | e.g. "llm-call", "tool:search" |
-| start_time | DateTime64(9) | Nanosecond precision |
-| duration_ms | UInt64 | Derived from end-start |
-| status | Enum8 | ok / error / unset |
-| attributes | Map(String,String) | Arbitrary key-value |
-| llm_model | Nullable(String) | e.g. "claude-sonnet-4-20250514" |
-| llm_prompt | Nullable(String) | Full prompt text |
-| llm_completion | Nullable(String) | Full response text |
-| llm_input_tokens | Nullable(UInt32) | |
-| llm_output_tokens | Nullable(UInt32) | |
-| llm_cost_usd | Nullable(Float64) | |
+| `trace_id`, `span_id`, `parent_id` | `String` | `parent_id` is empty for root spans |
+| `agent_name` | `String` | Always the mTLS CommonName, never a client-supplied value |
+| `span_name` | `String` | |
+| `start_time`, `end_time` | `DateTime64(9, 'UTC')` | Nanosecond precision, written with the native batch protocol |
+| `duration_ms` | `UInt64` | |
+| `status` | `Enum8('ok', 'error', 'unset')` | |
+| `attributes` | `Map(String, String)` | Includes `error.message` for failed spans |
+| `llm_model`, `llm_prompt`, `llm_completion` | `Nullable(String)` | Set only on LLM spans |
+| `llm_input_tokens`, `llm_output_tokens` | `Nullable(UInt32)` | |
+| `llm_cost_usd` | `Nullable(Float64)` | |
+| `ingested_at` | `DateTime` | Defaults to `now()` |
 
-Partitioned by `toYYYYMMDD(start_time)`, ordered by `(agent_name, trace_id, start_time)`.
-90-day TTL by default (configurable).
+The table is a `MergeTree`, partitioned by day and ordered by
+`(agent_name, trace_id, start_time)`. Rows expire after **90 days**. The TTL
+is part of the DDL and isn't configurable yet.
 
-## SDK Interface
+### ClickHouse `trace_summary`
 
-Both the Go and Python SDKs expose the same conceptual interface:
+A materialized view (`AggregatingMergeTree`) with per-trace rollups: start,
+end, span count, error count, tokens and cost. It uses `SimpleAggregateFunction`
+columns, so rows from separate inserts merge correctly. Query it with the
+matching aggregate functions and `GROUP BY trace_id`. Nothing in the UI
+reads it yet.
 
-```
-Client.span(name)          → context manager / returns Span
-Span.set_attr(key, value)  → fluent
-Span.record_llm_call(...)  → attach LLM metadata
-Span.end()                 → flush to gateway
-```
+### What the UI reads
 
-LLM prompt/completion content is transmitted only if `OTEL_INCLUDE_PAYLOADS=true`
-is set — this lets operators opt out of storing sensitive prompt data.
+| Query | Bounded by |
+|-------|-----------|
+| Trace list | A time window (1h, 24h or 7d), up to 100 traces per page, keyset paging |
+| Trace detail | Up to 2000 spans, ordered by start time |
+| Agent suggestions | A time window, up to 200 names |
+
+The UI never reads prompts or completions. See [Roadmap: open decisions](roadmap.md#open-decisions).
+
+## Sensitive data
+
+Prompts and completions are stored in ClickHouse whenever an SDK records
+them with `RecordLLMCall` / `record_llm_call`. **There's no setting to
+switch that off yet.** If you don't want prompts stored, leave `Prompt` and
+`Completion` empty when you record the call. Treat ClickHouse access as
+access to prompt data.
+
+## Operational endpoints
+
+Every service exposes `/livez` and `/readyz`. The gateway and collector serve
+them on `HEALTH_ADDR` (default `:8081`); the UI serves them on its main port.
+See [Deployment: health checks](deployment.md#health-checks).
+
+## Design decisions
+
+- **Separate health port for the gateway.** Its gRPC port requires mTLS
+  client certificates, which Kubernetes and compose probes can't present.
+- **Generated code is committed.** The Go and Python protobuf stubs are in
+  the repository, so a checkout builds with nothing but Go. CI fails if
+  they drift from the `.proto` files.
+- **No JavaScript framework.** The UI uses `html/template`, htmx and two
+  small scripts, all embedded in the binary. Its strict CSP rules out
+  inline scripts and styles.
+- **ClickHouse as the system of record.** Only ClickHouse failures trigger
+  redelivery. Treating the other sinks as best-effort keeps duplicate rows
+  out of ClickHouse.

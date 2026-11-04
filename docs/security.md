@@ -1,5 +1,30 @@
 # Security
 
+Conduit handles agent telemetry that can include sensitive data: prompts,
+completions, tool arguments and error messages. This document describes the
+threat model and the controls that address it.
+
+## Threat model
+
+| Threat | Control |
+|--------|---------|
+| An unauthenticated client sends spans | The gateway requires a TLS 1.3 client certificate signed by your CA (`RequireAndVerifyClientCert`). |
+| An agent impersonates another agent | Identity is the certificate's CommonName, set by the gateway. A client-supplied `agent_name` attribute is overwritten. |
+| An agent floods ingestion, or a buggy one does | Per-identity token buckets charged per telemetry item, with a 1000-item batch cap ([below](#ingestion-rate-limiting)). |
+| Malformed or hostile payloads reach storage | Strict validation at the gateway: ID charset and size, name and attribute limits, status enum, timestamp sanity, LLM field bounds, finite non-negative cost. ClickHouse queries use bound parameters only. |
+| An SDK is tricked into trusting a fake gateway | The SDKs trust only the configured CA (`TLSCACert` / `tls_ca`), never the system roots. |
+| Unauthorized UI access | The UI fails closed: a login form with signed cookies, or GCP IAP JWT verification. `none` must be set explicitly ([below](#ui-authentication)). |
+| XSS, clickjacking and CSRF in the UI | `html/template` escaping, a strict CSP with no inline script or style, `frame-ancestors 'none'`, SameSite cookies, and same-origin checks on POST requests. |
+| Health endpoints leak internals | `/readyz` reports only `ok` or `unavailable`. Errors go to logs. |
+| Supply-chain compromise | Few dependencies, govulncheck in CI, GitHub Actions pinned by commit SHA, `FROM scratch` images, generated code pinned and drift-checked. |
+
+**Out of scope, or the operator's job:**
+- **Network isolation:** keep NATS, ClickHouse, Tempo, VictoriaMetrics and
+  the health ports internal.
+- **Encryption at rest** for ClickHouse.
+- **Access to ClickHouse itself.** Anyone with ClickHouse access can read
+  prompt data (see [Architecture: sensitive data](architecture.md#sensitive-data)).
+
 ## Ingestion rate limiting
 
 The gateway rate-limits each agent separately, using a token bucket keyed

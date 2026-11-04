@@ -2,6 +2,34 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-03 — Formal docs and product roadmap (user directive, cycle 6 continued)
+- Did:
+  - README rewritten: logo header, CI/Go/license badges, highlights, an accurate Mermaid architecture diagram, a quick start that works (cert generation, users file, CLICKHOUSE_PASSWORD, `up --wait`, first trace via the smoke agent), a documentation index, project status, and the license.
+  - docs/architecture.md rewritten: a components table, a Mermaid data-flow sequence, delivery and failure behavior, the storage schema (including end_time, ingested_at, trace_summary semantics, the hard-coded 90-day TTL), UI query bounds, a sensitive-data section, operational endpoints, and design decisions.
+  - New docs/roadmap.md: Shipped, Now, Next, Later, and a table of the open decisions.
+  - New docs/brand.md: logo usage, the palette with roles, neutrals, and WCAG contrast rules from computed ratios.
+  - docs/contributing.md (was empty): prerequisites, layout, required checks matching the CI jobs, codegen, conventions (deps, tests, bound params, the time-binding pitfall, CSP, template.URL, brand rules), PR process, automated-loop contributions, private security reporting.
+  - docs/security.md gained a threat model table, with operator responsibilities listed as out of scope.
+- **Inaccuracies corrected from the old docs:**
+  - "Wire format OTLP": it's Conduit's own protobuf API; only collector → Tempo uses OTLP.
+  - The diagram showed the UI reading Tempo and VictoriaMetrics; it reads only ClickHouse.
+  - "NATS in-process": it's remote only.
+  - **`OTEL_INCLUDE_PAYLOADS=true` doesn't exist.** Prompts are stored whenever an SDK records them. The docs now say so plainly, and the roadmap lists a server-side switch.
+  - The stale quick start (gen-proto, missing CLICKHOUSE_PASSWORD and users file).
+  - "Configurable TTL": it's hard-coded.
+- Verified: a script checked every relative link and anchor in the README and docs (0 broken), and the doc claims were checked against the code (gateway publish-error path, exporter writes of prompts and completions, IngestBatch rejecting metrics and logs).
+- **Stopping point:** opened PR https://github.com/tjscanlan/conduit/pull/6 (branding plus docs plus roadmap); no new work until it is merged.
+
+## 2026-11-03 — Cycle 6 (`loop/docs-roadmap-branding`, after PR #5 merged as cf4ccd1): branding, iteration 1
+- Did: SVG logo mark (five concentric arcs in the palette, red outside to yellow inside, forming a "C" open toward the flow) and favicon; full app.css rewrite around design tokens. Light white UI, warm near-black ink text, ink nav bar with a 3px palette-gradient rule, sans UI with mono for IDs, the logo plus wordmark in the nav, and a login card with the logo, tagline, and gradient top. metrics.js canvas colors updated.
+- Contrast rules (computed): only #ec0000 passes AA as text on white (4.6:1), so it's used for links, buttons, and errors. #ec9b00 and #ecca00 take ink, never white. Error text on the red tint uses #b80000 (6.3:1).
+- Verified: go test; CSP template test (no inline styles). **Not yet viewed in a browser.**
+- Visual check (follow-up): rendered the real templates with sample data through a throwaway test harness (kept in the scratchpad, never committed) and screenshotted them with WebKit (qlmanage). It found two layout bugs, both now fixed:
+  - Global `nav {}` rules styled the trace-list pager as a second dark nav bar, so they're now scoped to `.topnav`.
+  - The span row grid had 5 tracks but 6 children on LLM spans (the hidden `#` link and the LLM tag each took a cell), so the waterfall wrapped. The row now has 4 stable tracks: title+link | status+tags | timing | bar.
+  - The list, detail, and login pages now look right.
+- Remaining in this cycle: formal docs (README overhaul with logo, docs index, architecture refresh, contributing.md), docs/roadmap.md, a browser check of the new look, then PR #6.
+
 ## 2026-11-03 — **User directive for the NEXT cycle:** formal docs, product roadmap, professional branding
 - The user asked (while cycle 5 was in progress): "in the next loop, please focus on formalizing the documentation, adding a product roadmap, and making the logo and graphics of the ui look more like a professional piece of software."
 - **Brand palette (user-specified), plus white:** `#ec0000` (236,0,0) · `#ec2400` (236,36,0) · `#ec5300` (236,83,0) · `#ec9b00` (236,155,0) · `#ecca00` (236,202,0).
