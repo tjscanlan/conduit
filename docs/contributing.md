@@ -96,7 +96,10 @@ Add a new file to `internal/storage/migrations/` named
     `html/template` re-encodes query strings interpolated into an `href`.
   - **Colors:** follow the contrast rules in [brand.md](brand.md).
 - **Docs:** if you change behavior, configuration or a guarantee, update
-  the matching document in `docs/` in the same PR.
+  the matching document in `docs/` in the same PR. If you add a doc, also
+  add it to `docs/_data/docs.json`, with a one-line description. That file
+  drives the site nav and the agent-readable `llms.txt`, and CI fails if a
+  doc is missing from it.
 - **Commits:** use the form `area: what and why`, for example
   `collector: retry failed ClickHouse writes`, and keep each commit to one
   change.

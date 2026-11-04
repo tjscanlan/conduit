@@ -74,6 +74,11 @@ To instrument your own agent, see the [Go SDK](docs/sdk-go.md) and [Python SDK](
 
 **Read the docs at <https://tjscanlan.github.io/conduit/>**, including the [visual roadmap](https://tjscanlan.github.io/conduit/roadmap.html). The same pages are in [`docs/`](docs/).
 
+**For AI agents:**
+- [`llms.txt`](https://tjscanlan.github.io/conduit/llms.txt) indexes the docs and links each page's raw Markdown.
+- [`llms-full.txt`](https://tjscanlan.github.io/conduit/llms-full.txt) has all the docs in one file.
+- [`AGENTS.md`](AGENTS.md) tells coding agents how to build, test and change this repo.
+
 | Guide | What's in it |
 |-------|--------------|
 | [Architecture](docs/architecture.md) | Components, data flow, delivery guarantees and storage schema |

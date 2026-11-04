@@ -59,6 +59,8 @@ jobs:
       - name: install grpcio-tools (pinned in gen-proto-python.sh)
         run: pip install "grpcio-tools==$(sed -n 's/^GRPCIO_TOOLS_VERSION=//p' scripts/gen-proto-python.sh)"
       - run: make proto roadmap
+      - name: docs manifest is complete
+        run: python3 scripts/build-agent-docs.py --check
       - name: check for drift
         run: |
           gen="proto/ sdk/python/src/conduit_sdk/_proto/ docs/roadmap.md"

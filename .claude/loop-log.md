@@ -2,6 +2,17 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — Cycle 11 (`loop/agent-readable-docs`, after PR #10 merged as 6e4c0b6): agent-readable docs, part 1
+- Theme (user directive): make all docs first-class for agents to read.
+- Did:
+  - `docs/_data/docs.json` is the single docs manifest (sections, file, url, title, one-line description). It drives the site sidebar (Guides, SDKs, Project, and "For AI agents"), llms.txt, and checks; the old `nav:` in _config.yml is removed. No front matter was added to the doc files, so the GitHub view stays clean.
+  - `scripts/build-agent-docs.py` (stdlib) runs after the Jekyll build and writes `_site/llms.txt` (llmstxt.org format: H1, summary blockquote, sections of `[title](raw .md URL): description`, an Optional section with llms-full and AGENTS.md), `_site/llms-full.txt` (all pages with source-URL markers, ~52 KB), and `_site/<page>.md` raw Markdown with front matter, Liquid, and generated-notes stripped. The overview's Markdown comes from the README (index.md is an HTML landing page). `--check` fails if a docs/*.md file is missing from the manifest, a listed file is missing, or a description is too short.
+  - Layout: `<link rel="alternate" type="text/markdown">` per page, `rel="alternate"` to llms.txt, and a "View as Markdown" link.
+  - **AGENTS.md** at the repo root: services and layout, exact commands, **invariants learned from real bugs** (identity from the cert only; validate before publishing; reserved metric names; Prometheus escaping; bound params; the time-binding truncation; idempotent migrations; CSP and template.URL; brand contrast; generated-code drift; dependency pinning), how to make a change, and where things are.
+  - CI: the `generated` job runs the manifest check. The Pages build runs the generator, verifies every llms.txt link resolves to a built file and that no Liquid leaked, and the `.md`-link check was narrowed so the intentional `/conduit/*.md` links pass. The README and contributing guide point to llms.txt and AGENTS.md.
+- Verified: ran the generator locally (manifest OK, 9 pages, no Liquid left, the overview built from the README correctly); YAML parses. The Pages build is pending in CI.
+- Next: a machine-readable API reference generated from proto/*.proto (plus SDK APIs), then the PR.
+
 ## 2026-11-04 — **User directive for the NEXT cycle:** agent-first documentation
 - The user asked (during cycle 10): "in the next loop, update all docs so that agents have first-class support to read them".
 - Plan, for the cycle after `loop/metrics-logs-ingestion` merges (e.g. branch `loop/agent-readable-docs`):

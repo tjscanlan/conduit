@@ -30,17 +30,7 @@ defaults:
   - scope: { path: "" }
     values: { layout: default }
 
-# Sidebar, in reading order.
-nav:
-  - { title: Overview, url: / }
-  - { title: Architecture, url: /architecture.html }
-  - { title: Deployment, url: /deployment.html }
-  - { title: Security, url: /security.html }
-  - { title: Go SDK, url: /sdk-go.html }
-  - { title: Python SDK, url: /sdk-python.html }
-  - { title: Roadmap, url: /roadmap.html }
-  - { title: Contributing, url: /contributing.html }
-  - { title: Brand, url: /brand.html }
+# Sidebar, llms.txt and the raw-Markdown copies all come from _data/docs.json.
 
 exclude:
   - README.md

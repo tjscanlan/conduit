@@ -3,9 +3,9 @@ name: docs site
 on:
   # Every branch builds (so changes are checked before a PR); only main deploys.
   push:
-    paths: ["docs/**", "ui/static/img/**", ".github/workflows/pages.yml"]
+    paths: ["docs/**", "README.md", "scripts/build-agent-docs.py", "ui/static/img/**", ".github/workflows/pages.yml"]
   pull_request:
-    paths: ["docs/**", "ui/static/img/**", ".github/workflows/pages.yml"]
+    paths: ["docs/**", "README.md", "scripts/build-agent-docs.py", "ui/static/img/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -24,7 +24,9 @@ jobs:
         with:
           persist-credentials: false
       - name: roadmap.md matches roadmap.json
-        run: python3 scripts/gen-roadmap.py && git diff --exit-code docs/roadmap.md
+        run: |
+          python3 scripts/gen-roadmap.py && git diff --exit-code docs/roadmap.md
+          python3 scripts/build-agent-docs.py --check
       - name: brand assets match the app
         run: |
           cmp ui/static/img/logo.svg docs/assets/img/logo.svg
@@ -33,14 +35,24 @@ jobs:
         with:
           source: ./docs
           destination: ./_site
+      - name: agent-readable docs (llms.txt, llms-full.txt, raw Markdown)
+        run: |
+          sudo chown -R "$(id -u)" _site   # jekyll-build-pages writes as root
+          python3 scripts/build-agent-docs.py _site
+          # Every llms.txt link to this site must resolve to a built file.
+          grep -o 'https://tjscanlan.github.io/conduit/[^)]*' _site/llms.txt | sed 's#https://tjscanlan.github.io/conduit/##' | while read -r f; do
+            test -s "_site/$f" || { echo "::error::llms.txt links to missing $f"; exit 1; }
+          done
+          ! grep -l '{{\|{%' _site/*.md _site/llms-full.txt || { echo "::error::Liquid left in agent docs"; exit 1; }
       - name: built site has every page
         run: |
           for p in index architecture deployment security sdk-go sdk-python roadmap contributing brand; do
             test -s "_site/$p.html" || { echo "::error::missing _site/$p.html"; exit 1; }
           done
           # Relative .md links must have been rewritten to .html pages.
-          if grep -rl 'href="[^"#:]*\.md\(#[^"]*\)\?"' _site --include='*.html'; then
-            echo "::error::unconverted .md links in the built site"; exit 1
+          # (Absolute /conduit/*.md links are the intentional raw-Markdown copies.)
+          if grep -rho 'href="[^"#:]*\.md\(#[^"]*\)\?"' _site --include='*.html' | grep -v 'href="/conduit/'; then
+            echo "::error::unconverted relative .md links in the built site"; exit 1
           fi
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
