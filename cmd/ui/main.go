@@ -46,7 +46,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	h := &handlers{ch: ch, tmpls: tmpls, logger: logger}
+	h := &handlers{ch: ch, tmpls: tmpls, logger: logger, gatewayAddr: cfg.GatewayAddr, demoAgent: cfg.DemoAgent}
 	root := newRouter(authn, h)
 	logger.Info("ui auth configured", "mode", cfg.AuthMode)
 
@@ -78,6 +78,11 @@ type handlers struct {
 	ch     spanQuerier
 	tmpls  *template.Template
 	logger *slog.Logger
+
+	// Shown on the Get started page.
+	gatewayAddr string
+	demoAgent   string
+	onboarding  onboardingState
 }
 
 // spanQuerier is the read side of storage.ClickHouseStore used by the UI.
@@ -87,6 +92,7 @@ type spanQuerier interface {
 	Ready(ctx context.Context) error
 	QueryLogs(ctx context.Context, f storage.LogFilter) ([]storage.LogRow, error)
 	QueryTrace(ctx context.Context, traceID string, limit int) ([]storage.SpanRow, error)
+	QueryOnboarding(ctx context.Context, demoAgent string, recent, lookback time.Duration) (storage.Onboarding, error)
 }
 
 // newRouter builds the UI's handler tree. Only /healthz, /static/, and the
@@ -97,6 +103,9 @@ func newRouter(authn *uiAuth, h *handlers) http.Handler {
 	protected.HandleFunc("/traces", h.traces)
 	protected.HandleFunc("/logs", h.logs)
 	protected.HandleFunc("/metrics", h.metricsPage)
+	protected.HandleFunc("GET /start", h.start)
+	protected.HandleFunc("GET /start/status", h.startStatus)
+	protected.HandleFunc("POST /start/dismiss", h.dismissStart)
 	protected.HandleFunc("/", h.index)
 
 	mux := http.NewServeMux()
@@ -116,6 +125,9 @@ func newRouter(authn *uiAuth, h *handlers) http.Handler {
 // render executes a template, adding the signed-in user for the nav bar.
 func (h *handlers) render(w http.ResponseWriter, r *http.Request, name string, data map[string]any) {
 	data["User"] = uiUserFromContext(r.Context())
+	if _, ok := data["ShowStart"]; !ok && r.Header.Get("HX-Request") != "true" {
+		data["ShowStart"] = data["Page"] == "start" || h.showStart(r)
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := h.tmpls.ExecuteTemplate(w, name, data); err != nil {
 		h.logger.Error("render", "template", name, "err", err)
@@ -125,6 +137,11 @@ func (h *handlers) render(w http.ResponseWriter, r *http.Request, name string, d
 func (h *handlers) index(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
+		return
+	}
+	// New installs land on Get started until their own agent sends a trace.
+	if h.showStart(r) {
+		http.Redirect(w, r, "/start", http.StatusFound)
 		return
 	}
 	http.Redirect(w, r, defaultLandingPath, http.StatusFound)

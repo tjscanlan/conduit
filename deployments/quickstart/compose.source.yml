@@ -1,0 +1,17 @@
+# Build the Conduit services from this checkout instead of pulling released
+# images, e.g. to try unreleased changes in the quickstart:
+#
+#   CONDUIT_FROM_SOURCE=1 ./deployments/quickstart/quickstart.sh
+#
+# Builds need more memory than running; on a 2 GiB Docker VM build one at a
+# time (quickstart.sh does).
+services:
+  gateway:
+    image: conduit-quickstart-gateway:source
+    build: { context: ../.., dockerfile: deployments/docker/Dockerfile, args: { BINARY: gateway } }
+  collector:
+    image: conduit-quickstart-collector:source
+    build: { context: ../.., dockerfile: deployments/docker/Dockerfile, args: { BINARY: collector } }
+  ui:
+    image: conduit-quickstart-ui:source
+    build: { context: ../.., dockerfile: deployments/docker/Dockerfile, args: { BINARY: ui } }

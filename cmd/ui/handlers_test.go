@@ -25,9 +25,34 @@ type fakeSpans struct {
 	readyErr      error
 	logs          []storage.LogRow
 	lastLogFilter storage.LogFilter
+
+	onboardingErr   error
+	onboardingCalls int
 }
 
 func (f *fakeSpans) Ready(context.Context) error { return f.readyErr }
+
+// QueryOnboarding mirrors the SQL over f.rows: recent counts, and the newest
+// span from a non-demo agent.
+func (f *fakeSpans) QueryOnboarding(_ context.Context, demo string, recent, _ time.Duration) (storage.Onboarding, error) {
+	f.onboardingCalls++
+	if f.onboardingErr != nil {
+		return storage.Onboarding{}, f.onboardingErr
+	}
+	var o storage.Onboarding
+	for _, r := range f.rows {
+		if time.Since(r.StartTime) <= recent {
+			o.RecentSpans++
+			if r.AgentName == demo {
+				o.RecentDemo++
+			}
+		}
+		if r.AgentName != "" && r.AgentName != demo && r.StartTime.After(o.LatestAt) {
+			o.LatestTraceID, o.LatestAgent, o.LatestAt = r.TraceID, r.AgentName, r.StartTime
+		}
+	}
+	return o, nil
+}
 
 // QueryLogs mirrors the SQL filters on f.logs, newest first as stored.
 func (f *fakeSpans) QueryLogs(_ context.Context, lf storage.LogFilter) ([]storage.LogRow, error) {

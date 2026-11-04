@@ -2,6 +2,24 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — Activation cycle 4: onboarding walkthrough (`loop/onboarding-walkthrough`)
+- **`/start` (Get started):** five steps.
+  1. Conduit running (ClickHouse Ready).
+  2. Telemetry flowing (spans in the last 15 min; names demo-agent and links its traces).
+  3. Get a certificate: CLI only. The quickstart's my-agent path, or `gen-certs.sh agent NAME`, and the page says the UI never shows or serves keys. A test asserts no key material.
+  4. Send your first trace: an env snippet with `UI_GATEWAY_ADDR`, then Python/Go/more-examples `<details>` with commands and in-code snippets, plus a live htmx status box polling `/start/status` every 3s. Once a non-demo agent's trace exists, the fragment drops hx-trigger, so polling stops, and links "View the trace".
+  5. Next steps.
+- **Behaviour:**
+  - `/` lands on /start until a real agent's trace exists, or until "Hide Get started" (POST /start/dismiss: same-origin check, HttpOnly cookie, Lax).
+  - The nav shows a "Get started" chip (ink on #ecca00) under the same condition.
+  - The onboarded answer is cached: true is final; false is rechecked at most every 5s. A test asserts no further queries once onboarded.
+  - Steps 3 and 4 show checks once connected. Times are labelled UTC.
+- **Storage:** `QueryOnboarding(demoAgent, recent, lookback)` returns recent counts plus the newest span from a non-demo agent (30-day lookback). Verified against real ClickHouse by the e2e script.
+- **Config:** `UI_GATEWAY_ADDR` (display), `UI_DEMO_AGENT`. The quickstart compose sets UI_GATEWAY_ADDR from the port; harmless on v0.1.0.
+- **Quickstart:** `CONDUIT_FROM_SOURCE=1` with `compose.source.yml` builds gateway, collector and UI from the checkout, one at a time (fits 2 GiB). Needed because the quickstart pins the released v0.1.0 UI, which lacks /start; README and docs say so.
+- **CI:** the quickstart job, after the examples, runs reset, then a from-source quickstart, then `scripts/onboarding-check.sh`. That walks the flow with login on: land on /start, waiting state, a Go hello-trace as my-agent, the status shows connected with the right link and stops polling, / goes to /traces, dismiss. Timeout raised 15 → 25 min.
+- **Verified locally:** UI unit tests (4 new); headless-Chrome screenshots of the waiting and connected states (led to the done-checks and UTC fixes); onboarding-check passes on a fresh from-source stack.
+
 ## 2026-11-04 — Activation cycle 3: SDK quick start (`loop/sdk-quickstart`)
 - **Go SDK:**
   - `NewFromEnv`/`ConfigFromEnv` read CONDUIT_CERT_DIR plus CONDUIT_AGENT (auto-picked when the dir holds exactly one clientAuth cert; otherwise the error lists them), CONDUIT_TLS_CERT/KEY/CA overrides, and CONDUIT_GATEWAY_ADDR (default localhost:4317; OTEL_GATEWAY_ADDR accepted).
