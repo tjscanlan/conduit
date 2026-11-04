@@ -2,6 +2,12 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — Release PR opened
+- PR #11 merged. Opened https://github.com/tjscanlan/conduit/pull/12; no new work until it merges.
+- The user added the PyPI trusted publisher, so 0.1.0 goes to PyPI through `release.yml` rather than a manual twine upload, with no tokens and no TestPyPI dry run. `~/.pypirc` holds placeholders only.
+- **User authorized pushing the tags** (overriding "the loop never pushes tags" for this release): after the merge, tag the merge commit `v0.1.0` and `sdk/go/v0.1.0` and push atomically.
+- Blockers / needs human: merge the PR.
+
 ## 2026-11-04 — Release tooling: module paths, release.yml, CHANGELOG, release docs
 - User: "do what needs to be done". `~/.pypirc` was still missing (checked twice), so the uploads stayed blocked and I did the independent release work.
 - Did:
