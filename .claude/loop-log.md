@@ -2,6 +2,15 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — **User directive for the NEXT cycle:** release v0.1.0 (`loop/release-v0-1`)
+- The user asked: make the cycle right after the agent-docs PR merges a dedicated release cycle, and don't wait for more features (prompt access control, batched SDK delivery, OTel, and Helm go to v0.2+).
+- **SDK publishing decision (user): publish both**, a tagged Go module and PyPI.
+  - **PyPI name:** `conduit-sdk` is **taken** by an unrelated project (Conduit.app utils, v0.2.5), which likely also imports as `conduit_sdk`. Plan: distribution `conduit-observability` (free as of 2026-11-04) and a matching import `conduit_observability`. This is a breaking rename, acceptable pre-1.0; call it out in CHANGELOG and docs. The user may override the name.
+  - Go: module paths `github.com/your-org/agent-observability` → `github.com/tjscanlan/conduit`, and `github.com/your-org/conduit-sdk-go` → `github.com/tjscanlan/conduit/sdk/go`, with tag `sdk/go/v0.1.0` (the nested module needs a prefixed tag). Remove the SDK's `replace` directive for the release, or keep it working with a go.work-based dev setup.
+  - PyPI: GitHub OIDC **trusted publishing** (no tokens). **The user must create a pending publisher on PyPI** (project `conduit-observability`, repo tjscanlan/conduit, workflow `release.yml`, environment `pypi`). The loop can't do this; it goes in the PR checklist.
+- Scope: real module paths everywhere (go.mod files, imports, generated `go_package`, docs); a tag-triggered `release.yml` (on `v*`) that builds multi-arch images (gateway, collector, ui) and pushes them to GHCR, signs them (cosign keyless, OIDC), attaches an SBOM (syft or docker buildx `--sbom`) and provenance, creates a GitHub Release with notes from the CHANGELOG, publishes the Python SDK to PyPI and verifies the Go module tag; CHANGELOG.md (Keep a Changelog), a versioning policy (SemVer, pre-1.0 caveats, what's API), and release docs (how to cut a release, verify signatures, upgrade).
+- **Release itself:** the user merges the PR and pushes the `v0.1.0` (and `sdk/go/v0.1.0`) tags. The loop never pushes tags.
+
 ## 2026-11-04 — Cycle 11 (`loop/agent-readable-docs`, after PR #10 merged as 6e4c0b6): agent-readable docs, part 1
 - Theme (user directive): make all docs first-class for agents to read.
 - Did:
