@@ -13,8 +13,7 @@ With a local stack from `make quickstart` (needs only Docker):
 
 ```bash
 export CONDUIT_CERT_DIR=$PWD/deployments/quickstart/.conduit/certs CONDUIT_AGENT=my-agent
-pip install -e sdk/python      # from this checkout: configure/@traced are newer than 0.1.0
-# elsewhere: pip install "conduit-observability @ git+https://github.com/tjscanlan/conduit#subdirectory=sdk/python"
+pip install conduit-observability     # 0.2.0 or newer
 ```
 
 ```python

@@ -2,7 +2,7 @@
 Each Messages API call becomes an llm.call span with the model's real token
 usage, via llm_call_from_anthropic().
 
-    pip install -e "sdk/python[anthropic]"        # the SDK from this checkout, plus the anthropic SDK
+    pip install "conduit-observability[anthropic]"
     export ANTHROPIC_API_KEY=...             # required
     export ANTHROPIC_MODEL=...               # optional, default claude-sonnet-5
     python examples/python/claude_agent.py   # after `make quickstart`

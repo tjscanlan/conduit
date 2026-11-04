@@ -2,7 +2,7 @@
 Completions). Each model call becomes an llm.call span with the real token
 usage, via llm_call_from_openai() (which also reads Responses API results).
 
-    pip install -e "sdk/python[openai]"        # the SDK from this checkout, plus the openai SDK
+    pip install "conduit-observability[openai]"
     export OPENAI_API_KEY=...                # required
     export OPENAI_MODEL=...                  # optional, default gpt-5-mini
     python examples/python/openai_agent.py   # after `make quickstart`

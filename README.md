@@ -57,12 +57,11 @@ make quickstart          # or: ./deployments/quickstart/quickstart.sh
 It generates a dev CA, agent certificates, and a UI login, waits until
 everything is healthy, and prints your login. Open <http://localhost:8080>:
 a simulated `demo-agent` is already sending traces, and a Get started page
-walks you through sending your own agent's first trace. (That page ships in
-the release after v0.1.0; until then, use `CONDUIT_FROM_SOURCE=1`.) The banner also shows how
+walks you through sending your own agent's first trace. The banner also shows how
 to send a trace from your own code as `my-agent`; CI checks that a cold start
 reaches the first trace in under five minutes.
 
-Releases after v0.1.0 also ship [`conduitctl`](docs/cli.md), the same
+Releases also ship [`conduitctl`](docs/cli.md), the same
 quickstart as a single binary with no checkout needed: `conduitctl
 quickstart`, plus `agent-cert` and `doctor`.
 

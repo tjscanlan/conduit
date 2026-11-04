@@ -22,7 +22,7 @@ services:
   # Generates the dev CA, the gateway certificate, client certificates for
   # demo-agent and my-agent, and a UI login. Reruns keep existing files.
   conduit-init:
-    image: ghcr.io/tjscanlan/conduit-init:${CONDUIT_VERSION:-v0.1.0}
+    image: ghcr.io/tjscanlan/conduit-init:${CONDUIT_VERSION:-v0.2.0}
     command: ["-dir", "/conduit", "-agents", "demo-agent,my-agent"]
     # Run as the host user so you can use ./.conduit/certs from your own agents.
     user: "${CONDUIT_UID:-0}:${CONDUIT_GID:-0}"
@@ -74,7 +74,7 @@ services:
   # ── Conduit ──────────────────────────────────────────────────────────
   gateway:
     <<: *service
-    image: ghcr.io/tjscanlan/conduit-gateway:${CONDUIT_VERSION:-v0.1.0}
+    image: ghcr.io/tjscanlan/conduit-gateway:${CONDUIT_VERSION:-v0.2.0}
     ports:
       - "127.0.0.1:${CONDUIT_GATEWAY_PORT:-4317}:4317"
     environment:
@@ -92,7 +92,7 @@ services:
 
   collector:
     <<: *service
-    image: ghcr.io/tjscanlan/conduit-collector:${CONDUIT_VERSION:-v0.1.0}
+    image: ghcr.io/tjscanlan/conduit-collector:${CONDUIT_VERSION:-v0.2.0}
     environment:
       NATS_URL: nats://nats:4222
       CLICKHOUSE_DSN: clickhouse://obs:${CLICKHOUSE_PASSWORD:?run deployments/quickstart/quickstart.sh}@clickhouse:9000/observability
@@ -107,7 +107,7 @@ services:
 
   ui:
     <<: *service
-    image: ghcr.io/tjscanlan/conduit-ui:${CONDUIT_VERSION:-v0.1.0}
+    image: ghcr.io/tjscanlan/conduit-ui:${CONDUIT_VERSION:-v0.2.0}
     ports:
       - "127.0.0.1:${CONDUIT_UI_PORT:-8080}:8080"
     environment:
@@ -133,7 +133,7 @@ services:
   # right away. Disable with CONDUIT_DEMO_AGENT=0 in quickstart.sh, or
   # `docker compose stop demo-agent`.
   demo-agent:
-    image: ghcr.io/tjscanlan/conduit-demo-agent:${CONDUIT_VERSION:-v0.1.0}
+    image: ghcr.io/tjscanlan/conduit-demo-agent:${CONDUIT_VERSION:-v0.2.0}
     environment:
       CONDUIT_GATEWAY_ADDR: gateway:4317
       CONDUIT_CERT_DIR: /conduit/certs

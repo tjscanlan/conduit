@@ -25,10 +25,9 @@ tar -xzf conduitctl_${V}_${OS}_${ARCH}.tar.gz && sudo mv conduitctl_${V}_${OS}_$
 
 Or, with Go: `go install github.com/tjscanlan/conduit/cmd/conduitctl@latest`.
 
-`conduitctl` ships with releases after v0.1.0: v0.1.0 has no binaries, and
-its images lack the two quickstart helpers (`conduit-init`,
-`conduit-demo-agent`). Until then, use `make quickstart` from a checkout;
-it runs the same stack.
+`conduitctl` ships with v0.2.0 and later (v0.1.0 has no binaries, and its
+images lack the quickstart's `conduit-init` and `conduit-demo-agent`).
+From a checkout, `make quickstart` runs the same stack.
 
 ## Commands
 

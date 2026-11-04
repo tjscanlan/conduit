@@ -25,8 +25,8 @@ All artifacts of a release share one version number.
 
 | Artifact | Where | Version form |
 |----------|-------|--------------|
-| Images | `ghcr.io/tjscanlan/conduit-{gateway,collector,ui}` | `v0.1.0` |
-| Go SDK | `github.com/tjscanlan/conduit/sdk/go` | tag `sdk/go/v0.1.0`, used as `@v0.1.0` |
+| Images | `ghcr.io/tjscanlan/conduit-{gateway,collector,ui,init,demo-agent}` | `v0.2.0` |
+| Go SDK | `github.com/tjscanlan/conduit/sdk/go` | tag `sdk/go/v0.2.0`, used as `@v0.2.0` |
 | Python SDK | [`conduit-observability`](https://pypi.org/project/conduit-observability/) | `0.1.0` |
 
 ## Verifying images
@@ -36,7 +36,7 @@ Images are built by the `release` workflow and signed with keyless
 from this repository's workflow at a version tag:
 
 ```bash
-cosign verify ghcr.io/tjscanlan/conduit-gateway:v0.1.0 \
+cosign verify ghcr.io/tjscanlan/conduit-gateway:v0.2.0 \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   --certificate-identity-regexp '^https://github\.com/tjscanlan/conduit/\.github/workflows/release\.yml@refs/tags/v'
 ```
@@ -45,7 +45,7 @@ Each image also carries an SBOM and build provenance as attestations in its
 manifest list. To see them:
 
 ```bash
-docker buildx imagetools inspect ghcr.io/tjscanlan/conduit-gateway:v0.1.0 --raw
+docker buildx imagetools inspect ghcr.io/tjscanlan/conduit-gateway:v0.2.0 --raw
 ```
 
 In production, deploy by digest rather than by tag.
@@ -84,8 +84,8 @@ reviewer on the `pypi` environment in the repository settings.
 
    ```bash
    git switch main && git pull
-   git tag v0.1.0 && git tag sdk/go/v0.1.0
-   git push --atomic origin v0.1.0 sdk/go/v0.1.0
+   git tag v0.2.0 && git tag sdk/go/v0.2.0
+   git push --atomic origin v0.2.0 sdk/go/v0.2.0
    ```
 
 3. Watch the `release` workflow. It tests the commit, builds, pushes and signs the
