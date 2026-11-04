@@ -14,7 +14,7 @@ Newest entries first. Each iteration is driven by `.claude/loop.md`.
   - The days value is a validated int (never user text). A non-numeric env var maps to -1, so the range check rejects it rather than silently defaulting.
 - **Security bug fixed:** `NewClickHouseStore` did `opts.TLS = nil // handled externally via mTLS at network layer`, so a DSN with `secure=true` was **silently downgraded to plaintext** (credentials included); the "network-layer mTLS" didn't exist. TLS now follows the DSN, with a regression test.
 - Verified: ran `clickhouse local` (24.4, 512 MB cap, the demo stack unaffected) to capture the real engine_full normalization (`TTL toDateTime(start_time) + toIntervalDay(90)`) before and after MODIFY TTL; the tests use those exact strings. Also tested DDL rendering, retention range checks before connecting, TLS kept for `secure=true` and absent otherwise, and env parsing. CI smoke now runs with `SPAN_RETENTION_DAYS=30`, so the ALTER path runs on a real ClickHouse, and asserts `toIntervalDay(30)`.
-- **Stopping point:** both data-governance items are done. Opening the PR, then the user's GitHub Pages + visual roadmap cycle.
+- **Stopping point:** both data-governance items are done. Opened PR https://github.com/tjscanlan/conduit/pull/7; no new work until it is merged. Then the user's GitHub Pages + visual roadmap cycle.
 
 ## 2026-11-04 — Cycle 7 (`loop/payload-retention-controls`, after PR #6 merged as c2ddcbf): STORE_LLM_PAYLOADS
 - Theme: data-governance controls from the roadmap's Now list that need no human decision: a switch to stop storing payloads, then configurable retention.
