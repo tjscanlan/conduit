@@ -33,6 +33,7 @@ To suggest a change, open an issue or a PR against this file.
 
 **Data governance**
 - `STORE_LLM_PAYLOADS=false` drops prompts and completions at the gateway
+- `SPAN_RETENTION_DAYS`, with the TTL reconciled on existing tables
 
 **Operations**
 - `/livez` and `/readyz` on every service, and a `healthcheck` subcommand
@@ -49,7 +50,6 @@ To suggest a change, open an issue or a PR against this file.
 | Item | Why |
 |------|-----|
 | **Prompt and completion access control** | Payloads are stored but never shown. Showing them needs a decision on who may see them (see [open decisions](#open-decisions)). |
-| **Configurable retention** | The 90-day TTL is hard-coded in the DDL. |
 | **Schema migrations** | Today `CREATE TABLE IF NOT EXISTS` runs at startup. Versioned migrations are needed before the schema changes again. |
 | **Metrics and logs ingestion** | `IngestBatch` accepts metrics and logs in the API but rejects them, because there's no pipeline yet. |
 

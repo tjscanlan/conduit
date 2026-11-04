@@ -121,6 +121,8 @@ jobs:
     timeout-minutes: 20
     env:
       COMPOSE_FILE: deployments/docker/docker-compose.yml
+      # Non-default so the collector's TTL reconcile (ALTER ... MODIFY TTL) runs for real.
+      SPAN_RETENTION_DAYS: "30"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -48,6 +48,12 @@ for svc in gateway collector ui; do
 done
 pass "gateway, collector, and ui report ready (healthcheck subcommand -> /readyz)"
 
+echo "==> Retention"
+want_days="${SPAN_RETENTION_DAYS:-90}"
+ttl_ok() { ch "SELECT engine_full FROM system.tables WHERE database = currentDatabase() AND name = 'spans'" | grep -q "toIntervalDay($want_days)"; }
+retry 15 ttl_ok || fail "spans TTL is not $want_days days: $(ch "SELECT engine_full FROM system.tables WHERE name = 'spans'")"
+pass "spans TTL is $want_days days (SPAN_RETENTION_DAYS)"
+
 echo "==> Sending a trace through the gateway as $AGENT"
 TRACE=$(cd "$ROOT/sdk/go" && go run ./examples/smoke-agent \
   -cert "$ROOT/certs/agent-example.crt" -key "$ROOT/certs/agent-example.key" -ca "$ROOT/certs/ca.crt")

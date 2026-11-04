@@ -39,7 +39,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	ch, err := storage.NewClickHouseStore(cfg.ClickHouseDSN)
+	ch, err := storage.NewClickHouseStore(cfg.ClickHouseDSN, storage.StoreOptions{})
 	if err != nil {
 		logger.Error("clickhouse connect", "err", err)
 		os.Exit(1)

@@ -108,8 +108,14 @@ what to do.
 | `ingested_at` | `DateTime` | Defaults to `now()` |
 
 The table is a `MergeTree`, partitioned by day and ordered by
-`(agent_name, trace_id, start_time)`. Rows expire after **90 days**. The TTL
-is part of the DDL and isn't configurable yet.
+`(agent_name, trace_id, start_time)`. Rows expire after
+**`SPAN_RETENTION_DAYS`** (default 90, range 1–3650).
+- **Who sets it:** the collector owns retention. On startup it compares the
+  table's TTL with the setting and runs `ALTER TABLE spans MODIFY TTL …`
+  only if they differ. Shortening retention lets ClickHouse delete rows
+  that are now past it.
+- **The UI** only creates the tables if they're missing, and never alters
+  them.
 
 ### ClickHouse `trace_summary`
 

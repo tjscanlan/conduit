@@ -86,6 +86,8 @@ services:
       CLICKHOUSE_DSN: "clickhouse://obs:${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD}@clickhouse:9000/observability"
       VICTORIAMETRICS_URL: "http://victoriametrics:8428"
       TEMPO_ENDPOINT: "http://tempo:4318"
+      # Days of span data to keep; the collector reconciles the table's TTL on start.
+      SPAN_RETENTION_DAYS: ${SPAN_RETENTION_DAYS:-90}
     depends_on:
       nats: { condition: service_started }
       clickhouse: { condition: service_healthy }
