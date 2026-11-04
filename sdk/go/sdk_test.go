@@ -10,6 +10,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"math/big"
 	"net"
 	"os"
@@ -106,6 +107,23 @@ type fakeGateway struct {
 	pb.UnimplementedIngestionServiceServer
 	mu    sync.Mutex
 	spans []*pb.Span
+	logs  []*pb.LogRecord
+}
+
+// IngestBatch accepts log records, rejecting any with an empty body (like the gateway).
+func (g *fakeGateway) IngestBatch(_ context.Context, req *pb.IngestBatchRequest) (*pb.IngestBatchResponse, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	resp := &pb.IngestBatchResponse{}
+	for i, l := range req.GetLogs() {
+		if l.GetBody() == "" {
+			resp.Errors = append(resp.Errors, fmt.Sprintf("log[%d]: validation: log body is required", i))
+			continue
+		}
+		g.logs = append(g.logs, l)
+		resp.LogsAccepted++
+	}
+	return resp, nil
 }
 
 func (g *fakeGateway) IngestSpan(_ context.Context, req *pb.IngestSpanRequest) (*pb.IngestSpanResponse, error) {
@@ -243,6 +261,40 @@ func TestTruncateUTF8(t *testing.T) {
 	// Odd cut point lands mid-rune and must back up.
 	if got := truncateUTF8("aé", 2); got != "a" {
 		t.Errorf("truncateUTF8(\"aé\", 2) = %q, want \"a\"", got)
+	}
+}
+
+func TestLogLinksToCurrentSpan(t *testing.T) {
+	pki := newTestPKI(t, t.TempDir(), "conduit")
+	g, addr := startGateway(t, pki)
+	c := newTestClient(t, addr, pki)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := c.Log(ctx, SeverityInfo, "agent started", nil); err != nil {
+		t.Fatal(err)
+	}
+	span, sctx := c.StartSpan(ctx, "tool.call")
+	if err := c.Log(sctx, SeverityWarn, "retrying", map[string]string{"attempt": "2"}); err != nil {
+		t.Fatal(err)
+	}
+	err := c.Log(sctx, SeverityError, "", nil)
+	if err == nil || !strings.Contains(err.Error(), "log body is required") {
+		t.Fatalf("empty body: err = %v, want the gateway's reason", err)
+	}
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if len(g.logs) != 2 {
+		t.Fatalf("gateway got %d logs, want 2", len(g.logs))
+	}
+	if outside := g.logs[0]; outside.GetTraceId() != "" || outside.GetSpanId() != "" || outside.GetSeverity() != pb.LogSeverity_LOG_SEVERITY_INFO {
+		t.Errorf("log outside a span must not carry trace links: %v", outside)
+	}
+	inside := g.logs[1]
+	if inside.GetTraceId() != span.TraceID() || inside.GetSpanId() != span.SpanID() ||
+		inside.GetSeverity() != pb.LogSeverity_LOG_SEVERITY_WARN || inside.GetAttributes()["attempt"] != "2" || inside.GetTimestamp() == nil {
+		t.Errorf("log inside a span = %v", inside)
 	}
 }
 

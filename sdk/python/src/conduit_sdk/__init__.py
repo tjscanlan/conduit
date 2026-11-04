@@ -1,6 +1,11 @@
 """Conduit SDK: emit agent spans to the Conduit gateway over mTLS/gRPC."""
 
 from .client import (
+    SEVERITY_DEBUG,
+    SEVERITY_ERROR,
+    SEVERITY_INFO,
+    SEVERITY_UNSPECIFIED,
+    SEVERITY_WARN,
     STATUS_ERROR,
     STATUS_OK,
     STATUS_UNSET,
@@ -16,6 +21,11 @@ __all__ = [
     "ConduitError",
     "LLMCall",
     "Span",
+    "SEVERITY_DEBUG",
+    "SEVERITY_ERROR",
+    "SEVERITY_INFO",
+    "SEVERITY_UNSPECIFIED",
+    "SEVERITY_WARN",
     "STATUS_ERROR",
     "STATUS_OK",
     "STATUS_UNSET",

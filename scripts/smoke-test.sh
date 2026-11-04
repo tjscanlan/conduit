@@ -82,6 +82,13 @@ llm_ms=$(ch "SELECT dateDiff('millisecond', start_time, end_time) FROM spans WHE
 (( llm_ms >= 15 )) || fail "smoke.llm.call stored start/end only $llm_ms ms apart; timestamps lost sub-second precision"
 pass "sub-second timestamps preserved ($llm_ms ms)"
 
+log_row() { [[ "$(ch "SELECT count() FROM logs WHERE trace_id = '$TRACE'")" == 1 ]]; }
+retry 30 log_row || fail "expected 1 log linked to trace $TRACE"
+logrow=$(ch "SELECT agent_name, severity, body, attributes['attempt'], span_id = (SELECT span_id FROM spans WHERE trace_id = '$TRACE' AND span_name = 'smoke.llm.call')
+             FROM logs WHERE trace_id = '$TRACE' FORMAT TSV")
+[[ "$logrow" == "$AGENT"$'\twarn\tsmoke: retrying tool call\t2\t1' ]] || fail "log row differs: $logrow"
+pass "Go SDK log stored, linked to its span, agent_name from the cert"
+
 summary=$(ch "SELECT sum(span_count), sum(error_count), sum(total_input_tokens) FROM trace_summary WHERE trace_id = '$TRACE' FORMAT TSV")
 [[ "$summary" == $'2\t1\t12' ]] || fail "trace_summary = '$summary', want 2 spans / 1 error / 12 tokens"
 pass "trace_summary rollup"
@@ -101,7 +108,9 @@ else
              FROM spans WHERE trace_id = '$PYTRACE' ORDER BY span_name FORMAT TSV")
   expected="pysmoke.agent.run"$'\t'"$AGENT"$'\tok\t\t\t16\t0\n'"pysmoke.tool.call"$'\t'"$AGENT"$'\terror\ttool call timed out\tpy-model\t16\t1'
   [[ "$rows" == "$expected" ]] || fail "Python span rows differ:"$'\n'"got:"$'\n'"$rows"$'\n'"want:"$'\n'"$expected"
-  pass "Python SDK trace $PYTRACE: context-manager spans, exception recorded as error, parent link"
+  pylog() { [[ "$(ch "SELECT severity, body FROM logs WHERE trace_id = '$PYTRACE' FORMAT TSV")" == $'warn\tpysmoke: retrying tool call' ]]; }
+  retry 30 pylog || fail "Python SDK log not stored for $PYTRACE"
+  pass "Python SDK trace $PYTRACE: context-manager spans, exception recorded as error, parent link, linked log"
   PYSTART_NS=$(ch "SELECT toUnixTimestamp64Nano(min(start_time)) FROM spans WHERE trace_id = '$PYTRACE'")
 fi
 

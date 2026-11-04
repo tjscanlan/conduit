@@ -2,6 +2,15 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — SDK log APIs (Go + Python), logs in the smoke test
+- Did:
+  - Go: `client.Log(ctx, severity, body, attrs)` with `sdk.Severity*` consts. It reads the current `*Span` from ctx directly; `traceIDFromContext` would mint a new trace ID, which is wrong for a log outside a span. It sends via `IngestBatch` and returns the gateway's per-item reason on rejection.
+  - Python: `client.log(severity, body, attributes=None)` with `SEVERITY_*` constants, links to the current span through contextvars, stringifies attribute values, and raises `ConduitError` with the gateway's reason.
+  - Both smoke agents send a WARN log inside a span. The smoke test asserts the Go log row (agent_name from the cert CN, severity, body, attribute, span_id equal to the smoke.llm.call span) and the Python log row.
+  - SDK docs gained API rows.
+- Verified: SDK tests against a real mTLS gRPC fake gateway (Go and Python): no trace link outside a span, correct trace and span inside, severity, attributes, timestamp, and the rejection reason surfaced. Go vet and tests pass; pytest is 9/9. The smoke runs in CI.
+- Next: metrics → VictoriaMetrics, then the UI logs page.
+
 ## 2026-11-04 — Cycle 10 (`loop/metrics-logs-ingestion`, after PR #9 merged as 53e7ea1): logs pipeline (server side)
 - Theme: metrics and logs ingestion (roadmap Now). `IngestBatch` accepted both in the API and rejected them.
 - Did, for logs end to end on the server:

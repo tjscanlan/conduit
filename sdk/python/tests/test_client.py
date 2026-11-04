@@ -10,7 +10,8 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
-from conduit_sdk import STATUS_ERROR, STATUS_OK, STATUS_UNSET, Client, ConduitError, LLMCall
+from conduit_sdk import (SEVERITY_ERROR, SEVERITY_INFO, SEVERITY_WARN, STATUS_ERROR, STATUS_OK,
+                         STATUS_UNSET, Client, ConduitError, LLMCall)
 from conduit_sdk._proto import ingestion_pb2, ingestion_pb2_grpc
 from conduit_sdk.client import MAX_ATTR_VALUE_BYTES, _truncate_utf8
 
@@ -67,7 +68,19 @@ class FakeGateway(ingestion_pb2_grpc.IngestionServiceServicer):
 
     def __init__(self):
         self.spans = []
+        self.logs = []
         self.lock = threading.Lock()
+
+    def IngestBatch(self, request, context):
+        resp = ingestion_pb2.IngestBatchResponse()
+        for i, rec in enumerate(request.logs):
+            if not rec.body:
+                resp.errors.append(f"log[{i}]: validation: log body is required")
+                continue
+            with self.lock:
+                self.logs.append(rec)
+            resp.logs_accepted += 1
+        return resp
 
     def IngestSpan(self, request, context):
         if request.span.name == "reject-me":
@@ -161,6 +174,21 @@ def test_raise_errors_option(gateway, caplog):
             with c.span("reject-me", raise_errors=True):
                 raise KeyError("boom")
     assert "not delivered" in caplog.text
+
+
+def test_log_links_to_current_span(gateway):
+    fake, addr, pki, _ = gateway
+    with client_for(addr, pki) as c:
+        c.log(SEVERITY_INFO, "agent started")
+        with c.span("tool.call") as s:
+            c.log(SEVERITY_WARN, "retrying", {"attempt": 2})
+            with pytest.raises(ConduitError, match="log body is required"):
+                c.log(SEVERITY_ERROR, "")
+    outside, inside = fake.logs
+    assert outside.trace_id == "" and outside.span_id == "" and outside.severity == SEVERITY_INFO
+    assert inside.trace_id == s.trace_id and inside.span_id == s.span_id
+    assert inside.severity == SEVERITY_WARN and inside.attributes["attempt"] == "2"
+    assert inside.timestamp.ToNanoseconds() > 0
 
 
 def test_rejects_gateway_from_untrusted_ca(gateway):

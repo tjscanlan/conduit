@@ -65,6 +65,7 @@ asyncio task, and a single `Client` can be shared by the whole process.
 | `span.set_ok()` / `span.set_error(err)` | Sets the span status. `set_error` stores the message in `error.message`, cut to 4096 bytes. `set_error(None)` does nothing. |
 | `span.record_llm_call(LLMCall(...))` | Attaches model, prompt, completion, token counts and cost. Prompts and completions are capped at 128 KiB each. |
 | `span.end()` | Sends the span once; calling it again does nothing. Raises `ConduitError` if delivery fails or the gateway rejects the span. |
+| `client.log(severity, body, attributes=None)` | Sends one log record (`SEVERITY_DEBUG`, `SEVERITY_INFO`, `SEVERITY_WARN` or `SEVERITY_ERROR`). Inside `with client.span(...)` it's linked to that span and trace. Raises `ConduitError` if it's rejected. Bodies are limited to 32 KiB. |
 | `span.trace_id`, `span.span_id` | 32-hex and 16-hex IDs, for log correlation. |
 
 ### Delivery errors

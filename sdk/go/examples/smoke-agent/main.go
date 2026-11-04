@@ -33,7 +33,10 @@ func main() {
 	// The gateway must overwrite this with the certificate's CommonName.
 	root.SetAttr("smoke", "true").SetAttr("agent_name", "spoofed-name")
 
-	child, _ := c.StartSpan(ctx, "smoke.llm.call")
+	child, cctx := c.StartSpan(ctx, "smoke.llm.call")
+	if err := c.Log(cctx, sdk.SeverityWarn, "smoke: retrying tool call", map[string]string{"attempt": "2"}); err != nil {
+		log.Fatalf("send log: %v", err)
+	}
 	time.Sleep(20 * time.Millisecond)
 	child.RecordLLMCall(sdk.LLMCall{Model: "smoke-model", Prompt: "hi", Completion: "hello", InputTokens: 12, OutputTokens: 34, CostUSD: 0.0042})
 	child.SetError(errors.New("tool call timed out"))
