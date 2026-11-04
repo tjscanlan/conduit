@@ -61,8 +61,10 @@ to send a trace from your own code as `my-agent`; CI checks that a cold start
 reaches the first trace in under five minutes.
 
 `quickstart.sh status` shows the login again, `down` stops the stack (keeping
-data), and `reset` deletes everything. To instrument your own agent, see the
-[Go SDK](docs/sdk-go.md) and [Python SDK](docs/sdk-python.md) guides. To work
+data), and `reset` deletes everything. Next, run one of the
+[examples](docs/examples.md) (hello-trace, tool calling, asyncio, Claude,
+OpenAI) or instrument your own agent with the [Go SDK](docs/sdk-go.md) or
+[Python SDK](docs/sdk-python.md). To work
 on Conduit itself (building images from source), see
 [Deployment](docs/deployment.md#local-docker-compose-from-source).
 

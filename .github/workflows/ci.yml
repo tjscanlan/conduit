@@ -44,6 +44,11 @@ jobs:
           go build ./...
           go vet ./...
           go test -race -cover ./...
+      - name: examples/go build, vet
+        working-directory: examples/go
+        run: |
+          go build ./...
+          go vet ./...
 
   generated:
     name: generated code is up to date
@@ -105,6 +110,9 @@ jobs:
       - run: go run golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION} ./...
       - name: govulncheck sdk/go
         working-directory: sdk/go
+        run: go run golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION} ./...
+      - name: govulncheck examples/go
+        working-directory: examples/go
         run: go run golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION} ./...
 
   docker:
@@ -172,6 +180,14 @@ jobs:
           cache: false
       - name: cold quickstart within the 5-minute budget
         run: ./scripts/quickstart-check.sh
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: install the Python SDK and the examples' provider SDKs
+        run: pip install -e sdk/python -r examples/python/requirements.txt
+      # Claude and OpenAI examples run against scripts/fake-llm-server.py: no keys needed.
+      - name: every example's trace reaches the UI
+        run: ./scripts/examples-check.sh
       - name: logs on failure
         if: failure()
         run: docker compose -f deployments/quickstart/compose.yml logs --no-color --tail 200

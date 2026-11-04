@@ -2,6 +2,26 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — Activation cycle 2: prebuilt agent examples (`loop/agent-examples`)
+- **`examples/go`:** a separate module, with replaces to the in-repo sdk/go and main module.
+  - hello-trace, tool-agent (simulated model), claude-agent (anthropic-sdk-go v1.84.0) and openai-agent (openai-go/v3 v3.94.0, Chat Completions).
+  - Shared `internal/quickstart` finds `deployments/quickstart/.conduit/certs` by searching upward; overridable with CONDUIT_GATEWAY_ADDR, CONDUIT_CERT_DIR and CONDUIT_AGENT. Shared `internal/weather` is a canned get_weather tool.
+- **`examples/python`:** hello_trace, tool_agent, async_agent (asyncio.gather; spans nest per task and overlap, verified in ClickHouse), claude_agent (anthropic 0.125) and openai_agent (openai 2.48). `_quickstart.py` finds the certs; requirements.txt.
+- **Shared design:**
+  - Span layout: agent.run → llm.call (real usage, model from the response, cost estimate) → tool.<name> (tool.input, error status).
+  - Tools run after the llm.call span ends. Caught and fixed in claude-agent, whose first version ran tools inside the model span.
+  - Provider examples exit with a hint when no key is set.
+  - Defaults: claude-sonnet-5 and gpt-5-mini, overridable with ANTHROPIC_MODEL / OPENAI_MODEL.
+- **`scripts/fake-llm-server.py`:** stdlib fake of POST /v1/messages and /v1/chat/completions. Turn 1 requests get_weather for two cities; turn 2 must carry both tool results (else 400), then it answers. Both official SDKs honor ANTHROPIC_BASE_URL / OPENAI_BASE_URL, so the real request building and parsing run with no keys.
+- **`scripts/examples-check.sh`:** runs all 9 examples against the quickstart plus the fake server, and checks each trace in the UI (my-agent plus the expected span names). It also checks the missing-key hint. Fixed a bug where `exit` inside the `if` loop killed the script. First CI run: all checks passed, but the job exited 143, because the EXIT trap's `wait` on the killed fake server fails under `set -e` with Linux bash (macOS bash 3.2 hid it). Fixed with `|| true`.
+- **CI:**
+  - The test job builds and vets examples/go.
+  - The vuln job runs govulncheck on examples/go: passes; x/net v0.61.0 has GO-2026-6866/6860, but they aren't called.
+  - The quickstart job now also installs the SDK plus requirements and runs examples-check.
+- **Docs:** new docs/examples.md (in the manifest under SDKs, so it reaches llms.txt) and examples/README.md. The README, sdk-go.md and sdk-python.md link to it. The quickstart banner now says `go run ./hello-trace` / `python examples/python/hello_trace.py`.
+- **Verified locally:** examples-check passes all 10 checks; go vet, gofmt and the docs manifest pass. Not verified: real Anthropic/OpenAI calls (no keys here).
+- **Follow-up:** bump golang.org/x/net to v0.62.0 in all three modules (uncalled advisories).
+
 ## 2026-11-04 — Activation cycle 1: one-command quickstart (`loop/one-command-quickstart`)
 - **`cmd/conduit-init`:** stdlib + x/crypto/bcrypt. Issues an ECDSA P-256 dev CA, a gateway cert (SANs gateway, localhost, 127.0.0.1), and client certs for demo-agent and my-agent. Also writes a random bcrypt UI login (ui-users, plus an owner-only ui-login.txt so the banner can reprint it). Idempotent: keeps valid files, reissues leaves if the CA is new, issues only newly added agents. Keys are 0600; runs as the host UID so `my-agent.key` is usable from the host. Tests: a real TLS 1.3 mTLS handshake with the generated files (both SANs); the UI's own LoadUsersFile/Authenticate; idempotency; perms; agent-name validation.
 - **`deployments/quickstart/`:**

@@ -4,6 +4,9 @@
 sends spans from a Python agent to the Conduit gateway over mTLS and gRPC.
 It requires Python 3.10 or newer.
 
+For runnable Python agents (hello-trace, tool calling, Claude, OpenAI) that
+work against `make quickstart` with no setup, see [Examples](examples.md).
+
 ## 1. Get an agent certificate
 
 The process is the same as for the Go SDK. The certificate's CommonName is

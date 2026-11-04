@@ -65,15 +65,12 @@ ${G}${B}Conduit is running.${X}
   ${B}Login${X}     $user / $pass
   ${B}Gateway${X}   localhost:$GATEWAY_PORT (mTLS)
 
-${B}Send a trace from your own code${X} as agent "my-agent":
+${B}Send a trace from code${X} (as agent "my-agent"; the examples find the certificates):
 
-  export CONDUIT_CERTS="$certs"
-  Python:  pip install conduit-observability
-           ${D}# certs = os.environ["CONDUIT_CERTS"]${X}
-           ${D}# client = Client("localhost:$GATEWAY_PORT", tls_cert=f"{certs}/my-agent.crt",${X}
-           ${D}#                 tls_key=f"{certs}/my-agent.key", tls_ca=f"{certs}/ca.crt")${X}
-  Go:      go -C "$ROOT/sdk/go" run ./examples/smoke-agent -addr localhost:$GATEWAY_PORT \\
-             -cert "\$CONDUIT_CERTS/my-agent.crt" -key "\$CONDUIT_CERTS/my-agent.key" -ca "\$CONDUIT_CERTS/ca.crt"
+  Go:      cd "$ROOT/examples/go" && go run ./hello-trace
+  Python:  pip install conduit-observability && python "$ROOT/examples/python/hello_trace.py"
+  More:    tool calling, asyncio, Claude, OpenAI: $ROOT/examples/README.md
+  Certs:   $certs ${D}(for your own agent)${X}
 
 Docs: https://tjscanlan.github.io/conduit/   Stop: $0 down
 EOF
