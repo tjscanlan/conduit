@@ -81,5 +81,4 @@ These need a maintainer's call before the related work can start.
 | Decision | Options | Raised in |
 |----------|---------|-----------|
 | **Who can see prompts and completions** | Every signed-in user; A separate role or permission; Reveal-on-click with an audit log | [PR #3](https://github.com/tjscanlan/conduit/pull/3) |
-| **Publishing the SDKs** | Keep them repo-local; Publish to PyPI and as a tagged Go module (needs real module paths instead of `github.com/your-org/...`) | [PR #2](https://github.com/tjscanlan/conduit/pull/2) |
 | **`nats-server` as a test dependency** | Add an in-process NATS for integration tests; Rely on the compose smoke test, which already covers the path. Leaning toward the smoke test. | [PR #2](https://github.com/tjscanlan/conduit/pull/2) |

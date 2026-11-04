@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/your-org/agent-observability/internal/storage"
+	"github.com/tjscanlan/conduit/internal/storage"
 )
 
 func logsRouter(t *testing.T, logs []storage.LogRow) (http.Handler, *fakeSpans) {

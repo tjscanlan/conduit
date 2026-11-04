@@ -5,7 +5,7 @@ import (
 	"maps"
 	"time"
 
-	"github.com/your-org/agent-observability/internal/schema"
+	"github.com/tjscanlan/conduit/internal/schema"
 )
 
 // MetricInput is a metric sample as published to NATS by the gateway.

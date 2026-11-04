@@ -1,4 +1,4 @@
-module github.com/your-org/agent-observability
+module github.com/tjscanlan/conduit
 
 go 1.26.0
 

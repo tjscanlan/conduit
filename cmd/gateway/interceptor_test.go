@@ -8,8 +8,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/your-org/agent-observability/internal/auth"
-	pb "github.com/your-org/agent-observability/proto"
+	"github.com/tjscanlan/conduit/internal/auth"
+	pb "github.com/tjscanlan/conduit/proto"
 )
 
 func okHandler(context.Context, any) (any, error) { return "ok", nil }

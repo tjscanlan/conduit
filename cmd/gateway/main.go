@@ -14,8 +14,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/your-org/agent-observability/internal/health"
-	pb "github.com/your-org/agent-observability/proto"
+	"github.com/tjscanlan/conduit/internal/health"
+	pb "github.com/tjscanlan/conduit/proto"
 )
 
 func main() {

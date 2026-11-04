@@ -183,7 +183,7 @@ const file_log_proto_rawDesc = "" +
 	"\x12LOG_SEVERITY_DEBUG\x10\x01\x12\x15\n" +
 	"\x11LOG_SEVERITY_INFO\x10\x02\x12\x15\n" +
 	"\x11LOG_SEVERITY_WARN\x10\x03\x12\x16\n" +
-	"\x12LOG_SEVERITY_ERROR\x10\x04B/Z-github.com/your-org/agent-observability/protob\x06proto3"
+	"\x12LOG_SEVERITY_ERROR\x10\x04B$Z\"github.com/tjscanlan/conduit/protob\x06proto3"
 
 var (
 	file_log_proto_rawDescOnce sync.Once

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/your-org/agent-observability/internal/storage"
+	"github.com/tjscanlan/conduit/internal/storage"
 )
 
 func TestProcessMetricAgentLabelAndDefaults(t *testing.T) {

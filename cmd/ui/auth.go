@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/your-org/agent-observability/internal/auth"
+	"github.com/tjscanlan/conduit/internal/auth"
 )
 
 const (

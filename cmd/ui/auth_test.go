@@ -22,7 +22,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/your-org/agent-observability/internal/auth"
+	"github.com/tjscanlan/conduit/internal/auth"
 )
 
 const (

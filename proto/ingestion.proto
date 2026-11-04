@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package observability.v1;
 
-option go_package = "github.com/your-org/agent-observability/proto";
+option go_package = "github.com/tjscanlan/conduit/proto";
 
 import "span.proto";
 import "metric.proto";

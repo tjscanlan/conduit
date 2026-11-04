@@ -1,7 +1,7 @@
 # Go SDK
 
 `sdk/go` sends spans from a Go agent to the Conduit gateway over mTLS and
-gRPC. It's a separate Go module, `github.com/your-org/conduit-sdk-go`, and
+gRPC. It's a separate Go module, `github.com/tjscanlan/conduit/sdk/go`, and
 it requires Go 1.26 or newer.
 
 ## 1. Get an agent certificate
@@ -24,9 +24,13 @@ the gateway trusts (`TLS_CA`).
 
 ## 2. Add the module
 
-The SDK isn't published as a standalone module yet. It depends on the
-generated proto package in the main module through a `replace` directive.
-Until it's published, consume it from a checkout of this repo:
+```bash
+go get github.com/tjscanlan/conduit/sdk/go@v0.1.0
+```
+
+The SDK lives in a subdirectory of the repo, so its tags are prefixed:
+`sdk/go/v0.1.0`. It is released together with the main module, which provides
+the generated proto package. To develop against a checkout instead:
 
 ```bash
 go work init ./your-agent ./path/to/conduit/sdk/go ./path/to/conduit
@@ -35,7 +39,7 @@ go work init ./your-agent ./path/to/conduit/sdk/go ./path/to/conduit
 ## 3. Instrument
 
 ```go
-import sdk "github.com/your-org/conduit-sdk-go"
+import sdk "github.com/tjscanlan/conduit/sdk/go"
 
 client, err := sdk.New(sdk.Config{
 	GatewayAddr: "localhost:4317",          // host must match a SAN on the gateway cert

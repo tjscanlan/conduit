@@ -165,7 +165,7 @@ const file_metric_proto_rawDesc = "" +
 	"MetricType\x12\x1b\n" +
 	"\x17METRIC_TYPE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11METRIC_TYPE_GAUGE\x10\x01\x12\x17\n" +
-	"\x13METRIC_TYPE_COUNTER\x10\x02B/Z-github.com/your-org/agent-observability/protob\x06proto3"
+	"\x13METRIC_TYPE_COUNTER\x10\x02B$Z\"github.com/tjscanlan/conduit/protob\x06proto3"
 
 var (
 	file_metric_proto_rawDescOnce sync.Once

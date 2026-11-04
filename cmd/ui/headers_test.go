@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"testing"
 
-	conduitui "github.com/your-org/agent-observability/ui"
+	conduitui "github.com/tjscanlan/conduit/ui"
 )
 
 func TestSecurityHeadersAppliedEvenOnAuthFailure(t *testing.T) {

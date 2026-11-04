@@ -11,7 +11,7 @@ import (
 	"log"
 	"time"
 
-	sdk "github.com/your-org/conduit-sdk-go"
+	sdk "github.com/tjscanlan/conduit/sdk/go"
 )
 
 func main() {

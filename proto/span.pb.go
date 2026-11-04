@@ -302,7 +302,7 @@ const file_span_proto_rawDesc = "" +
 	"SpanStatus\x12\x15\n" +
 	"\x11SPAN_STATUS_UNSET\x10\x00\x12\x12\n" +
 	"\x0eSPAN_STATUS_OK\x10\x01\x12\x15\n" +
-	"\x11SPAN_STATUS_ERROR\x10\x02B/Z-github.com/your-org/agent-observability/protob\x06proto3"
+	"\x11SPAN_STATUS_ERROR\x10\x02B$Z\"github.com/tjscanlan/conduit/protob\x06proto3"
 
 var (
 	file_span_proto_rawDescOnce sync.Once

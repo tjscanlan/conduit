@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/your-org/agent-observability/internal/schema"
-	"github.com/your-org/agent-observability/internal/storage"
+	"github.com/tjscanlan/conduit/internal/schema"
+	"github.com/tjscanlan/conduit/internal/storage"
 )
 
 func discardLogger() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)) }
