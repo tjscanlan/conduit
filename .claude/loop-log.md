@@ -2,6 +2,17 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — **Activation program (user-approved plan):** first trace in under 5 minutes
+- Goal: from a clean machine with only Docker, a first trace is visible in the UI in under 5 minutes, measured in CI. Remove deployment and instrumentation friction.
+- Baseline friction: clone; gen-certs (OpenSSL); UI password (needs Go); export CLICKHOUSE_PASSWORD; `compose up --build` builds 3 images from source (slow, OOMs a 2 GiB VM); wire 3 cert paths into SDK code. About 6 steps and 3 prerequisites.
+- **User decisions:** quickstart via compose + init container **and** a `conduitctl` CLI (cycle 5); a **demo agent on by default** in the quickstart (labeled `demo-agent`, stoppable in one command, never in production manifests); examples with **simulated responses plus Claude and OpenAI** (key-gated; provider SDKs are optional extras); the walkthrough gives agent certs via a **CLI command only** (the UI never serves keys).
+- **Cycles (each ends in a PR; stop after each):**
+  1. `loop/one-command-quickstart`: deployments/quickstart compose pulling the signed GHCR v0.1.0 images; a `conduit-init` container generating CA, gateway, agent and UI credentials into a volume; `make quickstart`; ClickHouse tuned for 2 GiB; the demo agent; a printed next-steps banner; a CI time-to-first-trace job with a budget.
+  2. `loop/agent-examples`: examples/ in Go and Python (hello-trace, tool-calling, async; Claude and OpenAI agents gated on API keys); CI runs the simulated modes.
+  3. `loop/sdk-quickstart`: from_env/NewFromEnv with CONDUIT_CERT_DIR; Python `@traced` and module-level configure/span; Anthropic and OpenAI usage helpers as optional extras; actionable first-run error diagnostics; SDK docs rewritten around a 2-minute path.
+  4. `loop/onboarding-walkthrough`: an in-UI "Get started" page (status checklist, snippets, live "waiting for your first trace", celebration link, next steps), shown only while there's no data and dismissible.
+  5. `loop/conduitctl`: a release-shipped CLI (`quickstart`, `doctor`, `agent-cert`) wrapping the compose flow.
+
 ## 2026-11-04 — Release PR opened
 - PR #11 merged. Opened https://github.com/tjscanlan/conduit/pull/12; no new work until it merges.
 - The user added the PyPI trusted publisher, so 0.1.0 goes to PyPI through `release.yml` rather than a manual twine upload, with no tokens and no TestPyPI dry run. `~/.pypirc` holds placeholders only.
