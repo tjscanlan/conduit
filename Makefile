@@ -1,4 +1,4 @@
-.PHONY: build test lint proto certs docker clean
+.PHONY: build test lint proto roadmap certs docker clean
 
 build:
 	CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/gateway ./cmd/gateway
@@ -15,6 +15,9 @@ lint:
 proto:
 	./scripts/gen-proto.sh
 	./scripts/gen-proto-python.sh
+
+roadmap:
+	python3 scripts/gen-roadmap.py
 
 certs:
 	./scripts/gen-certs.sh

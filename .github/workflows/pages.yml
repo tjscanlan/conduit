@@ -23,6 +23,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: roadmap.md matches roadmap.json
+        run: python3 scripts/gen-roadmap.py && git diff --exit-code docs/roadmap.md
       - name: brand assets match the app
         run: |
           cmp ui/static/img/logo.svg docs/assets/img/logo.svg
