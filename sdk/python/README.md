@@ -10,30 +10,36 @@ Requires Python 3.10 or newer, and a running Conduit gateway with a client certi
 
 ## Quick start
 
-```python
-from conduit_observability import Client, LLMCall, SEVERITY_WARN
+Point it at your agent's certificates. A local stack from Conduit's
+`make quickstart` writes them to `deployments/quickstart/.conduit/certs`:
 
-with Client(
-    "gateway.example.com:4317",
-    tls_cert="certs/research-bot.crt",   # your agent's client certificate
-    tls_key="certs/research-bot.key",
-    tls_ca="certs/ca.crt",               # the only CA trusted for the gateway
-) as client:
-    with client.span("agent.run") as run:
-        run.set_attr("task", "summarize")
-
-        with client.span("llm.call") as llm:          # nested: same trace
-            resp = call_model(prompt)                  # an exception marks the span as an error
-            llm.record_llm_call(LLMCall(model=resp.model, prompt=prompt, completion=resp.text,
-                                        input_tokens=resp.input_tokens, output_tokens=resp.output_tokens))
-            llm.set_ok()
-
-        client.log(SEVERITY_WARN, "retrying tool call", {"attempt": 2})   # linked to agent.run
-        client.gauge("queue_depth", 7, {"queue": "tasks"})
+```bash
+export CONDUIT_CERT_DIR=/path/to/certs CONDUIT_AGENT=my-agent CONDUIT_GATEWAY_ADDR=localhost:4317
 ```
+
+```python
+import conduit_observability as conduit
+
+conduit.configure()                       # from CONDUIT_* variables; errors say what to fix
+
+@conduit.traced()                         # a span per call; errors are recorded
+def search(query): ...
+
+with conduit.span("agent.run") as run:
+    search("conduit")                     # nested under agent.run
+    with conduit.span("llm.call") as llm:
+        msg = anthropic_client.messages.create(...)
+        llm.record_llm_call(conduit.llm_call_from_anthropic(msg))   # real token usage
+    run.set_ok()
+```
+
+For explicit control, use a `Client`: `Client(addr, tls_cert=..., tls_key=..., tls_ca=...)`
+with `client.span(...)`, `client.log(...)`, `client.gauge(...)` and `client.check()`.
 
 ## What you get
 
+- **Two-line setup:** `configure()` reads a certificate directory from the environment and `@traced` instruments functions, sync or async. Misconfiguration fails with an error that says what to fix.
+- **Real LLM usage:** `llm_call_from_anthropic` / `llm_call_from_openai` record the model, tokens and cost from a provider response (install the `[anthropic]` or `[openai]` extra for the SDKs).
 - **Spans** that nest automatically. The current span is tracked with `contextvars`, so nesting is correct across threads and asyncio tasks.
 - **Errors recorded for you:** an exception inside `with client.span(...)` marks the span as an error, records the message, and propagates.
 - **Logs** (`client.log`) linked to the current span, and **metrics** (`client.gauge`, `client.counter`).

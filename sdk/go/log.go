@@ -37,7 +37,7 @@ func (c *Client) Log(ctx context.Context, severity Severity, body string, attrs 
 	}
 	resp, err := c.ingest.IngestBatch(ctx, &pb.IngestBatchRequest{Logs: []*pb.LogRecord{rec}})
 	if err != nil {
-		return fmt.Errorf("ingest log: %w", err)
+		return c.diagnose("ingest log", err)
 	}
 	if resp.GetLogsAccepted() != 1 {
 		if errs := resp.GetErrors(); len(errs) > 0 {

@@ -7,7 +7,74 @@ it requires Go 1.26 or newer.
 For runnable Go agents (hello-trace, tool calling, Claude, OpenAI) that
 work against `make quickstart` with no setup, see [Examples](examples.md).
 
-## 1. Get an agent certificate
+## Quick start (2 minutes)
+
+With a local stack from `make quickstart` (needs only Docker):
+
+```bash
+export CONDUIT_CERT_DIR=$PWD/deployments/quickstart/.conduit/certs CONDUIT_AGENT=my-agent
+go get github.com/tjscanlan/conduit/sdk/go@main   # NewFromEnv and Check are newer than v0.1.0
+```
+
+```go
+client, err := sdk.NewFromEnv() // CONDUIT_CERT_DIR, CONDUIT_AGENT, CONDUIT_GATEWAY_ADDR
+if err != nil {
+	log.Fatal(err) // says what to set or fix
+}
+defer client.Close()
+if err := client.Check(ctx); err != nil { // optional: fail fast if the gateway won't accept us
+	log.Fatal(err)
+}
+
+run, ctx := client.StartSpan(ctx, "agent.run")
+// ... your agent's work; child spans from ctx nest under run ...
+run.SetOK()
+if err := run.End(ctx); err != nil {
+	log.Print(err)
+}
+```
+
+Open <http://localhost:8080>: the trace appears under agent `my-agent`.
+The [examples](examples.md) build on this: tool calls, Claude, and OpenAI.
+
+## Configuration
+
+`sdk.NewFromEnv()` reads:
+
+| Variable | Meaning |
+|---|---|
+| `CONDUIT_CERT_DIR` | Directory with `ca.crt` and `<agent>.crt`/`<agent>.key` (the layout `make quickstart` and `scripts/gen-certs.sh` produce). |
+| `CONDUIT_AGENT` | Which agent's certificate to use from that directory. Optional when it holds exactly one client certificate. |
+| `CONDUIT_TLS_CERT`, `CONDUIT_TLS_KEY`, `CONDUIT_TLS_CA` | Explicit file paths; they override `CONDUIT_CERT_DIR`. |
+| `CONDUIT_GATEWAY_ADDR` | Gateway address, default `localhost:4317` (`OTEL_GATEWAY_ADDR` is accepted too). The host must be in the gateway certificate. |
+
+`sdk.ConfigFromEnv()` returns the resolved `sdk.Config` without connecting;
+`sdk.New(sdk.Config{...})` takes the same settings in code.
+
+## When it doesn't connect
+
+The SDK checks for the common first-run mistakes and says what to do.
+`New` and `NewFromEnv` catch file problems right away:
+
+- **Nothing configured:** names the variables to set.
+- **Several agents in the directory:** lists them and asks for `CONDUIT_AGENT`.
+- **A missing file:** points at `make quickstart` / `scripts/gen-certs.sh`.
+- **A key that belongs to another certificate.**
+- **The gateway's `server.crt` used as an agent certificate.**
+- **An expired, not-yet-valid, or CommonName-less certificate.**
+
+`Check` and every send add a hint to gRPC errors:
+
+- the gateway isn't running or reachable;
+- the gateway's certificate isn't signed by your `ca.crt`;
+- the host isn't in the gateway's certificate (use a name it lists, such as `localhost`);
+- the gateway rejected the agent's certificate (signed by a CA it doesn't trust);
+- the address isn't the gateway's gRPC port;
+- rate limiting.
+
+The original gRPC error stays wrapped, so `status.FromError` still works.
+
+## Production: agent certificates
 
 Every agent authenticates with its own client certificate. The
 certificate's CommonName is the agent's identity: the gateway rate-limits
@@ -25,7 +92,7 @@ This writes `certs/research-bot.crt` and `certs/research-bot.key`. In
 production, issue client certificates from your own PKI, signed by the CA
 the gateway trusts (`TLS_CA`).
 
-## 2. Add the module
+## Add the module
 
 ```bash
 go get github.com/tjscanlan/conduit/sdk/go@v0.1.0
@@ -39,7 +106,7 @@ the generated proto package. To develop against a checkout instead:
 go work init ./your-agent ./path/to/conduit/sdk/go ./path/to/conduit
 ```
 
-## 3. Instrument
+## Instrument
 
 ```go
 import sdk "github.com/tjscanlan/conduit/sdk/go"
@@ -84,6 +151,8 @@ _ = span.End(ctx)
 
 | Call | What it does |
 |------|--------------|
+| `sdk.NewFromEnv()` / `sdk.ConfigFromEnv()` | Builds the client (or just its `Config`) from the environment; see [Configuration](#configuration). |
+| `client.Check(ctx)` | Sends an empty batch to confirm the gateway is reachable and accepts this agent's certificate. Returns a diagnosed error otherwise. |
 | `sdk.New(cfg)` | Connects to the gateway over TLS 1.3. The gateway's certificate is verified against `TLSCACert` only, never the system roots. Returns an error if any certificate file is missing or invalid. |
 | `client.StartSpan(ctx, name)` | Starts a span. If `ctx` carries a span from an earlier `StartSpan`, the new span joins its trace as a child; otherwise it starts a new trace. Returns the span and a context carrying it. |
 | `span.SetAttr(k, v)` | Adds a string attribute. The gateway allows up to 128 attributes, keys up to 128 bytes and values up to 4096 bytes. A span over those limits is rejected. |

@@ -1,75 +1,75 @@
-// Package quickstart connects the examples to a Conduit gateway with as
-// little setup as possible: by default it finds the certificates that
-// `make quickstart` generated and sends as agent "my-agent".
+// Package quickstart points the SDK at the local quickstart unless the
+// environment says otherwise.
 //
-// Environment:
-//
-//	CONDUIT_GATEWAY_ADDR  gateway address (default localhost:4317)
-//	CONDUIT_CERT_DIR      directory with ca.crt and <agent>.crt/.key
-//	                      (default: deployments/quickstart/.conduit/certs,
-//	                      searched for from the current directory upward)
-//	CONDUIT_AGENT         which agent certificate to use (default my-agent)
-//	CONDUIT_UI_URL        where to link traces (default http://localhost:8080)
+// The SDK reads CONDUIT_GATEWAY_ADDR, CONDUIT_CERT_DIR and CONDUIT_AGENT
+// (see sdk.NewFromEnv). When CONDUIT_CERT_DIR isn't set, this fills in the
+// certificates `make quickstart` generated (searching upward from the
+// current directory), as agent "my-agent". CONDUIT_UI_URL sets where trace
+// links point (default http://localhost:8080).
 package quickstart
 
 import (
-	"errors"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	sdk "github.com/tjscanlan/conduit/sdk/go"
 )
 
-func env(key, def string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return def
-}
-
-// Client returns an SDK client configured from the environment.
+// Client returns a client from the environment, after checking that the
+// gateway accepts it, so a setup mistake fails here with a hint.
 func Client() (*sdk.Client, error) {
-	dir := os.Getenv("CONDUIT_CERT_DIR")
-	if dir == "" {
-		var err error
-		if dir, err = findCertDir(); err != nil {
-			return nil, err
+	if os.Getenv(sdk.EnvCertDir) == "" {
+		if dir := findQuickstartCerts(); dir != "" {
+			os.Setenv(sdk.EnvCertDir, dir)
+			if os.Getenv(sdk.EnvAgent) == "" {
+				os.Setenv(sdk.EnvAgent, "my-agent")
+			}
 		}
 	}
-	agent := env("CONDUIT_AGENT", "my-agent")
-	return sdk.New(sdk.Config{
-		GatewayAddr: env("CONDUIT_GATEWAY_ADDR", "localhost:4317"),
-		TLSCert:     filepath.Join(dir, agent+".crt"),
-		TLSKey:      filepath.Join(dir, agent+".key"),
-		TLSCACert:   filepath.Join(dir, "ca.crt"),
-	})
+	c, err := sdk.NewFromEnv() // your own code needs only this line
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := c.Check(ctx); err != nil {
+		c.Close()
+		return nil, err
+	}
+	return c, nil
 }
 
 // TraceURL is where a trace can be seen in the Conduit UI.
 func TraceURL(traceID string) string {
-	return env("CONDUIT_UI_URL", "http://localhost:8080") + "/traces/" + traceID
+	ui := os.Getenv("CONDUIT_UI_URL")
+	if ui == "" {
+		ui = "http://localhost:8080"
+	}
+	return ui + "/traces/" + traceID
 }
 
-func findCertDir() (string, error) {
+func findQuickstartCerts() string {
 	dir, err := os.Getwd()
 	if err != nil {
-		return "", err
+		return ""
 	}
 	for {
 		candidate := filepath.Join(dir, "deployments", "quickstart", ".conduit", "certs")
 		if _, err := os.Stat(filepath.Join(candidate, "ca.crt")); err == nil {
-			return candidate, nil
+			return candidate
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", errors.New("no quickstart certificates found: run `make quickstart` in the repo root, or set CONDUIT_CERT_DIR")
+			return ""
 		}
 		dir = parent
 	}
 }
 
-// Fatal prints err with a hint and exits.
+// Fatal prints err and exits.
 func Fatal(err error) {
 	fmt.Fprintln(os.Stderr, "error:", err)
 	os.Exit(1)

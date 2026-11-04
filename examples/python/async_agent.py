@@ -11,23 +11,22 @@ import asyncio
 import json
 import random
 
+import conduit_observability as conduit
 from conduit_observability import LLMCall
 
 import _quickstart
 import _weather
 
 
-async def get_weather(client, city: str) -> str:
-    with client.span("tool.get_weather") as tool:
-        tool.set_attr("tool.input", json.dumps({"city": city}))
-        await asyncio.sleep(random.uniform(0.2, 0.4))  # pretend network call
-        result = _weather.call("get_weather", {"city": city})
-        tool.set_ok()
-        return result
+@conduit.traced("tool.get_weather")  # works on async functions too
+async def get_weather(city: str) -> str:
+    conduit.current_span().set_attr("tool.input", json.dumps({"city": city}))
+    await asyncio.sleep(random.uniform(0.2, 0.4))  # pretend network call
+    return _weather.call("get_weather", {"city": city})
 
 
-async def fake_llm(client, prompt: str, completion: str, tokens_in: int, tokens_out: int) -> None:
-    with client.span("llm.call") as llm:
+async def fake_llm(prompt: str, completion: str, tokens_in: int, tokens_out: int) -> None:
+    with conduit.span("llm.call") as llm:
         await asyncio.sleep(0.15)
         llm.record_llm_call(LLMCall(model="simulated", prompt=prompt, completion=completion,
                                     input_tokens=tokens_in, output_tokens=tokens_out))
@@ -35,17 +34,18 @@ async def fake_llm(client, prompt: str, completion: str, tokens_in: int, tokens_
 
 
 async def main() -> None:
-    with _quickstart.client() as client:
-        with client.span("agent.run", raise_errors=True) as run:
-            run.set_attr("example", "async-agent").set_attr("question", _weather.QUESTION)
-            await fake_llm(client, _weather.QUESTION, "tool calls: get_weather(Paris), get_weather(Tokyo)", 180, 42)
-            # Both tool calls at once; each gets its own span under agent.run.
-            paris, tokyo = await asyncio.gather(get_weather(client, "Paris"), get_weather(client, "Tokyo"))
-            answer = "Tokyo is warmer." if json.loads(tokyo)["temp_c"] > json.loads(paris)["temp_c"] else "Paris is warmer."
-            await fake_llm(client, f"Results: {paris} {tokyo}", answer, 260, 8)
-            run.set_ok()
-        print("Answer:", answer)
-        print("View it:", _quickstart.trace_url(run.trace_id))
+    with conduit.span("agent.run") as run:
+        run.set_attr("example", "async-agent").set_attr("question", _weather.QUESTION)
+        await fake_llm(_weather.QUESTION, "tool calls: get_weather(Paris), get_weather(Tokyo)", 180, 42)
+        # Both tool calls at once; each gets its own span under agent.run.
+        paris, tokyo = await asyncio.gather(get_weather("Paris"), get_weather("Tokyo"))
+        warmer = "Tokyo" if json.loads(tokyo)["temp_c"] > json.loads(paris)["temp_c"] else "Paris"
+        await fake_llm(f"Results: {paris} {tokyo}", f"{warmer} is warmer.", 260, 8)
+        run.set_ok()
+    print(f"Answer: {warmer} is warmer.")
+    print("View it:", _quickstart.trace_url(run.trace_id))
 
 
+_quickstart.configure()
 asyncio.run(main())
+conduit.shutdown()

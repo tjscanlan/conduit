@@ -16,8 +16,9 @@ agent `my-agent`. To point them somewhere else, set `CONDUIT_GATEWAY_ADDR`,
 `CONDUIT_CERT_DIR` (a directory with `ca.crt` and `<agent>.crt`/`.key`), and
 `CONDUIT_AGENT`.
 
-For Python, install the SDK first: `pip install conduit-observability`, or
-`pip install -r examples/python/requirements.txt` to include the Claude and
+For Python, install the SDK from this checkout first (the examples use
+features newer than the 0.1.0 release on PyPI): `pip install -e sdk/python`,
+or `pip install -e "sdk/python[anthropic,openai]"` to include the Claude and
 OpenAI SDKs.
 
 ## The examples

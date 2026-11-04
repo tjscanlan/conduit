@@ -68,7 +68,7 @@ ${G}${B}Conduit is running.${X}
 ${B}Send a trace from code${X} (as agent "my-agent"; the examples find the certificates):
 
   Go:      cd "$ROOT/examples/go" && go run ./hello-trace
-  Python:  pip install conduit-observability && python "$ROOT/examples/python/hello_trace.py"
+  Python:  pip install -e "$ROOT/sdk/python" && python "$ROOT/examples/python/hello_trace.py"
   More:    tool calling, asyncio, Claude, OpenAI: $ROOT/examples/README.md
   Certs:   $certs ${D}(for your own agent)${X}
 

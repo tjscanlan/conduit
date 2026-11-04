@@ -184,7 +184,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: install the Python SDK and the examples' provider SDKs
-        run: pip install -e sdk/python -r examples/python/requirements.txt
+        run: pip install -e "sdk/python[anthropic,openai]"
       # Claude and OpenAI examples run against scripts/fake-llm-server.py: no keys needed.
       - name: every example's trace reaches the UI
         run: ./scripts/examples-check.sh
