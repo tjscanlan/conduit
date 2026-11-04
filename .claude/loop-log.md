@@ -2,6 +2,33 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — **User directive for the NEXT cycle:** release v0.1.0 (`loop/release-v0-1`)
+- The user asked: make the cycle right after the agent-docs PR merges a dedicated release cycle, and don't wait for more features (prompt access control, batched SDK delivery, OTel, and Helm go to v0.2+).
+- **SDK publishing decision (user): publish both**, a tagged Go module and PyPI.
+  - **PyPI name:** `conduit-sdk` is **taken** by an unrelated project (Conduit.app utils, v0.2.5), which likely also imports as `conduit_sdk`. Plan: distribution `conduit-observability` (free as of 2026-11-04) and a matching import `conduit_observability`. This is a breaking rename, acceptable pre-1.0; call it out in CHANGELOG and docs. The user may override the name.
+  - Go: module paths `github.com/your-org/agent-observability` → `github.com/tjscanlan/conduit`, and `github.com/your-org/conduit-sdk-go` → `github.com/tjscanlan/conduit/sdk/go`, with tag `sdk/go/v0.1.0` (the nested module needs a prefixed tag). Remove the SDK's `replace` directive for the release, or keep it working with a go.work-based dev setup.
+  - PyPI: GitHub OIDC **trusted publishing** (no tokens). **The user must create a pending publisher on PyPI** (project `conduit-observability`, repo tjscanlan/conduit, workflow `release.yml`, environment `pypi`). The loop can't do this; it goes in the PR checklist.
+- Scope: real module paths everywhere (go.mod files, imports, generated `go_package`, docs); a tag-triggered `release.yml` (on `v*`) that builds multi-arch images (gateway, collector, ui) and pushes them to GHCR, signs them (cosign keyless, OIDC), attaches an SBOM (syft or docker buildx `--sbom`) and provenance, creates a GitHub Release with notes from the CHANGELOG, publishes the Python SDK to PyPI and verifies the Go module tag; CHANGELOG.md (Keep a Changelog), a versioning policy (SemVer, pre-1.0 caveats, what's API), and release docs (how to cut a release, verify signatures, upgrade).
+- **Release itself:** the user merges the PR and pushes the `v0.1.0` (and `sdk/go/v0.1.0`) tags. The loop never pushes tags.
+
+## 2026-11-04 — API reference generated from the source
+- Did: `scripts/gen-api-docs.py` (stdlib) generates `docs/api.md` from **proto/*.proto** (services, RPCs, messages, field numbers and types, enums, and comments, via a small line parser that fails loudly on anything it can't parse) and the **validation constants** in internal/schema/*.go plus the gateway's maxBatchItems (it evaluates `N`, `a << b`, `N * time.Hour`, and strings, failing loudly otherwise). The page covers auth and identity, partial-acceptance errors (IngestBatch per-item `errors`, RESOURCE_EXHAUSTED, INVALID_ARGUMENT, UNAUTHENTICATED), and a 14-row limits table with exactly what the gateway enforces.
+  - **Fixed a wrong proto comment found by documenting from source:** `IngestBatch` said "atomically", but it is per-item. Regenerated the Go and Python stubs.
+  - Wired in: a "Reference" section in docs.json (nav, llms.txt, llms-full), `make api-docs` (also run by `make proto`), CI drift check on docs/api.md, the Pages page-exists list, and AGENTS.md and contributing.
+- Verified: generator output is stable (rerun leaves no diff); manifest check OK; llms.txt lists the API reference with its description; builds pass. CI pending.
+- **Stopping point:** the agent-docs theme is done. Opened PR https://github.com/tjscanlan/conduit/pull/11; no new work until it is merged. Then the v0.1.0 release cycle (`loop/release-v0-1`).
+
+## 2026-11-04 — Cycle 11 (`loop/agent-readable-docs`, after PR #10 merged as 6e4c0b6): agent-readable docs, part 1
+- Theme (user directive): make all docs first-class for agents to read.
+- Did:
+  - `docs/_data/docs.json` is the single docs manifest (sections, file, url, title, one-line description). It drives the site sidebar (Guides, SDKs, Project, and "For AI agents"), llms.txt, and checks; the old `nav:` in _config.yml is removed. No front matter was added to the doc files, so the GitHub view stays clean.
+  - `scripts/build-agent-docs.py` (stdlib) runs after the Jekyll build and writes `_site/llms.txt` (llmstxt.org format: H1, summary blockquote, sections of `[title](raw .md URL): description`, an Optional section with llms-full and AGENTS.md), `_site/llms-full.txt` (all pages with source-URL markers, ~52 KB), and `_site/<page>.md` raw Markdown with front matter, Liquid, and generated-notes stripped. The overview's Markdown comes from the README (index.md is an HTML landing page). `--check` fails if a docs/*.md file is missing from the manifest, a listed file is missing, or a description is too short.
+  - Layout: `<link rel="alternate" type="text/markdown">` per page, `rel="alternate"` to llms.txt, and a "View as Markdown" link.
+  - **AGENTS.md** at the repo root: services and layout, exact commands, **invariants learned from real bugs** (identity from the cert only; validate before publishing; reserved metric names; Prometheus escaping; bound params; the time-binding truncation; idempotent migrations; CSP and template.URL; brand contrast; generated-code drift; dependency pinning), how to make a change, and where things are.
+  - CI: the `generated` job runs the manifest check. The Pages build runs the generator, verifies every llms.txt link resolves to a built file and that no Liquid leaked, and the `.md`-link check was narrowed so the intentional `/conduit/*.md` links pass. The README and contributing guide point to llms.txt and AGENTS.md.
+- Verified: ran the generator locally (manifest OK, 9 pages, no Liquid left, the overview built from the README correctly); YAML parses. The Pages build is pending in CI.
+- Next: a machine-readable API reference generated from proto/*.proto (plus SDK APIs), then the PR.
+
 ## 2026-11-04 — **User directive for the NEXT cycle:** agent-first documentation
 - The user asked (during cycle 10): "in the next loop, update all docs so that agents have first-class support to read them".
 - Plan, for the cycle after `loop/metrics-logs-ingestion` merges (e.g. branch `loop/agent-readable-docs`):

@@ -7,6 +7,9 @@
   <link rel="icon" href="{{ '/assets/img/favicon.svg' | relative_url }}" type="image/svg+xml">
   <link rel="stylesheet" href="{{ '/assets/css/site.css' | relative_url }}">
   {% seo title=false %}
+  {%- assign md_name = page.path | split: "/" | last -%}
+  <link rel="alternate" type="text/markdown" href="{{ md_name | relative_url }}" title="This page as Markdown">
+  <link rel="alternate" type="text/plain" href="{{ '/llms.txt' | relative_url }}" title="llms.txt: docs index for AI agents">
   <title>{% if page.url == "/" %}{{ site.title }}: {{ site.description }}{% else %}{{ page.title }} · {{ site.title }} docs{% endif %}</title>
   <script src="{{ '/assets/js/site.js' | relative_url }}" defer></script>
 </head>
@@ -30,10 +33,18 @@
   {% else %}
   <div class="doc-shell">
     <nav class="sidebar" aria-label="Documentation">
+      {%- for section in site.data.docs.sections %}
+      <p class="nav-section">{{ section.name }}</p>
       <ul>
-      {% for item in site.nav %}
+      {%- for item in section.pages %}
         <li><a href="{{ item.url | relative_url }}"{% if page.url == item.url %} aria-current="page"{% endif %}>{{ item.title }}</a></li>
-      {% endfor %}
+      {%- endfor %}
+      </ul>
+      {%- endfor %}
+      <p class="nav-section">For AI agents</p>
+      <ul>
+        <li><a href="{{ '/llms.txt' | relative_url }}">llms.txt</a></li>
+        <li><a href="{{ '/llms-full.txt' | relative_url }}">llms-full.txt</a></li>
       </ul>
     </nav>
     <main class="doc-main">
@@ -41,7 +52,7 @@
         {% unless page.hide_title %}<h1>{{ page.title }}</h1>{% endunless %}
         {{ content }}
       </article>
-      <p class="edit-link"><a href="https://github.com/{{ site.repository }}/edit/main/docs/{{ page.path }}">Edit this page on GitHub</a></p>
+      <p class="edit-link"><a href="{{ md_name | relative_url }}">View as Markdown</a> · <a href="https://github.com/{{ site.repository }}/edit/main/docs/{{ page.path }}">Edit this page on GitHub</a></p>
     </main>
   </div>
   {% endif %}

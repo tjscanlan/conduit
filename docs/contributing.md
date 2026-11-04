@@ -63,7 +63,10 @@ The Go and Python protobuf stubs are committed. After editing anything in
 make proto
 ```
 
-and commit the regenerated files in the same commit. Both generators pin
+and commit the regenerated files in the same commit. `make proto` also
+regenerates `docs/api.md`, the API reference, which is built from the
+`.proto` files and the validation constants in `internal/schema`. Run
+`make api-docs` on its own after changing only a limit. Both generators pin
 their tool versions, and CI fails if the committed code differs from what
 they produce.
 
@@ -96,7 +99,10 @@ Add a new file to `internal/storage/migrations/` named
     `html/template` re-encodes query strings interpolated into an `href`.
   - **Colors:** follow the contrast rules in [brand.md](brand.md).
 - **Docs:** if you change behavior, configuration or a guarantee, update
-  the matching document in `docs/` in the same PR.
+  the matching document in `docs/` in the same PR. If you add a doc, also
+  add it to `docs/_data/docs.json`, with a one-line description. That file
+  drives the site nav and the agent-readable `llms.txt`, and CI fails if a
+  doc is missing from it.
 - **Commits:** use the form `area: what and why`, for example
   `collector: retry failed ClickHouse writes`, and keep each commit to one
   change.

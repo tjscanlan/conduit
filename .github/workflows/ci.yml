@@ -58,10 +58,12 @@ jobs:
           python-version: "3.12"
       - name: install grpcio-tools (pinned in gen-proto-python.sh)
         run: pip install "grpcio-tools==$(sed -n 's/^GRPCIO_TOOLS_VERSION=//p' scripts/gen-proto-python.sh)"
-      - run: make proto roadmap
+      - run: make proto roadmap api-docs
+      - name: docs manifest is complete
+        run: python3 scripts/build-agent-docs.py --check
       - name: check for drift
         run: |
-          gen="proto/ sdk/python/src/conduit_sdk/_proto/ docs/roadmap.md"
+          gen="proto/ sdk/python/src/conduit_sdk/_proto/ docs/roadmap.md docs/api.md"
           if ! git diff --exit-code -- $gen; then
             echo "::error::Generated code is stale. Run 'make proto' and commit the result."
             exit 1
