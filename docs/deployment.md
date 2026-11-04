@@ -111,6 +111,12 @@ put the UI behind Identity-Aware Proxy (see [security.md](security.md#iap-mode-g
 
 ### Upgrading an existing deployment
 
+- **Schema migrations:** the collector applies pending migrations at
+  startup. To migrate before rolling out new collectors, for example in a
+  Kubernetes Job, run `/app migrate` with the collector image and its
+  environment. Never edit a shipped migration file; the collector refuses
+  to start if a checksum changes.
+
 - **NATS stream:** the SPANS stream now uses work-queue retention, so
   acked spans are deleted. JetStream can't change the retention of an
   existing stream. Once, with the gateway and collector stopped, run

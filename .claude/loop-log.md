@@ -2,6 +2,18 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — Cycle 9 (`loop/clickhouse-migrations`, after PR #8 merged as 8013ddc): versioned schema migrations
+- PR #8's first live deploy succeeded (pages run 41754108734, build and deploy green); https://tjscanlan.github.io/conduit/ serves every page, the CSS, and the logo with 200s.
+- Theme: schema migrations, from the roadmap's Now lane (prompt access control still needs a human decision).
+- Did:
+  - `internal/storage/migrations/NNNN_name.sql`, embedded. 0001 is the spans DDL (initial 90-day TTL; retention is reconciled after), 0002 is the trace_summary MV, both byte-for-byte from the old constants, which are removed.
+  - The migrator (stdlib) creates `schema_migrations` (ReplacingMergeTree(applied_at), read with FINAL), validates applied checksums (edits → refuse to start), refuses unknown future versions, applies pending versions in order one statement at a time (comments and trailing `;` stripped), and records each.
+  - Loader rules: NNNN_name.sql, no duplicates, no gaps.
+  - The collector migrates and then reconciles retention (`StoreOptions.ManageSchema`); a new `collector migrate` subcommand does it and exits. The UI no longer runs DDL.
+  - Existing installs adopt automatically (0001 is IF NOT EXISTS, so it's a no-op that gets recorded).
+- Verified: tests with a fake DB cover fresh-then-noop, resume after a mid-run failure, edited and unknown versions refused, loader validation, and idempotency enforced on the real files (one statement, IF [NOT] EXISTS). On the **real engine** (ClickHouse 24.4 `clickhouse local`, 512 MB cap, stdin because Colima doesn't share /private/tmp), both migrations applied twice without error, FINAL de-duplicated the double-recorded rows, and all objects exist with the expected engines. The smoke test now asserts `schema_migrations` = 1..N (CI). Caught a BSD/GNU `seq -s` difference in the smoke command (trailing comma) and switched to `paste -sd,`.
+- **Stopping point:** opened PR https://github.com/tjscanlan/conduit/pull/9; no new work until it is merged.
+
 ## 2026-11-04 — Visual roadmap (single source) + Pages enabled
 - Did:
   - `docs/_data/roadmap.json` is now the roadmap's single source of truth (18 shipped in 6 groups; Now 3, Next 6, Later 4; 3 open decisions).

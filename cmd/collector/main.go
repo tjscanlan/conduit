@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -17,11 +18,23 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
 		os.Exit(health.Probe(cfg.HealthAddr, os.Stdout))
 	}
+	if len(os.Args) > 1 && os.Args[1] == "migrate" {
+		// Apply migrations and reconcile retention, then exit (e.g. a k8s Job
+		// before rolling out collectors). NewClickHouseStore does the work.
+		if _, err := storage.NewClickHouseStore(cfg.ClickHouseDSN, storage.StoreOptions{
+			RetentionDays: cfg.RetentionDays, ManageSchema: true,
+		}); err != nil {
+			fmt.Fprintln(os.Stderr, "migrate:", err)
+			os.Exit(1)
+		}
+		fmt.Println("schema up to date")
+		os.Exit(0)
+	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	// The collector owns the schema's retention; the UI only creates tables if missing.
+	// The collector owns the schema: it applies migrations, then reconciles retention.
 	ch, err := storage.NewClickHouseStore(cfg.ClickHouseDSN, storage.StoreOptions{
-		RetentionDays: cfg.RetentionDays, ManageRetention: true,
+		RetentionDays: cfg.RetentionDays, ManageSchema: true,
 	})
 	if err != nil {
 		logger.Error("clickhouse connect", "err", err)
