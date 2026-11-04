@@ -15,6 +15,7 @@ threat model and the controls that address it.
 | An SDK is tricked into trusting a fake gateway | The SDKs trust only the configured CA (`TLSCACert` / `tls_ca`), never the system roots. |
 | Unauthorized UI access | The UI fails closed: a login form with signed cookies, or GCP IAP JWT verification. `none` must be set explicitly ([below](#ui-authentication)). |
 | XSS, clickjacking and CSRF in the UI | `html/template` escaping, a strict CSP with no inline script or style, `frame-ancestors 'none'`, SameSite cookies, and same-origin checks on POST requests. |
+| Prompts or completions are retained against policy | `STORE_LLM_PAYLOADS=false` drops them at the gateway, before NATS, logs or storage ([architecture](architecture.md#sensitive-data)). |
 | Health endpoints leak internals | `/readyz` reports only `ok` or `unavailable`. Errors go to logs. |
 | Supply-chain compromise | Few dependencies, govulncheck in CI, GitHub Actions pinned by commit SHA, `FROM scratch` images, generated code pinned and drift-checked. |
 

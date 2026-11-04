@@ -19,7 +19,10 @@ func main() {
 	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	ch, err := storage.NewClickHouseStore(cfg.ClickHouseDSN)
+	// The collector owns the schema's retention; the UI only creates tables if missing.
+	ch, err := storage.NewClickHouseStore(cfg.ClickHouseDSN, storage.StoreOptions{
+		RetentionDays: cfg.RetentionDays, ManageRetention: true,
+	})
 	if err != nil {
 		logger.Error("clickhouse connect", "err", err)
 		os.Exit(1)

@@ -129,8 +129,10 @@ put the UI behind Identity-Aware Proxy (see [security.md](security.md#iap-mode-g
 | `TLS_CERT`, `TLS_KEY`, `TLS_CA` | gateway | `/etc/certs/server.crt`, `server.key`, `ca.crt` |
 | `RATE_LIMIT_RPS` | gateway | `100` telemetry items per second per agent |
 | `HEALTH_ADDR` | gateway, collector | `:8081` (liveness and readiness endpoints) |
+| `SPAN_RETENTION_DAYS` | collector | `90` (1–3650). The collector reconciles the spans table's TTL on startup; shortening it deletes data that's now past retention. |
+| `STORE_LLM_PAYLOADS` | gateway | `true`. Set `false` to drop prompts and completions at ingestion; model, tokens and cost are kept. An unrecognized value stops startup. |
 | `NATS_URL` | gateway, collector | `nats://localhost:4222` |
-| `CLICKHOUSE_DSN` | collector, ui | local dev DSN. Always set it explicitly. |
+| `CLICKHOUSE_DSN` | collector, ui | local dev DSN. Always set it explicitly. Add `?secure=true` for TLS to ClickHouse. |
 | `VICTORIAMETRICS_URL` | collector | `http://localhost:8428` |
 | `TEMPO_ENDPOINT` | collector | `http://localhost:4318` |
 | `LISTEN_ADDR` | ui | `:8080` |

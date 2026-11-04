@@ -2,6 +2,30 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-04 — **User directive for the NEXT cycle:** GitHub Pages docs site + visual roadmap
+- The user asked (during cycle 7): "in the next loop, create a github-pages site for the documentation and a visual product roadmap using the brand identity created in the earlier loop".
+- Brand to apply: the logo mark (ui/static/img/logo.svg) and favicon; the palette `#ec0000` `#ec2400` `#ec5300` `#ec9b00` `#ecca00` plus white, with ink `#1c1917`; the contrast rules in docs/brand.md (only #ec0000 as text on white; #ec9b00 and #ecca00 take ink, never white text).
+- Plan: finish cycle 7 (configurable retention) → PR → after it merges, start a branch like `loop/docs-site-roadmap` that builds the GitHub Pages site from docs/ (and a deploy workflow) plus a visual roadmap page.
+
+## 2026-11-04 — Configurable retention; fix ClickHouse TLS downgrade
+- Did:
+  - `SPAN_RETENTION_DAYS` (collector, default 90, range 1–3650) sets the spans TTL in the DDL.
+  - The collector (`StoreOptions.ManageRetention`) reconciles existing tables: it reads `system.tables.engine_full` and runs `ALTER TABLE spans MODIFY TTL` only when the TTL differs. The UI only creates tables if missing.
+  - The days value is a validated int (never user text). A non-numeric env var maps to -1, so the range check rejects it rather than silently defaulting.
+- **Security bug fixed:** `NewClickHouseStore` did `opts.TLS = nil // handled externally via mTLS at network layer`, so a DSN with `secure=true` was **silently downgraded to plaintext** (credentials included); the "network-layer mTLS" didn't exist. TLS now follows the DSN, with a regression test.
+- Verified: ran `clickhouse local` (24.4, 512 MB cap, the demo stack unaffected) to capture the real engine_full normalization (`TTL toDateTime(start_time) + toIntervalDay(90)`) before and after MODIFY TTL; the tests use those exact strings. Also tested DDL rendering, retention range checks before connecting, TLS kept for `secure=true` and absent otherwise, and env parsing. CI smoke now runs with `SPAN_RETENTION_DAYS=30`, so the ALTER path runs on a real ClickHouse, and asserts `toIntervalDay(30)`.
+- **Stopping point:** both data-governance items are done. Opened PR https://github.com/tjscanlan/conduit/pull/7; no new work until it is merged. Then the user's GitHub Pages + visual roadmap cycle.
+
+## 2026-11-04 — Cycle 7 (`loop/payload-retention-controls`, after PR #6 merged as c2ddcbf): STORE_LLM_PAYLOADS
+- Theme: data-governance controls from the roadmap's Now list that need no human decision: a switch to stop storing payloads, then configurable retention.
+- Did:
+  - Gateway `STORE_LLM_PAYLOADS` (default true, so behavior is unchanged). When false, prompts and completions are stripped in `ingestOne` **before validation and before publishing**, so they never reach NATS, logs, or ClickHouse; model, tokens, and cost are kept. Stripping first means an oversized prompt that will be discarded doesn't get the span rejected.
+  - Bool parsing accepts true/false, 1/0, yes/no, on/off. **An unrecognized value stops the gateway at startup** (`validateConfig`), so a typo like `flase` can't silently keep storing prompts.
+  - The handler takes a `spanPublisher` interface (testable without NATS).
+  - Exposed in compose (`${STORE_LLM_PAYLOADS:-true}`) and the k8s configmap. Docs: architecture "Sensitive data", deployment config, a security threat-model row, and the roadmap item moved to Shipped.
+- Verified: tests capture the exact bytes published to NATS. With the switch off, neither payload string appears and model, tokens, and cost are kept; an oversized prompt is rejected with storage on and accepted with it off; payloads are kept by default; config parsing covers all accepted spellings and typos. Gateway vet and tests pass.
+- Next: configurable retention (the 90-day TTL is hard-coded in the DDL; existing tables need `ALTER TABLE … MODIFY TTL`).
+
 ## 2026-11-03 — Formal docs and product roadmap (user directive, cycle 6 continued)
 - Did:
   - README rewritten: logo header, CI/Go/license badges, highlights, an accurate Mermaid architecture diagram, a quick start that works (cert generation, users file, CLICKHOUSE_PASSWORD, `up --wait`, first trace via the smoke agent), a documentation index, project status, and the license.

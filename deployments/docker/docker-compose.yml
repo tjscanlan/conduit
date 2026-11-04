@@ -62,6 +62,8 @@ services:
       TLS_CERT: /etc/certs/server.crt
       TLS_KEY: /etc/certs/server.key
       TLS_CA: /etc/certs/ca.crt
+      # Set to false to drop LLM prompts/completions at ingestion.
+      STORE_LLM_PAYLOADS: ${STORE_LLM_PAYLOADS:-true}
     volumes:
       - ../../certs:/etc/certs:ro
     depends_on: [nats]
@@ -84,6 +86,8 @@ services:
       CLICKHOUSE_DSN: "clickhouse://obs:${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD}@clickhouse:9000/observability"
       VICTORIAMETRICS_URL: "http://victoriametrics:8428"
       TEMPO_ENDPOINT: "http://tempo:4318"
+      # Days of span data to keep; the collector reconciles the table's TTL on start.
+      SPAN_RETENTION_DAYS: ${SPAN_RETENTION_DAYS:-90}
     depends_on:
       nats: { condition: service_started }
       clickhouse: { condition: service_healthy }

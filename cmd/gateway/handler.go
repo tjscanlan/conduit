@@ -23,8 +23,18 @@ import (
 type IngestionHandler struct {
 	pb.UnimplementedIngestionServiceServer
 
-	publisher *storage.NATSPublisher
+	publisher spanPublisher
 	logger    *slog.Logger
+
+	// storePayloads keeps LLM prompts and completions. When false they are
+	// dropped here, before anything is published, logged, or stored.
+	storePayloads bool
+}
+
+// spanPublisher is the part of storage.NATSPublisher the handler uses.
+type spanPublisher interface {
+	Publish(ctx context.Context, data []byte) error
+	Ready(ctx context.Context) error
 }
 
 func NewIngestionHandler(cfg *Config, logger *slog.Logger) (*IngestionHandler, error) {
@@ -32,7 +42,10 @@ func NewIngestionHandler(cfg *Config, logger *slog.Logger) (*IngestionHandler, e
 	if err != nil {
 		return nil, err
 	}
-	return &IngestionHandler{publisher: pub, logger: logger}, nil
+	if !cfg.StoreLLMPayloads {
+		logger.Info("LLM prompt/completion storage disabled (STORE_LLM_PAYLOADS=false); payloads are dropped at the gateway")
+	}
+	return &IngestionHandler{publisher: pub, logger: logger, storePayloads: cfg.StoreLLMPayloads}, nil
 }
 
 // IngestSpan validates and publishes a single span.
@@ -112,6 +125,11 @@ func statusFromProto(st pb.SpanStatus) string {
 func (h *IngestionHandler) ingestOne(ctx context.Context, in telemetry.SpanInput) (bool, string) {
 	if id, ok := auth.IdentityFromContext(ctx); ok {
 		in.AgentName = id.CommonName
+	}
+	if !h.storePayloads {
+		// Before validation: an oversized prompt we're about to discard
+		// shouldn't get the whole span rejected.
+		in.LLMPrompt, in.LLMCompletion = "", ""
 	}
 
 	if _, err := telemetry.Process(in); err != nil {

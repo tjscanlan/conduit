@@ -24,6 +24,10 @@ func main() {
 		os.Exit(health.Probe(cfg.HealthAddr, os.Stdout))
 	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	if err := validateConfig(); err != nil {
+		logger.Error("invalid config", "err", err)
+		os.Exit(1)
+	}
 
 	// Load mTLS credentials
 	tlsCfg, err := loadMTLSConfig(cfg)

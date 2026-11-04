@@ -12,3 +12,5 @@ data:
   TLS_CERT:            "/etc/certs/server.crt"
   TLS_KEY:             "/etc/certs/server.key"
   TLS_CA:              "/etc/certs/ca.crt"
+  SPAN_RETENTION_DAYS: "90"     # collector reconciles the spans table TTL on start
+  STORE_LLM_PAYLOADS:  "true"   # "false" drops LLM prompts/completions at the gateway

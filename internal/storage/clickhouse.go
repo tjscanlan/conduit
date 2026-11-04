@@ -3,6 +3,8 @@ package storage
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -35,7 +37,7 @@ CREATE TABLE IF NOT EXISTS spans (
 ) ENGINE = MergeTree()
 PARTITION BY toYYYYMMDD(start_time)
 ORDER BY (agent_name, trace_id, start_time)
-TTL toDateTime(start_time) + INTERVAL 90 DAY;
+TTL toDateTime(start_time) + INTERVAL %d DAY;
 `
 
 // createTracesView keeps per-trace rollups. Columns are SimpleAggregateFunction
@@ -74,27 +76,90 @@ func (s *ClickHouseStore) Ready(ctx context.Context) error {
 	return s.conn.Ping(ctx)
 }
 
-func NewClickHouseStore(dsn string) (*ClickHouseStore, error) {
-	opts, err := clickhouse.ParseDSN(dsn)
+// Retention bounds for SPAN_RETENTION_DAYS.
+const (
+	DefaultRetentionDays = 90
+	MaxRetentionDays     = 3650
+)
+
+// StoreOptions configures NewClickHouseStore.
+type StoreOptions struct {
+	// RetentionDays is the spans TTL (1..MaxRetentionDays; 0 means the default).
+	RetentionDays int
+	// ManageRetention makes this process reconcile an existing table's TTL to
+	// RetentionDays. Exactly one service (the collector) should set it.
+	ManageRetention bool
+}
+
+func NewClickHouseStore(dsn string, so StoreOptions) (*ClickHouseStore, error) {
+	days := so.RetentionDays
+	if days == 0 {
+		days = DefaultRetentionDays
+	}
+	if days < 1 || days > MaxRetentionDays {
+		return nil, fmt.Errorf("retention must be 1..%d days, got %d", MaxRetentionDays, days)
+	}
+	opts, err := clickhouseOptions(dsn)
 	if err != nil {
 		return nil, err
 	}
-	opts.TLS = nil // handled externally via mTLS at network layer
-
 	conn, err := clickhouse.Open(opts)
 	if err != nil {
 		return nil, err
 	}
 
 	ctx := context.Background()
-	if err := conn.Exec(ctx, createSpansTable); err != nil {
+	if err := conn.Exec(ctx, spansTableDDL(days)); err != nil {
 		return nil, err
 	}
 	if err := conn.Exec(ctx, createTracesView); err != nil {
 		return nil, err
 	}
+	s := &ClickHouseStore{conn: conn}
+	if so.ManageRetention {
+		if err := s.reconcileRetention(ctx, days); err != nil {
+			return nil, fmt.Errorf("reconcile retention: %w", err)
+		}
+	}
+	return s, nil
+}
 
-	return &ClickHouseStore{conn: conn}, nil
+// clickhouseOptions parses the DSN. TLS follows the DSN (secure=true); it was
+// previously forced off, silently downgrading "secure" DSNs to plaintext.
+func clickhouseOptions(dsn string) (*clickhouse.Options, error) {
+	return clickhouse.ParseDSN(dsn)
+}
+
+func spansTableDDL(days int) string {
+	return fmt.Sprintf(createSpansTable, days) // days is a validated int, never user text
+}
+
+var ttlDaysRe = regexp.MustCompile(`TTL toDateTime\(start_time\) \+ toIntervalDay\((\d+)\)`)
+
+// ttlDays extracts the retention from a spans table's engine_full, as
+// ClickHouse normalizes it ("TTL toDateTime(start_time) + toIntervalDay(90)").
+func ttlDays(engineFull string) (int, bool) {
+	m := ttlDaysRe.FindStringSubmatch(engineFull)
+	if m == nil {
+		return 0, false
+	}
+	n, err := strconv.Atoi(m[1])
+	return n, err == nil
+}
+
+// reconcileRetention changes an existing spans table's TTL when it differs
+// from days. Shortening it lets ClickHouse drop rows that are now too old.
+func (s *ClickHouseStore) reconcileRetention(ctx context.Context, days int) error {
+	var engineFull string
+	if err := s.conn.QueryRow(ctx,
+		`SELECT engine_full FROM system.tables WHERE database = currentDatabase() AND name = 'spans'`,
+	).Scan(&engineFull); err != nil {
+		return err
+	}
+	if current, ok := ttlDays(engineFull); ok && current == days {
+		return nil
+	}
+	return s.conn.Exec(ctx, fmt.Sprintf(`ALTER TABLE spans MODIFY TTL toDateTime(start_time) + INTERVAL %d DAY`, days))
 }
 
 type SpanRow struct {
