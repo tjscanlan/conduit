@@ -5,8 +5,8 @@ go 1.26.0
 toolchain go1.26.10
 
 // The main module provides the generated proto types. The replace below is
-// for development in this repo; consumers resolve the tagged v0.1.0 instead.
-require github.com/tjscanlan/conduit v0.1.0
+// for development in this repo; consumers resolve the tagged version instead.
+require github.com/tjscanlan/conduit v0.2.0
 
 require (
 	google.golang.org/grpc v1.83.2

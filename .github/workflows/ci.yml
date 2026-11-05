@@ -178,6 +178,17 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
+      # Between bumping the version and pushing its tag, the images don't exist yet.
+      - name: released images, or build them during release prep
+        run: |
+          v=$(sed -n 's|.*conduit-gateway:\${CONDUIT_VERSION:-\(v[^}]*\)}.*|\1|p' deployments/quickstart/compose.yml)
+          if docker manifest inspect "ghcr.io/tjscanlan/conduit-gateway:$v" >/dev/null 2>&1 &&
+             docker manifest inspect "ghcr.io/tjscanlan/conduit-init:$v" >/dev/null 2>&1; then
+            echo "using the released $v images"
+          else
+            echo "::notice::$v images aren't published yet (release prep): building from source, with a 600s budget"
+            { echo "CONDUIT_FROM_SOURCE=1"; echo "QUICKSTART_BUDGET_SECONDS=600"; } >> "$GITHUB_ENV"
+          fi
       - name: cold quickstart within the 5-minute budget
         run: ./scripts/quickstart-check.sh
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0

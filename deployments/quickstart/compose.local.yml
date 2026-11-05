@@ -1,5 +1,5 @@
-# Build conduit-init and demo-agent from this checkout. quickstart.sh always
-# adds this file, because v0.1.0 predates those two published images.
+# Build conduit-init and demo-agent from this checkout (with
+# compose.source.yml, for CONDUIT_FROM_SOURCE=1).
 services:
   conduit-init:
     image: conduit-quickstart-init:local

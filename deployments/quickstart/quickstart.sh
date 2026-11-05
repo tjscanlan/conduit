@@ -9,7 +9,7 @@
 # Environment:
 #   CONDUIT_UI_PORT        UI port on 127.0.0.1 (default 8080)
 #   CONDUIT_GATEWAY_PORT   gateway port on 127.0.0.1 (default 4317)
-#   CONDUIT_VERSION        image tag (default v0.1.0)
+#   CONDUIT_VERSION        image tag (default v0.2.0)
 #   CONDUIT_DEMO_AGENT=0   don't start the simulated demo-agent
 #   CONDUIT_FROM_SOURCE=1  build gateway, collector and UI from this checkout
 set -eu
@@ -28,12 +28,13 @@ fi
 say()  { printf '%s==>%s %s\n' "$B" "$X" "$*"; }
 die()  { printf '%serror:%s %s\n' "$R" "$X" "$*" >&2; exit 1; }
 
-# compose.local.yml builds conduit-init and demo-agent from this checkout.
+# CONDUIT_FROM_SOURCE=1 builds every Conduit image from this checkout
+# (compose.local.yml: conduit-init and demo-agent; compose.source.yml: the services).
 compose() {
   if [ "${CONDUIT_FROM_SOURCE:-0}" = 1 ]; then
     docker compose --project-directory "$DIR" -f "$DIR/compose.yml" -f "$DIR/compose.local.yml" -f "$DIR/compose.source.yml" "$@"
   else
-    docker compose --project-directory "$DIR" -f "$DIR/compose.yml" -f "$DIR/compose.local.yml" "$@"
+    docker compose --project-directory "$DIR" -f "$DIR/compose.yml" "$@"
   fi
 }
 
@@ -76,7 +77,7 @@ ${G}${B}Conduit is running.${X}
 ${B}Send a trace from code${X} (as agent "my-agent"; the examples find the certificates):
 
   Go:      cd "$ROOT/examples/go" && go run ./hello-trace
-  Python:  pip install -e "$ROOT/sdk/python" && python "$ROOT/examples/python/hello_trace.py"
+  Python:  pip install conduit-observability && python "$ROOT/examples/python/hello_trace.py"
   More:    tool calling, asyncio, Claude, OpenAI: $ROOT/examples/README.md
   Certs:   $certs ${D}(for your own agent)${X}
 
@@ -99,8 +100,8 @@ up() {
     say "Building gateway, collector and UI from source (one at a time, to fit small Docker VMs)"
     for svc in gateway collector ui; do compose build "$svc" || die "building $svc failed"; done
   fi
-  [ "${CONDUIT_FROM_SOURCE:-0}" = 1 ] && label="from source" || label=${CONDUIT_VERSION:-v0.1.0}
-  say "Starting Conduit $label (first run pulls images and builds two small ones; later runs are fast)"
+  [ "${CONDUIT_FROM_SOURCE:-0}" = 1 ] && label="from source" || label=${CONDUIT_VERSION:-v0.2.0}
+  say "Starting Conduit $label (the first run pulls images; later runs are fast)"
   # shellcheck disable=SC2086 # $scale is intentionally split
   if ! compose up -d --wait --wait-timeout 300 $scale; then
     printf '\n' >&2

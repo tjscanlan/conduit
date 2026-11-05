@@ -2,7 +2,7 @@
 inside it. Start here.
 
     make quickstart                          # once, in the repo root
-    pip install -e sdk/python                # the SDK from this checkout
+    pip install conduit-observability
     python examples/python/hello_trace.py
 """
 import conduit_observability as conduit

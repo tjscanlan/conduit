@@ -52,7 +52,7 @@ released images with nothing but Docker:
   `demo=true`) sends a run every 8 seconds. Start without it using
   `CONDUIT_DEMO_AGENT=0`, or stop it with
   `docker compose -p conduit-quickstart stop demo-agent`.
-- **Version:** images default to `v0.1.0`; set `CONDUIT_VERSION` to pick
+- **Version:** images default to `v0.2.0`; set `CONDUIT_VERSION` to pick
   another release.
 
 **Get started:** until your own agent sends a trace, opening the UI lands
@@ -61,8 +61,6 @@ data are working, and shows the commands that make an agent certificate
 (on the command line: the UI never serves keys). It then gives SDK
 snippets and waits, live, for the first trace from an agent other than
 `demo-agent`, linking to it when it arrives. You can hide it from the page.
-It ships in the release after v0.1.0; until then, start the quickstart with
-`CONDUIT_FROM_SOURCE=1` to try it.
 
 `CONDUIT_FROM_SOURCE=1 quickstart.sh` builds the gateway, collector and UI
 from your checkout instead of pulling the release, one image at a time so

@@ -13,7 +13,7 @@ With a local stack from `make quickstart` (needs only Docker):
 
 ```bash
 export CONDUIT_CERT_DIR=$PWD/deployments/quickstart/.conduit/certs CONDUIT_AGENT=my-agent
-go get github.com/tjscanlan/conduit/sdk/go@main   # NewFromEnv and Check are newer than v0.1.0
+go get github.com/tjscanlan/conduit/sdk/go@latest
 ```
 
 ```go
@@ -95,11 +95,11 @@ the gateway trusts (`TLS_CA`).
 ## Add the module
 
 ```bash
-go get github.com/tjscanlan/conduit/sdk/go@v0.1.0
+go get github.com/tjscanlan/conduit/sdk/go@v0.2.0
 ```
 
 The SDK lives in a subdirectory of the repo, so its tags are prefixed:
-`sdk/go/v0.1.0`. It is released together with the main module, which provides
+`sdk/go/v0.2.0`. It is released together with the main module, which provides
 the generated proto package. To develop against a checkout instead:
 
 ```bash
