@@ -2,6 +2,36 @@
 
 You are improving Conduit, a self-directed project. Do exactly ONE focused unit of work per iteration, then stop.
 
+A **loop** (or cycle) is the run of iterations on one `loop/<feature-name>` branch that ends in a PR. When the human gives a theme or program, work it as a series of cycles: one PR per cycle, stopping after each until it merges.
+
+## Project state (update after every loop; see step 6)
+Last updated 2026-11-05, after the v0.2.0 release.
+- **Released:** v0.1.0 (first release) and **v0.2.0** (the activation release, tags `v0.2.0` + `sdk/go/v0.2.0` on `e4b128c`).
+  - **Published artifacts:** 5 cosign-signed multi-arch GHCR images (gateway, collector, ui, init, demo-agent), `conduitctl` binaries with a signed `SHA256SUMS`, `conduit-observability` 0.2.0 on PyPI, and the Go module on proxy.golang.org.
+- **Activation program (done 2026-11-04, PRs #14–#18, released in #19):** the goal was a first trace in under 5 minutes with only Docker.
+  1. #14 one-command quickstart (`make quickstart`, conduit-init, demo-agent, low-memory ClickHouse, CI time-to-first-trace budget);
+  2. #15 runnable examples (Go and Python, simulated plus Claude and OpenAI, CI-checked against `scripts/fake-llm-server.py`);
+  3. #16 SDK quick start (`NewFromEnv`/`configure()`, `Check`/`check()`, actionable error hints, Python `@traced` and provider usage helpers);
+  4. #17 the UI "Get started" page (`/start`; certs via CLI only, the UI never serves keys);
+  5. #18 `conduitctl` (quickstart, status, agent-cert, doctor, down, reset; embedded compose bundle).
+- **Measured:** cold quickstart to the first trace takes 46s in CI and 12–15s on a warm laptop. The released `conduitctl quickstart` was healthy with a first trace in 15s.
+- **CI jobs:** test, generated, python-sdk (3.10, 3.14), vuln (3 modules), docker, compose smoke, quickstart (time to first trace, examples check, from-source Get started walkthrough), conduitctl end to end.
+- **Open follow-ups:**
+  - Prices in `EstimateCostUSD` / `estimate_cost_usd` don't cover current models.
+  - Go has no provider usage helpers (they would add dependencies).
+  - The docker CI job doesn't build the init and demo-agent images; the quickstart job does.
+
+## Lessons that save time
+- **Colima and Docker Desktop share only the home directory** with containers. Bind mounts from `/tmp` arrive empty, so put test state under `$HOME` and remove it afterwards. Colima without buildx uses the classic builder, so Dockerfiles can't use `RUN --mount`.
+- **Linux CI differs from macOS:** `localhost` resolves to ::1 first, and bash has `set -e` inside EXIT traps (use `|| true`). Reproduce Linux-only failures in a `golang:alpine` container.
+- **Releases:**
+  - **Go proxy cache:** proxy.golang.org can cache a transient "not found" for a new `sdk/go/vX` tag for up to about 30 minutes. If the release's consumer check fails that way, check `GOPROXY=direct`, wait for the cache to expire, then `gh run rerun <id> --failed`.
+  - **Pre-tag CI:** between the version-bump PR and the tag, the new images don't exist yet, so CI's quickstart job builds from source.
+- **Local verification:**
+  - Use headless Chrome for UI screenshots: `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --screenshot=… --window-size=1280,1800 URL`. Run a second UI with `UI_AUTH_MODE=none` on another port.
+  - cosign isn't installed locally: run it from `ghcr.io/sigstore/cosign/cosign:v3.0.6`, with files under `$HOME`.
+- **The human's environment:** they run a separate `conduit-demo` compose stack (ports 14317 and 18080) and keep files in `.local/`. Never stop, change or delete either.
+
 ## 0. PR gate (check this first, every iteration)
 Work is delivered by pull request. **While a loop PR is open, the loop does not do new work.**
 - Find the current loop PR: `gh pr list --author @me --state all --search "head:loop/" --limit 1 --json number,state,headRefName,reviewDecision,mergedAt,url`.
@@ -40,7 +70,8 @@ Keep each task small enough to finish in one iteration (roughly one coherent com
 - Match the existing Go style. Add or extend tests for any behavior you change.
 - Don't add heavy dependencies. The project's pitch is "no supply chain surprises," so prefer the standard library and justify any new module in the log.
 - Don't touch `certs/` private keys, secrets, or `deployments/` credentials.
-- Don't run `docker compose` or anything long-running or networked beyond `go` module downloads.
+- Running the quickstart to verify is fine (`deployments/quickstart/quickstart.sh`, `conduitctl`, `scripts/*-check.sh`). Check `docker ps` first, use the default ports only if they're free, and stop or reset your own stack afterwards. Don't run other long-running or networked commands beyond what verification needs.
+- **Releases:** pushing tags (`vX.Y.Z` plus `sdk/go/vX.Y.Z`) publishes permanent artifacts. Only do it when the human asked for that release, from the merged release-prep commit with green CI, following `docs/releasing.md`. Then verify every artifact (signatures, PyPI install, `go get` as a consumer, the released `conduitctl`).
 
 ## 4. Verify, then commit
 - Required: `go build ./... && go vet ./... && go test -race ./...` must pass. If the build was already broken before you started and you didn't fully fix it, you may commit only if you made it strictly less broken and didn't break any package that was passing.
@@ -60,7 +91,13 @@ Prepend an entry to `.claude/loop-log.md` and include it in the commit:
 - Blockers / needs human: … (if any)
 ```
 
-## 6. Open a PR at a reasonable stopping point
+## 6. Update the loop documents after every loop
+Before opening a loop's PR, and again after a release or any work done outside a PR:
+- **`.claude/loop-log.md`:** prepend an entry summarizing the cycle: what shipped, what was verified (and what wasn't), measurements, bugs found and fixed, and follow-ups.
+- **`.claude/loop.md`:** update "Project state" (what's done and released, the CI jobs, open follow-ups, the "Last updated" line) and "Lessons that save time" (anything a future iteration would otherwise rediscover). Also fix any rule in this file that the cycle showed to be wrong or out of date.
+- Commit these with the cycle's work, so the PR carries them.
+
+## 7. Open a PR at a reasonable stopping point
 Open a PR, then stop doing new work until it merges, when any of these holds:
 - A coherent body of work is done: roughly 3 to 8 iterations, a finished theme, or a change a reviewer would want to see before more is built on top.
 - The next task needs a human decision, or would change direction.

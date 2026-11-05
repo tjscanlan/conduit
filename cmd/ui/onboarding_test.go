@@ -151,3 +151,19 @@ func TestGetStartedWhenQueriesFail(t *testing.T) {
 		}
 	}
 }
+
+// The live status box and the landing redirect must agree right away, even
+// while the not-yet-onboarded answer is cached.
+func TestStatusSeeingTheFirstTraceUpdatesLandingAtOnce(t *testing.T) {
+	h, fs := onboardingRouter(t, demoRows())
+	if loc := get(t, h, "/").Header().Get("Location"); loc != "/start" {
+		t.Fatalf("/ -> %q before any real trace", loc)
+	}
+	fs.rows = append(fs.rows, storage.SpanRow{TraceID: "t1", SpanID: "x", SpanName: "run", AgentName: "my-agent", Status: "ok", StartTime: time.Now()})
+	if !strings.Contains(get(t, h, "/start/status").Body.String(), "Your agent is connected") {
+		t.Fatal("status should report the new trace")
+	}
+	if loc := get(t, h, "/").Header().Get("Location"); loc != defaultLandingPath {
+		t.Fatalf("/ -> %q right after the status saw the trace, want %s", loc, defaultLandingPath)
+	}
+}

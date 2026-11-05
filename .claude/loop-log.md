@@ -2,6 +2,31 @@
 
 Newest entries first. Each iteration is driven by `.claude/loop.md`.
 
+## 2026-11-05 — Release v0.2.0, and loop docs wrap-up (`loop/v0-2-wrap-up`)
+- **Release prep:** PR #19 (`loop/release-v0-2`).
+  - Bumped pyproject, sdk/go's require, the k8s images and the quickstart compose defaults to v0.2.0, and wrote the CHANGELOG `[0.2.0]` section.
+  - Docs and examples now use `pip install conduit-observability` and `sdk/go@latest`; the quickstart pulls every image, with compose.local.yml only under FROM_SOURCE.
+  - CI's quickstart job falls back to a from-source build (600s budget) when the version's images don't exist yet. That run: 144s.
+- **Tags:** the human asked for the release ("once you make the release…"). After main's CI passed on the merge commit e4b128c, I tagged `v0.2.0` and `sdk/go/v0.2.0` there and pushed them atomically.
+- **Release run 41938991516:**
+  - All jobs passed except github-release. Its consumer `go get sdk/go@v0.2.0` failed because proxy.golang.org had cached a transient DNS-failure "not found".
+  - `GOPROXY=direct` resolved fine. The proxy recovered after about 9 min of polling; `gh run rerun --failed` then passed and created the Release with 9 assets.
+- **Verified:**
+  - 5 images cosign-verified against the release workflow identity (amd64 and arm64), with a wrong identity rejected.
+  - PyPI 0.2.0 wheel and sdist; the new API and both extras install.
+  - The conduitctl checksums match, `cosign verify-blob` on SHA256SUMS passes, and a tampered file is rejected.
+  - The downloaded darwin_arm64 `conduitctl quickstart` (no checkout, no -images) was healthy with a first trace in 15s, and doctor was all ok.
+  - The released Get started page went from waiting to connected with a trace from the PyPI 0.2.0 SDK.
+  - `go get sdk/go@latest` resolves to v0.2.0.
+  - The documented curl and shasum install path works.
+- **Bug found while verifying:** after the status box showed "connected", `/` kept redirecting to /start for up to 5s, because of the onboarding cache. Fixed: onboardingData marks the cache done when it sees a real trace, with a new test.
+- **Loop docs (the human's request):**
+  - .claude/loop.md gains a "Project state" section (releases, the activation PRs #14–#19, measurements, CI jobs, follow-ups) and "Lessons that save time".
+  - A new step 6 says to **update the loop documents after every loop** (loop-log entry, Project state, lessons, outdated rules). PR steps are renumbered to 7.
+  - Rules updated: running the quickstart to verify is allowed (never the human's conduit-demo stack); tags only when the human asks for a release.
+- **Cleanup:** test state removed from ~/.conduit; the quickstart stack reset.
+- **Next candidates:** current-model price table; build init and demo-agent in the docker CI job; Go provider usage helpers (needs a dependency decision).
+
 ## 2026-11-04 — Activation cycle 5: conduitctl (`loop/conduitctl`)
 - **`cmd/conduitctl`:**
   - **Commands:** quickstart (alias up), status, agent-cert NAME, doctor, down, reset, version. Flags: -dir (default ~/.conduit/quickstart), -ui-port, -gateway-port, -images (default: own version), -no-demo.
