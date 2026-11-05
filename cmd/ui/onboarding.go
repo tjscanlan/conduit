@@ -78,6 +78,12 @@ func (h *handlers) onboardingData(r *http.Request) map[string]any {
 	}
 	data["Status"] = o
 	data["Connected"] = o.LatestTraceID != ""
+	if o.LatestTraceID != "" {
+		// Seen here first: update the cache so / and the nav follow at once.
+		h.onboarding.mu.Lock()
+		h.onboarding.done = true
+		h.onboarding.mu.Unlock()
+	}
 	return data
 }
 
